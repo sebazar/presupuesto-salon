@@ -1,0 +1,1625 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Presupuestos — Salón de Fiestas</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --purple: #7c5cbf; --purple-dark: #5a3fa0; --purple-light: #f0ebff;
+      --green: #25d366; --green-dark: #1a9e4d;
+      --red: #e53e3e; --orange: #dd6b20;
+      --amber: #d97706;
+      --gray-50: #f9fafb; --gray-100: #f0f4f8; --gray-200: #e2e8f0;
+      --gray-400: #a0aec0; --gray-600: #4a5568; --gray-800: #2d3748;
+      --radius: 10px; --shadow: 0 2px 10px rgba(0,0,0,0.07);
+    }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--gray-100); color: var(--gray-800); min-height: 100vh; }
+
+    /* HEADER */
+    header { background: linear-gradient(135deg, var(--purple), var(--purple-dark)); color: white; padding: 20px 20px 16px; text-align: center; }
+    header h1 { font-size: 1.5rem; font-weight: 700; }
+    header p  { opacity: .8; font-size: .85rem; margin-top: 3px; }
+
+    /* NAV */
+    nav { display: flex; background: white; box-shadow: 0 2px 6px rgba(0,0,0,.08); position: sticky; top: 0; z-index: 100; }
+    nav button { flex: 1; padding: 12px 8px; border: none; background: none; cursor: pointer; font-size: .9rem; font-weight: 500; color: var(--gray-400); border-bottom: 3px solid transparent; transition: .2s; font-family: inherit; }
+    nav button.active { color: var(--purple); border-bottom-color: var(--purple); }
+
+    /* LAYOUT */
+    main { max-width: 780px; margin: 0 auto; padding: 16px 14px 60px; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* RESERVATION BANNER */
+    .reserva-banner {
+      display: none; background: linear-gradient(135deg, var(--purple), var(--purple-dark));
+      color: white; border-radius: var(--radius); padding: 12px 16px; margin-bottom: 12px;
+      gap: 10px; align-items: center; justify-content: space-between;
+    }
+    .reserva-banner.show { display: flex; }
+    .reserva-banner p { font-size: .88rem; }
+    .reserva-banner strong { font-size: .95rem; }
+    .reserva-banner button { background: rgba(255,255,255,.2); border: 1px solid rgba(255,255,255,.4); color: white; border-radius: 6px; padding: 5px 12px; font-size: .8rem; cursor: pointer; font-family: inherit; white-space: nowrap; }
+
+    /* ACTION BAR */
+    .action-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+
+    /* CARDS */
+    .card { background: white; border-radius: var(--radius); padding: 20px; margin-bottom: 12px; box-shadow: var(--shadow); }
+    .card-optional { border-top: 3px solid var(--gray-200); }
+    .card-reserva  { border-top: 3px solid var(--purple); }
+    .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 2px solid var(--gray-200); }
+    .card-header h2 { font-size: .95rem; font-weight: 700; color: var(--gray-600); display: flex; align-items: center; gap: 6px; }
+
+    /* SECTION TAGS */
+    .stag { display: inline-block; font-size: .65rem; font-weight: 700; padding: 2px 7px; border-radius: 20px; text-transform: uppercase; letter-spacing: .5px; vertical-align: middle; margin-left: 4px; }
+    .stag-req  { background: #fff5f5; color: var(--red); border: 1px solid #fed7d7; }
+    .stag-opt  { background: var(--gray-50); color: var(--gray-400); border: 1px solid var(--gray-200); }
+    .stag-rsv  { background: var(--purple-light); color: var(--purple); border: 1px solid #c3aef0; }
+
+    /* FORMS */
+    .form-group { margin-bottom: 12px; }
+    .form-group:last-child { margin-bottom: 0; }
+    .flab { display: block; font-size: .78rem; font-weight: 600; color: var(--gray-600); margin-bottom: 4px; text-transform: uppercase; letter-spacing: .4px; }
+    .req-star { color: var(--red); }
+    input[type="text"], input[type="number"], input[type="date"], input[type="time"], input[type="password"], select, textarea {
+      width: 100%; padding: 9px 12px; border: 1.5px solid var(--gray-200); border-radius: 8px;
+      font-size: .9rem; color: var(--gray-800); background: white; transition: border-color .2s; font-family: inherit;
+    }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: var(--purple); }
+    textarea { resize: vertical; min-height: 52px; }
+    /* Field error state */
+    .form-group.err input, .form-group.err select, .form-group.err textarea { border-color: var(--red); }
+    .field-err-msg { color: var(--red); font-size: .75rem; margin-top: 3px; display: none; }
+    .form-group.err .field-err-msg { display: block; }
+
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+
+    /* Day type selector */
+    .day-selector { display: flex; gap: 8px; }
+    .day-option { flex: 1; display: flex; align-items: center; gap: 7px; padding: 9px 11px; border: 1.5px solid var(--gray-200); border-radius: 8px; cursor: pointer; font-size: .85rem; font-weight: 500; color: var(--gray-600); user-select: none; transition: .15s; }
+    .day-option.selected { border-color: var(--purple); background: var(--purple-light); color: var(--purple); }
+    .radio-dot { width: 15px; height: 15px; border: 2px solid var(--gray-400); border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+    .day-option.selected .radio-dot { border-color: var(--purple); background: var(--purple); }
+    .day-option.selected .radio-dot::after { content: ''; width: 5px; height: 5px; background: white; border-radius: 50%; }
+
+    /* Staff hint */
+    .staff-hint { background: var(--gray-50); border-radius: 7px; padding: 9px 12px; font-size: .8rem; color: var(--gray-600); margin-top: 8px; line-height: 1.5; }
+    .staff-hint strong { color: var(--purple); }
+
+    /* Extra hours info box */
+    .hours-info { background: #fffbeb; border: 1px solid #fde68a; border-radius: 7px; padding: 9px 12px; font-size: .8rem; color: #92400e; margin-top: 8px; line-height: 1.5; }
+
+    /* Time badge */
+    .time-badge { padding: 9px 12px; background: var(--gray-50); border: 1.5px solid var(--gray-200); border-radius: 8px; font-size: .9rem; color: var(--gray-600); min-height: 40px; display: flex; align-items: center; }
+
+    /* Discount tabs */
+    .disc-tabs { display: flex; border: 1.5px solid var(--gray-200); border-radius: 8px; overflow: hidden; }
+    .disc-tabs label { flex: 1; text-align: center; padding: 8px 5px; cursor: pointer; font-size: .82rem; font-weight: 500; color: var(--gray-600); border-right: 1px solid var(--gray-200); user-select: none; transition: .15s; }
+    .disc-tabs label:last-child { border-right: none; }
+    .disc-tabs label.on { background: var(--purple); color: white; }
+
+    /* BUTTONS */
+    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 18px; border: none; border-radius: 8px; font-size: .88rem; font-weight: 600; cursor: pointer; transition: opacity .15s, transform .1s; font-family: inherit; white-space: nowrap; }
+    .btn:active { transform: scale(.97); }
+    .btn-primary { background: linear-gradient(135deg, var(--purple), var(--purple-dark)); color: white; }
+    .btn-reserva  { background: linear-gradient(135deg, var(--green), var(--green-dark)); color: white; }
+    .btn-wa       { background: var(--green); color: white; }
+    .btn-outline  { background: white; border: 1.5px solid var(--purple); color: var(--purple); }
+    .btn-gray     { background: var(--gray-100); color: var(--gray-600); border: 1.5px solid var(--gray-200); }
+    .btn-sm       { padding: 5px 12px; font-size: .78rem; }
+
+    /* BUDGET RESULT */
+    .bi { display: flex; justify-content: space-between; align-items: center; padding: 9px 0; border-bottom: 1px solid #f5f5f5; }
+    .bi:last-child { border-bottom: none; }
+    .bi-lbl { color: var(--gray-600); font-size: .88rem; }
+    .bi-sub { font-size: .76rem; color: var(--gray-400); margin-top: 2px; }
+    .bi-amt { font-weight: 700; font-size: .92rem; color: var(--gray-800); white-space: nowrap; margin-left: 10px; }
+    .bi.disc .bi-amt { color: var(--red); }
+    .subtotal-row { display: flex; justify-content: space-between; padding: 11px 0 7px; font-weight: 600; font-size: .92rem; border-top: 2px solid var(--gray-200); margin-top: 5px; color: var(--gray-600); }
+    .total-box { display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; background: linear-gradient(135deg, var(--purple), var(--purple-dark)); border-radius: var(--radius); margin-top: 10px; color: white; }
+    .tb-label { font-size: .95rem; font-weight: 600; opacity: .9; }
+    .tb-amt   { font-size: 1.4rem; font-weight: 800; }
+    .copy-ok  { font-size: .82rem; font-weight: 600; color: var(--green); display: none; align-self: center; }
+
+    /* MODALS */
+    .modal-ov { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 999; align-items: center; justify-content: center; padding: 20px; }
+    .modal-ov.open { display: flex; }
+    .modal-box { background: white; border-radius: var(--radius); padding: 22px; width: 100%; max-width: 520px; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,.3); }
+    .modal-box h3 { font-size: 1rem; font-weight: 700; margin-bottom: 12px; color: var(--gray-800); }
+    .modal-foot { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; align-items: center; }
+    .wa-textarea { width: 100%; min-height: 240px; padding: 11px; border: 1.5px solid var(--gray-200); border-radius: 8px; font-size: .82rem; font-family: monospace; color: var(--gray-800); resize: none; background: var(--gray-50); }
+
+    /* SAVES LIST */
+    .save-item { display: flex; align-items: center; gap: 10px; padding: 11px 0; border-bottom: 1px solid #f5f5f5; }
+    .save-item:last-child { border-bottom: none; }
+    .save-info { flex: 1; min-width: 0; }
+    .save-name { font-weight: 600; font-size: .88rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .save-meta { font-size: .75rem; color: var(--gray-400); margin-top: 2px; }
+    .save-total { font-weight: 700; color: var(--purple); font-size: .88rem; white-space: nowrap; }
+    .save-actions { display: flex; gap: 5px; flex-shrink: 0; }
+    .empty-saves { text-align: center; padding: 28px; color: var(--gray-400); font-size: .875rem; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; }
+    .badge-p { background: #fef3c7; color: #92400e; }
+    .badge-r { background: #d1fae5; color: #065f46; }
+
+    /* ADMIN */
+    .admin-wrap { max-width: 380px; margin: 36px auto; }
+    .price-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #f5f5f5; }
+    .price-row:last-child { border-bottom: none; }
+    .pr-name { font-size: .875rem; color: var(--gray-600); }
+    .pr-sub  { font-size: .76rem; color: var(--gray-400); margin-top: 1px; }
+    .pr-val  { font-weight: 700; color: var(--gray-800); white-space: nowrap; font-size: .9rem; }
+    .edit-panel { display: none; background: var(--gray-50); border-radius: 8px; padding: 14px; margin-top: 10px; border: 1.5px solid var(--gray-200); }
+    .edit-panel.open { display: block; }
+    .edit-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 9px; gap: 10px; }
+    .edit-row label { font-size: .83rem; color: var(--gray-600); flex: 1; }
+    .edit-row input { width: 130px; padding: 6px 10px; border: 1.5px solid var(--gray-200); border-radius: 7px; font-size: .88rem; }
+    .admin-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .admin-bar p { font-size: .83rem; color: var(--gray-400); }
+    .err-msg { color: var(--red); font-size: .78rem; margin-top: 5px; display: none; }
+
+    /* VALIDATION TOAST */
+    .val-toast { display: none; background: #fff5f5; border: 1px solid #fed7d7; border-radius: 8px; padding: 10px 14px; font-size: .83rem; color: var(--red); margin-bottom: 12px; }
+    .val-toast.show { display: block; }
+
+    /* EDIT MODE BANNER */
+    .edit-banner { display: none; background: #fefce8; border: 1.5px solid #fde047; border-radius: var(--radius); padding: 11px 16px; margin-bottom: 10px; align-items: center; justify-content: space-between; gap: 10px; }
+    .edit-banner.show { display: flex; }
+    .edit-banner-info { font-size: .85rem; color: #713f12; }
+    .edit-banner code { font-size: .72rem; background: #fef08a; padding: 1px 6px; border-radius: 4px; color: #92400e; font-family: monospace; }
+    .edit-banner button { background: rgba(0,0,0,.07); border: 1px solid rgba(0,0,0,.15); color: #713f12; border-radius: 6px; padding: 4px 11px; font-size: .78rem; cursor: pointer; font-family: inherit; white-space: nowrap; }
+
+    /* AMBER (update) button */
+    .btn-amber { background: linear-gradient(135deg, #f59e0b, #d97706); color: white; }
+
+    @media (max-width: 560px) {
+      .grid-2, .grid-3 { grid-template-columns: 1fr; }
+      .day-selector { flex-direction: column; }
+      .action-bar { flex-direction: column; }
+      .action-bar .btn { justify-content: center; }
+      .save-actions { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- MODAL: WhatsApp -->
+<div class="modal-ov" id="waModal">
+  <div class="modal-box">
+    <h3>📱 Copiar para WhatsApp</h3>
+    <p style="font-size:.78rem;color:var(--gray-400);margin-bottom:8px;">Pulsá el botón Copiar, o mantené presionado el texto → Seleccionar todo → Copiar.</p>
+    <textarea class="wa-textarea" id="waText" readonly onclick="this.select()"></textarea>
+    <div class="modal-foot">
+      <button class="btn btn-wa" onclick="copyFromModal()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+        Copiar
+      </button>
+      <button class="btn btn-gray" onclick="closeModal('waModal')">Cerrar</button>
+      <span id="waCopied" class="copy-ok">✓ ¡Copiado!</span>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Saves -->
+<div class="modal-ov" id="savesModal">
+  <div class="modal-box">
+    <h3>📂 Presupuestos guardados</h3>
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
+      <label style="font-size:.78rem;font-weight:600;color:var(--gray-600);white-space:nowrap">📅 Fecha:</label>
+      <input type="date" id="syncDateFilter" style="flex:1;min-width:130px;padding:6px 10px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:.85rem" onchange="onSyncDateChange()">
+      <button class="btn btn-sm btn-gray" onclick="clearSyncDate()" title="Quitar filtro de fecha">✕</button>
+    </div>
+    <div id="savesList"></div>
+    <div class="modal-foot">
+      <button id="syncBtn" class="btn btn-outline" onclick="syncFromSheet()">🔄 Sync</button>
+      <span id="syncStatus" style="font-size:.78rem;margin-left:4px;"></span>
+      <div style="flex:1"></div>
+      <button class="btn btn-gray" onclick="closeModal('savesModal')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Confirm clear -->
+<div class="modal-ov" id="clearModal">
+  <div class="modal-box" style="max-width:360px">
+    <h3>🗑️ Limpiar formulario</h3>
+    <p style="font-size:.88rem;color:var(--gray-600);margin-bottom:16px;">¿Seguro que querés borrar todos los datos? Esta acción no se puede deshacer.</p>
+    <div class="modal-foot">
+      <button class="btn" style="background:var(--red);color:white" onclick="doClear()">Sí, limpiar</button>
+      <button class="btn btn-gray" onclick="closeModal('clearModal')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<header>
+  <h1>🎉 Salón de Fiestas</h1>
+  <p>Sistema de presupuestos y reservas</p>
+</header>
+<nav>
+  <button class="active" onclick="switchTab('presupuesto')">📋 Presupuestos</button>
+  <button onclick="switchTab('reserva')">✅ Reservas</button>
+  <button onclick="switchTab('admin')">⚙️ Administración</button>
+</nav>
+
+<main>
+
+  <!-- ══════════════ FORMULARIO (compartido Presupuesto + Reserva) ══════════════ -->
+  <div id="form-area">
+
+    <!-- Reservation banner -->
+    <div class="reserva-banner" id="reservaBanner">
+      <p>Completando reserva: <strong id="bannerName"></strong></p>
+      <button onclick="cancelReservaMode()">✕ Cancelar</button>
+    </div>
+
+    <!-- Edit mode banner -->
+    <div class="edit-banner" id="editModeBanner">
+      <div class="edit-banner-info">✏️ <strong>Modo edición</strong> — ID: <code id="editModeId"></code></div>
+      <button onclick="clearForm()">✕ Cancelar edición</button>
+    </div>
+
+    <!-- Validation toast -->
+    <div class="val-toast" id="valToast"></div>
+
+    <!-- Action bar -->
+    <div class="action-bar">
+      <!-- presupuesto tab -->
+      <button id="btn-wa-top" class="btn btn-wa" onclick="openWA()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+        WhatsApp
+      </button>
+      <button id="btn-detalle-top" class="btn btn-outline" onclick="openWADetalle()">📋 Detalle</button>
+      <button id="btn-savePresupuesto" class="btn btn-primary" onclick="saveAsPresupuesto()">💾 Guardar presupuesto</button>
+      <!-- reserva tab -->
+      <button id="btn-saveReserva-top" class="btn btn-reserva" onclick="saveAsReserva()" style="display:none">✅ Guardar Reserva</button>
+      <!-- shared -->
+      <button class="btn btn-outline" onclick="openSaves()">📂 Guardados</button>
+      <button class="btn btn-gray" onclick="openModal('clearModal')">🗑️ Limpiar</button>
+    </div>
+
+    <!-- DATOS DEL PRESUPUESTO (mandatory) -->
+    <div class="card">
+      <div class="card-header">
+        <h2>📋 Datos del presupuesto <span class="stag stag-req">Obligatorio</span></h2>
+      </div>
+
+      <div class="grid-2">
+        <div class="form-group" id="fg-eventDate">
+          <label class="flab">Fecha del evento <span class="req-star">*</span></label>
+          <input type="date" id="eventDate" onchange="onDateChange()">
+          <div class="field-err-msg">Campo obligatorio</div>
+        </div>
+        <div class="form-group">
+          <label class="flab">Tipo de día</label>
+          <div class="day-selector">
+            <label class="day-option" id="lbl-weekday" onclick="setDayType('weekday')">
+              <span class="radio-dot" id="dot-weekday"></span>Lun–Jue
+            </label>
+            <label class="day-option selected" id="lbl-weekend" onclick="setDayType('weekend')">
+              <span class="radio-dot" id="dot-weekend"></span>Vie/Sáb/Dom/Fer
+            </label>
+          </div>
+          <p style="font-size:.72rem;color:var(--gray-400);margin-top:4px">Se detecta por la fecha. Cambialo si es feriado.</p>
+        </div>
+      </div>
+
+      <!-- Niños -->
+      <div style="margin:16px 0 8px;font-size:.8rem;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:.5px">Niños</div>
+      <div class="grid-2">
+        <div class="form-group" id="fg-numKids">
+          <label class="flab">Cantidad <span class="req-star">*</span></label>
+          <input type="number" id="numKids" value="0" min="0" oninput="recalc()">
+          <div class="field-err-msg">Ingresá al menos niños o adultos</div>
+        </div>
+        <div class="form-group">
+          <label class="flab">Menú <span class="req-star">*</span></label>
+          <select id="kidsMenu" onchange="recalc()">
+            <option value="basic">Básico (incluido)</option>
+            <option value="alt">Alternativo (con cargo)</option>
+          </select>
+        </div>
+      </div>
+      <div class="staff-hint" id="kidsHint" style="display:none"></div>
+
+      <!-- Adultos -->
+      <div style="margin:16px 0 8px;font-size:.8rem;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:.5px">Adultos</div>
+      <div class="grid-2">
+        <div class="form-group" id="fg-numAdults">
+          <label class="flab">Cantidad <span class="req-star">*</span></label>
+          <input type="number" id="numAdults" value="0" min="0" oninput="recalc()">
+          <div class="field-err-msg">Ingresá al menos niños o adultos</div>
+        </div>
+        <div class="form-group">
+          <label class="flab">Menú <span class="req-star">*</span></label>
+          <select id="adultsMenu" onchange="recalc()">
+            <option value="none">Traen su comida (sin cargo)</option>
+            <option value="pizza">Solo pizzas</option>
+            <option value="pizza_calzone">Pizzas y calzones</option>
+            <option value="pizza_calzone_chivito">Pizzas, calzones y chivitos</option>
+          </select>
+        </div>
+      </div>
+      <div class="staff-hint" id="adultsHint" style="display:none"></div>
+    </div>
+
+    <!-- OPCIONES (optional) -->
+    <div class="card card-optional">
+      <div class="card-header">
+        <h2>⚙️ Opciones <span class="stag stag-opt">Opcional</span></h2>
+      </div>
+
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="flab">Horas extra (más de 4 incluidas)</label>
+          <input type="number" id="extraHours" value="0" min="0" max="8" step="1" oninput="recalc()">
+        </div>
+        <div class="form-group">
+          <label class="flab">Personal extra solicitado</label>
+          <input type="number" id="extraStaff" value="0" min="0" oninput="recalc()">
+        </div>
+      </div>
+      <div class="hours-info" id="hoursInfo" style="display:none"></div>
+    </div>
+
+    <!-- DESCUENTO (optional) -->
+    <div class="card card-optional">
+      <div class="card-header">
+        <h2>🏷️ Descuento <span class="stag stag-opt">Opcional</span></h2>
+      </div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="flab">Tipo</label>
+          <div class="disc-tabs">
+            <label id="dtab-none" class="on" onclick="setDiscountType('none')">Sin descuento</label>
+            <label id="dtab-fixed" onclick="setDiscountType('fixed')">Monto fijo</label>
+            <label id="dtab-pct" onclick="setDiscountType('pct')">Porcentaje</label>
+          </div>
+        </div>
+        <div class="form-group" id="discGroup" style="display:none">
+          <label class="flab" id="discLabel">Monto ($)</label>
+          <input type="number" id="discValue" value="0" min="0" oninput="recalc()">
+        </div>
+      </div>
+    </div>
+
+    <!-- DATOS PARA LA RESERVA -->
+    <div class="card card-reserva" id="reservaCard" style="display:none">
+      <div class="card-header">
+        <h2>📝 Datos de la reserva <span class="stag stag-rsv">Para la reserva</span></h2>
+      </div>
+      <p style="font-size:.8rem;color:var(--gray-400);margin-bottom:14px">Completá estos datos para guardar como reserva confirmada.</p>
+
+      <div class="grid-2">
+        <div class="form-group" id="fg-eventName">
+          <label class="flab">Nombre del evento <span class="req-star">*</span></label>
+          <input type="text" id="eventName" placeholder="Ej: Cumpleaños de Sofía" oninput="recalc()">
+          <div class="field-err-msg">Requerido para la reserva</div>
+        </div>
+        <div class="form-group" id="fg-startTime">
+          <label class="flab">Hora de inicio <span class="req-star">*</span></label>
+          <input type="time" id="startTime" onchange="recalc()">
+          <div class="field-err-msg">Requerida para la reserva</div>
+        </div>
+      </div>
+
+      <div class="form-group" id="endTimeGroup" style="display:none">
+        <label class="flab">Hora de fin (calculada)</label>
+        <div class="time-badge" id="endTimeDisplay">—</div>
+      </div>
+
+      <div class="form-group">
+        <label class="flab">Descripción</label>
+        <textarea id="eventDesc" placeholder="Ej: Cumpleaños infantil, temática princesas…" oninput="recalc()"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="flab">Notas / Otros</label>
+        <textarea id="eventOthers" placeholder="Ej: La familia llega 1 hora antes para decorar…" oninput="recalc()"></textarea>
+      </div>
+    </div>
+
+    <!-- Guardar Reserva encima del detalle (solo tab reserva) -->
+    <div id="btn-saveReserva-mid-wrap" style="display:none;margin-bottom:4px">
+      <button id="btn-saveReserva-mid" class="btn btn-reserva" onclick="saveAsReserva()" style="width:100%">✅ Guardar Reserva</button>
+    </div>
+
+    <!-- RESULTADO -->
+    <div class="card">
+      <div class="card-header"><h2>💰 Detalle del presupuesto</h2></div>
+      <div id="budgetLines"></div>
+      <div id="budgetTotal"></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:16px">
+        <button class="btn btn-wa" onclick="openWA()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+          WhatsApp
+        </button>
+        <button class="btn btn-outline" onclick="openWADetalle()">📋 Detalle</button>
+        <button id="btn-savePresupuesto-bot" class="btn btn-primary" onclick="saveAsPresupuesto()">💾 Guardar presupuesto</button>
+        <button id="btn-saveReserva" class="btn btn-reserva" onclick="saveAsReserva()" style="display:none">✅ Guardar Reserva</button>
+      </div>
+    </div>
+
+  </div><!-- /form-area -->
+
+
+  <!-- ══════════════ TAB ADMINISTRACIÓN ══════════════ -->
+  <div id="tab-admin" style="display:none">
+
+    <div class="card admin-wrap" id="adminLoginCard">
+      <div class="card-header"><h2>🔐 Administración</h2></div>
+      <div class="form-group">
+        <label class="flab">Contraseña</label>
+        <input type="password" id="adminPw" placeholder="Contraseña" onkeydown="if(event.key==='Enter') doLogin()">
+      </div>
+      <button class="btn btn-primary" style="width:100%" onclick="doLogin()">Ingresar</button>
+      <p class="err-msg" id="loginErr">Contraseña incorrecta.</p>
+    </div>
+
+    <div id="adminPanel" style="display:none">
+      <div class="admin-bar">
+        <p>Editá los valores. Los cambios se guardan al instante.</p>
+        <button class="btn btn-sm btn-outline" onclick="doLogout()">Cerrar sesión</button>
+      </div>
+
+      <!-- Precio base -->
+      <div class="card">
+        <div class="card-header"><h2>🏠 Precio base (4 hs)</h2><button class="btn btn-sm btn-outline" onclick="toggleEdit('base')">✏️ Editar</button></div>
+        <div id="view-base">
+          <div class="price-row"><div class="pr-name">Lunes a Jueves</div><div class="pr-val" id="pv-baseWeekday"></div></div>
+          <div class="price-row"><div class="pr-name">Vie / Sáb / Dom / Feriado</div><div class="pr-val" id="pv-baseWeekend"></div></div>
+          <div class="price-row"><div class="pr-name">Precio salón por hora extra</div><div class="pr-val" id="pv-extraHour"></div></div>
+        </div>
+        <div class="edit-panel" id="edit-base">
+          <div class="edit-row"><label>Precio semana (L–J)</label><input type="number" id="ei-baseWeekday" step="500"></div>
+          <div class="edit-row"><label>Precio fin de semana / feriado</label><input type="number" id="ei-baseWeekend" step="500"></div>
+          <div class="edit-row"><label>Precio salón por hora extra</label><input type="number" id="ei-extraHour" step="500"></div>
+          <div style="margin-top:4px"><button class="btn btn-sm btn-primary" onclick="saveEdit('base')">Guardar</button><button class="btn btn-sm btn-gray" onclick="toggleEdit('base')" style="margin-left:8px">Cancelar</button></div>
+        </div>
+      </div>
+
+      <!-- Niños -->
+      <div class="card">
+        <div class="card-header"><h2>👶 Niños</h2><button class="btn btn-sm btn-outline" onclick="toggleEdit('kids')">✏️ Editar</button></div>
+        <div id="view-kids">
+          <div class="price-row"><div><div class="pr-name">Niños incluidos en precio base</div><div class="pr-sub">Con menú básico</div></div><div class="pr-val" id="pv-kidsIncluded"></div></div>
+          <div class="price-row"><div class="pr-name">Precio menú básico (por niño)</div><div class="pr-val" id="pv-kidsBasic"></div></div>
+          <div class="price-row"><div class="pr-name">Precio menú alternativo (por niño)</div><div class="pr-val" id="pv-kidsAlt"></div></div>
+        </div>
+        <div class="edit-panel" id="edit-kids">
+          <div class="edit-row"><label>Niños incluidos en base</label><input type="number" id="ei-kidsIncluded"></div>
+          <div class="edit-row"><label>Precio menú básico</label><input type="number" id="ei-kidsBasic" step="50"></div>
+          <div class="edit-row"><label>Precio menú alternativo</label><input type="number" id="ei-kidsAlt" step="50"></div>
+          <div style="margin-top:4px"><button class="btn btn-sm btn-primary" onclick="saveEdit('kids')">Guardar</button><button class="btn btn-sm btn-gray" onclick="toggleEdit('kids')" style="margin-left:8px">Cancelar</button></div>
+        </div>
+      </div>
+
+      <!-- Adultos -->
+      <div class="card">
+        <div class="card-header"><h2>🧑‍🤝‍🧑 Adultos</h2><button class="btn btn-sm btn-outline" onclick="toggleEdit('adults')">✏️ Editar</button></div>
+        <div id="view-adults">
+          <div class="price-row"><div><div class="pr-name">Adultos incluidos en precio base</div><div class="pr-sub">Sin menú</div></div><div class="pr-val" id="pv-adultsIncluded"></div></div>
+          <div class="price-row"><div class="pr-name">Solo pizzas</div><div class="pr-val" id="pv-menuPizza"></div></div>
+          <div class="price-row"><div class="pr-name">Pizzas y calzones</div><div class="pr-val" id="pv-menuPizzaCalzone"></div></div>
+          <div class="price-row"><div class="pr-name">Pizzas, calzones y chivitos</div><div class="pr-val" id="pv-menuFull"></div></div>
+        </div>
+        <div class="edit-panel" id="edit-adults">
+          <div class="edit-row"><label>Adultos incluidos en base</label><input type="number" id="ei-adultsIncluded"></div>
+          <div class="edit-row"><label>Solo pizzas</label><input type="number" id="ei-menuPizza" step="50"></div>
+          <div class="edit-row"><label>Pizzas y calzones</label><input type="number" id="ei-menuPizzaCalzone" step="50"></div>
+          <div class="edit-row"><label>Pizzas, calzones y chivitos</label><input type="number" id="ei-menuFull" step="50"></div>
+          <div style="margin-top:4px"><button class="btn btn-sm btn-primary" onclick="saveEdit('adults')">Guardar</button><button class="btn btn-sm btn-gray" onclick="toggleEdit('adults')" style="margin-left:8px">Cancelar</button></div>
+        </div>
+      </div>
+
+      <!-- Personal -->
+      <div class="card">
+        <div class="card-header"><h2>👤 Personal</h2><button class="btn btn-sm btn-outline" onclick="toggleEdit('staff')">✏️ Editar</button></div>
+        <div id="view-staff">
+          <div class="price-row"><div><div class="pr-name">Recreadores incluidos en base</div><div class="pr-sub">Los adicionales tienen cargo</div></div><div class="pr-val" id="pv-recIncluded"></div></div>
+          <div class="price-row"><div class="pr-name">Ratio recreadores (1 cada X niños)</div><div class="pr-val" id="pv-kidsPerRec"></div></div>
+          <div class="price-row"><div><div class="pr-name">Ratio mozos (1 cada X adultos)</div><div class="pr-sub">Ninguno incluido en base</div></div><div class="pr-val" id="pv-adultsPerWaiter"></div></div>
+          <div class="price-row"><div class="pr-name">Costo por persona de personal (evento)</div><div class="pr-val" id="pv-staffCost"></div></div>
+          <div class="price-row"><div><div class="pr-name">Costo por persona por hora extra</div><div class="pr-sub">Se suma a cada hora adicional del salón</div></div><div class="pr-val" id="pv-staffExtraHr"></div></div>
+        </div>
+        <div class="edit-panel" id="edit-staff">
+          <div class="edit-row"><label>Recreadores incluidos en base</label><input type="number" id="ei-recIncluded"></div>
+          <div class="edit-row"><label>Niños por recreador</label><input type="number" id="ei-kidsPerRec"></div>
+          <div class="edit-row"><label>Adultos por mozo</label><input type="number" id="ei-adultsPerWaiter"></div>
+          <div class="edit-row"><label>Costo por persona (evento, $)</label><input type="number" id="ei-staffCost" step="500"></div>
+          <div class="edit-row"><label>Costo por persona por hora extra ($)</label><input type="number" id="ei-staffExtraHr" step="50"></div>
+          <div style="margin-top:4px"><button class="btn btn-sm btn-primary" onclick="saveEdit('staff')">Guardar</button><button class="btn btn-sm btn-gray" onclick="toggleEdit('staff')" style="margin-left:8px">Cancelar</button></div>
+        </div>
+      </div>
+
+      <!-- Google Sheets -->
+      <div class="card">
+        <div class="card-header"><h2>📊 Google Sheets</h2><button class="btn btn-sm btn-outline" onclick="toggleEdit('sheets')">✏️ Editar</button></div>
+        <div id="view-sheets">
+          <div class="price-row">
+            <div><div class="pr-name">Webhook URL</div><div class="pr-sub">Se envía una fila automáticamente al guardar una Reserva</div></div>
+            <div class="pr-val" id="pv-webhookUrl" style="font-size:.75rem;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
+          </div>
+        </div>
+        <div class="edit-panel" id="edit-sheets">
+          <p style="font-size:.78rem;color:var(--gray-400);margin-bottom:10px">Pegá acá la URL del Apps Script. Ver instrucciones en <code>apps-script-salon.js</code>.</p>
+          <div class="edit-row" style="flex-direction:column;align-items:flex-start;gap:6px">
+            <label>Webhook URL del Apps Script</label>
+            <input type="text" id="ei-webhookUrl" placeholder="https://script.google.com/macros/s/…/exec" style="width:100%">
+          </div>
+          <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-sm btn-primary" onclick="saveWebhookUrl()">Guardar URL</button>
+            <button class="btn btn-sm btn-outline" onclick="testWebhook()">Probar conexión</button>
+            <button class="btn btn-sm btn-gray" onclick="toggleEdit('sheets')">Cancelar</button>
+          </div>
+          <p id="webhookTestResult" style="font-size:.8rem;margin-top:8px;display:none"></p>
+        </div>
+      </div>
+
+      <!-- Seguridad -->
+      <div class="card">
+        <div class="card-header"><h2>🔐 Seguridad</h2><button class="btn btn-sm btn-outline" onclick="toggleEdit('security')">✏️ Editar</button></div>
+        <div id="view-security"><div class="price-row"><div class="pr-name">Contraseña de administración</div><div class="pr-val">••••••••</div></div></div>
+        <div class="edit-panel" id="edit-security">
+          <div class="edit-row"><label>Nueva contraseña</label><input type="password" id="ei-newPw" placeholder="Nueva contraseña"></div>
+          <div class="edit-row"><label>Confirmar</label><input type="password" id="ei-confirmPw" placeholder="Repetir contraseña"></div>
+          <p class="err-msg" id="pwErr">Las contraseñas no coinciden o están vacías.</p>
+          <div style="margin-top:4px"><button class="btn btn-sm btn-primary" onclick="savePw()">Guardar</button><button class="btn btn-sm btn-gray" onclick="toggleEdit('security')" style="margin-left:8px">Cancelar</button></div>
+        </div>
+      </div>
+
+    </div><!-- /adminPanel -->
+  </div><!-- /tab-admin -->
+
+</main>
+
+<script>
+// ════════════════════════════════════════════
+// CONFIG
+// ════════════════════════════════════════════
+const DEFAULTS = {
+  baseWeekday: 20000, baseWeekend: 22000, extraHour: 5000,
+  kidsIncluded: 20, kidsBasic: 200, kidsAlt: 300,
+  adultsIncluded: 10, menuPizza: 300, menuPizzaCalzone: 350, menuFull: 400,
+  recIncluded: 2, kidsPerRec: 10, adultsPerWaiter: 20,
+  staffCost: 2000, staffExtraHr: 250,
+  webhookUrl: '',
+  adminPassword: 'salon2024'
+};
+const cfg = () => { try { const s = localStorage.getItem('salonCfg'); return s ? {...DEFAULTS,...JSON.parse(s)} : {...DEFAULTS}; } catch { return {...DEFAULTS}; } };
+const saveCfg = u => localStorage.setItem('salonCfg', JSON.stringify({...cfg(),...u}));
+
+// ════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════
+let dayType         = 'weekend';
+let discountType    = 'none';
+let lastBudget      = {};
+let completingId    = null;
+let completingName  = null;
+let currentTab      = 'presupuesto';
+let loadedId        = null;   // ID del registro cargado para edición
+
+// ════════════════════════════════════════════
+// TABS
+// ════════════════════════════════════════════
+function switchTab(t) {
+  currentTab = t;
+  const tabs = ['presupuesto', 'reserva', 'admin'];
+  document.querySelectorAll('nav button').forEach((el, i) => el.classList.toggle('active', tabs[i] === t));
+
+  const isForm  = t !== 'admin';
+  document.getElementById('form-area').style.display  = isForm ? '' : 'none';
+  document.getElementById('tab-admin').style.display  = isForm ? 'none' : '';
+
+  const isP = t === 'presupuesto';
+  const isR = t === 'reserva';
+
+  // Reserva card
+  document.getElementById('reservaCard').style.display            = isR ? '' : 'none';
+  // Botón guardar reserva encima del detalle
+  document.getElementById('btn-saveReserva-mid-wrap').style.display = isR ? '' : 'none';
+
+  // Action bar: presupuesto
+  document.getElementById('btn-wa-top').style.display            = isP ? '' : 'none';
+  document.getElementById('btn-detalle-top').style.display       = isP ? '' : 'none';
+  document.getElementById('btn-savePresupuesto').style.display   = isP ? '' : 'none';
+  // Action bar: reserva
+  document.getElementById('btn-saveReserva-top').style.display   = isR ? '' : 'none';
+
+  // Botones del pie
+  document.getElementById('btn-savePresupuesto-bot').style.display = isP ? '' : 'none';
+  document.getElementById('btn-saveReserva').style.display         = isR ? '' : 'none';
+
+  if (t === 'admin') renderAdminValues();
+  if (loadedId) updateEditButtons();
+}
+
+// ════════════════════════════════════════════
+// MODALS
+// ════════════════════════════════════════════
+const openModal  = id => document.getElementById(id).classList.add('open');
+const closeModal = id => document.getElementById(id).classList.remove('open');
+document.querySelectorAll('.modal-ov').forEach(el =>
+  el.addEventListener('click', e => { if (e.target === el) el.classList.remove('open'); }));
+
+// ════════════════════════════════════════════
+// DAY TYPE
+// ════════════════════════════════════════════
+function setDayType(t) {
+  dayType = t;
+  document.getElementById('lbl-weekday').classList.toggle('selected', t === 'weekday');
+  document.getElementById('lbl-weekend').classList.toggle('selected', t === 'weekend');
+  recalc();
+}
+function onDateChange() {
+  const v = document.getElementById('eventDate').value;
+  clearFieldErr('eventDate');
+  if (!v) return;
+  const dow = new Date(v + 'T00:00:00').getDay();
+  setDayType(dow === 0 || dow === 5 || dow === 6 ? 'weekend' : 'weekday');
+}
+
+// ════════════════════════════════════════════
+// DISCOUNT TYPE
+// ════════════════════════════════════════════
+function setDiscountType(t) {
+  discountType = t;
+  ['none','fixed','pct'].forEach(x => document.getElementById('dtab-'+x).classList.toggle('on', x === t));
+  document.getElementById('discGroup').style.display = t !== 'none' ? '' : 'none';
+  document.getElementById('discLabel').textContent = t === 'pct' ? 'Porcentaje (%)' : 'Monto del descuento ($)';
+  recalc();
+}
+
+// ════════════════════════════════════════════
+// HELPERS
+// ════════════════════════════════════════════
+const fmtCur = n => '$\u202F' + Math.round(n).toLocaleString('es-UY');
+const getInt = (id, fb = 0) => Math.max(fb, parseInt(document.getElementById(id).value) || 0);
+const bi = (ico, lbl, sub, amt, disc=false) =>
+  `<div class="bi${disc?' disc':''}"><div><div class="bi-lbl">${ico} ${lbl}</div>${sub?`<div class="bi-sub">${sub}</div>`:''}</div><div class="bi-amt">${disc?'– ':''}${fmtCur(amt)}</div></div>`;
+
+// ════════════════════════════════════════════
+// VALIDATION
+// ════════════════════════════════════════════
+function clearAllErrors() {
+  document.querySelectorAll('.form-group.err').forEach(el => el.classList.remove('err'));
+  document.getElementById('valToast').classList.remove('show');
+}
+function showFieldErr(id) { document.getElementById('fg-' + id)?.classList.add('err'); }
+function clearFieldErr(id) { document.getElementById('fg-' + id)?.classList.remove('err'); }
+
+function validatePresupuesto() {
+  clearAllErrors();
+  const errs = [];
+  if (!document.getElementById('eventDate').value) { showFieldErr('eventDate'); errs.push('Fecha del evento'); }
+  const nk = getInt('numKids'), na = getInt('numAdults');
+  if (nk === 0 && na === 0) {
+    showFieldErr('numKids'); showFieldErr('numAdults');
+    errs.push('Cantidad de invitados (al menos niños o adultos)');
+  }
+  return errs;
+}
+
+function validateReserva() {
+  const errs = validatePresupuesto();
+  if (!document.getElementById('eventName').value.trim()) { showFieldErr('eventName'); errs.push('Nombre del evento'); }
+  if (!document.getElementById('startTime').value)        { showFieldErr('startTime'); errs.push('Hora de inicio'); }
+  return errs;
+}
+
+function showToast(errs) {
+  const t = document.getElementById('valToast');
+  t.innerHTML = '⚠️ Completá los campos obligatorios: <strong>' + errs.join(', ') + '</strong>';
+  t.classList.add('show');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ════════════════════════════════════════════
+// END TIME
+// ════════════════════════════════════════════
+function calcEndTime() {
+  const st  = document.getElementById('startTime').value;
+  const xh  = Math.max(0, getInt('extraHours'));
+  const tot = 4 + xh;
+  const grp = document.getElementById('endTimeGroup');
+
+  if (!st) { grp.style.display = 'none'; return null; }
+  grp.style.display = '';
+  const [h, m] = st.split(':').map(Number);
+  const total  = h * 60 + m + tot * 60;
+  const str    = String(Math.floor(total/60)%24).padStart(2,'0') + ':' + String(total%60).padStart(2,'0') + ' hs';
+  document.getElementById('endTimeDisplay').textContent = str;
+  return str;
+}
+
+// ════════════════════════════════════════════
+// RECALC
+// ════════════════════════════════════════════
+function recalc() {
+  const C = cfg();
+  const endTime  = calcEndTime();
+  const basePrice = dayType === 'weekday' ? C.baseWeekday : C.baseWeekend;
+  const dayLabel  = dayType === 'weekday' ? 'Lunes–Jueves' : 'Vie/Sáb/Dom/Feriado';
+
+  const extraHours = Math.max(0, getInt('extraHours'));
+  const numKids    = getInt('numKids');
+  const numAdults  = getInt('numAdults');
+  const extraStaff = getInt('extraStaff');
+
+  // Staff counts
+  const recsNeeded  = numKids  > 0 ? Math.ceil(numKids  / C.kidsPerRec)      : 0;
+  const actualRecs  = numKids  > 0 ? Math.max(recsNeeded, C.recIncluded)      : 0;
+  const waiters     = numAdults > 0 ? Math.ceil(numAdults / C.adultsPerWaiter) : 0;
+  const totalStaff  = actualRecs + waiters + extraStaff;
+
+  // Extra hours cost: salon + all staff × rate
+  const salonExtraCst = extraHours * C.extraHour;
+  const staffExtraCst = extraHours * totalStaff * C.staffExtraHr;
+  const extraHrTotCst = salonExtraCst + staffExtraCst;
+
+  // Kids
+  const kidsMenuSel  = document.getElementById('kidsMenu').value;
+  const kidsMenuPrc  = kidsMenuSel === 'basic' ? C.kidsBasic : C.kidsAlt;
+  const kidsIncl     = Math.min(numKids, C.kidsIncluded);
+  const kidsExtra    = Math.max(0, numKids - C.kidsIncluded);
+  const kidsExtraCst = kidsExtra * kidsMenuPrc;
+  const kidsUpgrade  = kidsMenuSel === 'alt' ? kidsIncl * (C.kidsAlt - C.kidsBasic) : 0;
+
+  // Adults
+  const adultsMenuSel = document.getElementById('adultsMenu').value;
+  const adultPrices   = { none: 0, pizza: C.menuPizza, pizza_calzone: C.menuPizzaCalzone, pizza_calzone_chivito: C.menuFull };
+  const adultMenuPrc  = adultPrices[adultsMenuSel] || 0;
+  const adultMenuCst  = numAdults * adultMenuPrc;
+
+  // Staff costs (event)
+  const recsExtra  = Math.max(0, recsNeeded - C.recIncluded);
+  const recsCst    = recsExtra * C.staffCost;
+  const waitersCst = waiters * C.staffCost;
+  const xStaffCst  = extraStaff * C.staffCost;
+
+  // Hints
+  const kidsHintEl = document.getElementById('kidsHint');
+  const adultsHintEl = document.getElementById('adultsHint');
+  if (numKids > 0) {
+    kidsHintEl.style.display = '';
+    kidsHintEl.innerHTML = `🎪 <strong>${actualRecs} recreador${actualRecs!==1?'es':''}</strong> (1 cada ${C.kidsPerRec} niños). ${C.recIncluded} incluidos${recsExtra>0?`, <strong>${recsExtra} adicional${recsExtra!==1?'es':''} con cargo (${fmtCur(recsCst)})</strong>`:'— sin cargo extra'}.`;
+  } else { kidsHintEl.style.display = 'none'; }
+  if (numAdults > 0) {
+    adultsHintEl.style.display = '';
+    adultsHintEl.innerHTML = `🧑‍🍳 <strong>${waiters} mozo${waiters!==1?'s':''}</strong> (1 cada ${C.adultsPerWaiter} adultos). Cargo: ${fmtCur(waitersCst)}.`;
+  } else { adultsHintEl.style.display = 'none'; }
+
+  // Extra hours info box
+  const hoursEl = document.getElementById('hoursInfo');
+  if (extraHours > 0) {
+    hoursEl.style.display = '';
+    const totalHrs = 4 + extraHours;
+    hoursEl.innerHTML = `⏱ <strong>${totalHrs} hs en total</strong> (4 base + ${extraHours} extra). Costo extra: salón ${fmtCur(salonExtraCst)} + personal ${totalStaff} × ${extraHours} hs × ${fmtCur(C.staffExtraHr)} = <strong>${fmtCur(extraHrTotCst)}</strong>`;
+  } else { hoursEl.style.display = 'none'; }
+
+  // Subtotal
+  const subtotal = basePrice + extraHrTotCst + kidsExtraCst + kidsUpgrade + adultMenuCst + recsCst + waitersCst + xStaffCst;
+  const discVal  = parseFloat(document.getElementById('discValue')?.value) || 0;
+  let discAmt    = 0;
+  if (discountType === 'fixed') discAmt = Math.min(discVal, subtotal);
+  if (discountType === 'pct')   discAmt = Math.round(subtotal * discVal / 100);
+  const total    = subtotal - discAmt;
+
+  const adultMenuNames = { none:'Traen su comida', pizza:'Solo pizzas', pizza_calzone:'Pizzas y calzones', pizza_calzone_chivito:'Pizzas, calzones y chivitos' };
+  const kidsMenuName   = kidsMenuSel === 'basic' ? 'Menú básico' : 'Menú alternativo';
+
+  let html = '';
+  const totalHrs = 4 + extraHours;
+  html += bi('🏠','Alquiler base',`${dayLabel} · ${totalHrs} hs · ${C.kidsIncluded} niños + ${C.adultsIncluded} adultos + ${C.recIncluded} recreadores incl.`,basePrice);
+  if (extraHrTotCst > 0)  html += bi('⏱',`Horas extra (${extraHours} hs)`,`Salón ${fmtCur(salonExtraCst)} + ${totalStaff} personal × ${extraHours} hs × ${fmtCur(C.staffExtraHr)}`,extraHrTotCst);
+  if (kidsExtraCst > 0)   html += bi('👶',`Niños extra (${kidsExtra})`,`${kidsExtra} × ${fmtCur(kidsMenuPrc)} — ${kidsMenuName}`,kidsExtraCst);
+  if (kidsUpgrade > 0)    html += bi('🍽️',`Upgrade menú niños (${kidsIncl} incl.)`,`Menú alternativo: +${fmtCur(C.kidsAlt-C.kidsBasic)} por niño`,kidsUpgrade);
+  if (adultMenuCst > 0)   html += bi('🍕',`Menú adultos (${numAdults})`,`${numAdults} × ${fmtCur(adultMenuPrc)} — ${adultMenuNames[adultsMenuSel]}`,adultMenuCst);
+  if (recsCst > 0)        html += bi('🎪',`Recreadores extra (${recsExtra})`,`${recsExtra} × ${fmtCur(C.staffCost)}`,recsCst);
+  if (waitersCst > 0)     html += bi('🧑‍🍳',`Mozos (${waiters})`,`${waiters} × ${fmtCur(C.staffCost)}`,waitersCst);
+  if (xStaffCst > 0)      html += bi('👤',`Personal extra (${extraStaff})`,`${extraStaff} × ${fmtCur(C.staffCost)}`,xStaffCst);
+
+  html += `<div class="subtotal-row"><span>Subtotal</span><span>${fmtCur(subtotal)}</span></div>`;
+  if (discAmt > 0) {
+    const dl = discountType==='pct' ? `Descuento ${discVal}%` : 'Descuento';
+    html += bi('🏷️',dl,'',discAmt,true);
+  }
+
+  document.getElementById('budgetLines').innerHTML = html;
+  document.getElementById('budgetTotal').innerHTML = `<div class="total-box"><div class="tb-label">TOTAL</div><div class="tb-amt">${fmtCur(total)}</div></div>`;
+
+  lastBudget = { basePrice, dayLabel, extraHours, totalHrs, salonExtraCst, staffExtraCst, extraHrTotCst,
+    totalStaff, subtotal, discAmt, total, discountType, discVal, endTime,
+    numKids, kidsExtra, kidsIncl, kidsMenuSel, kidsMenuName, kidsMenuPrc, kidsUpgrade, kidsExtraCst,
+    numAdults, adultMenuCst, adultMenuPrc, adultsMenuSel, adultMenuNames,
+    recsExtra, recsCst, waiters, waitersCst, extraStaff, xStaffCst, C };
+}
+
+// ════════════════════════════════════════════
+// WHATSAPP
+// ════════════════════════════════════════════
+// ─── Versión resumida (amigable) ────────────────────────
+function buildWASimple() {
+  const b = lastBudget; if (!b.C) return '';
+  const kidsMenuNames  = { basic: 'menú básico', alt: 'menú alternativo' };
+  const adultMenuNames = { none: 'traen su comida', pizza: 'solo pizzas', pizza_calzone: 'pizzas y calzones', pizza_calzone_chivito: 'pizzas, calzones y chivitos' };
+  const kidsMenuSel   = document.getElementById('kidsMenu').value;
+  const adultsMenuSel = document.getElementById('adultsMenu').value;
+  const numKids   = b.numKids   || 0;
+  const numAdults = b.numAdults || 0;
+
+  let lines = [];
+  lines.push(`🎉 ¡Te quedaría un presupuesto de *${fmtCur(b.total)}*!`);
+  lines.push('');
+
+  if (numKids > 0)
+    lines.push(`👶 Menú para *${numKids} niño${numKids !== 1 ? 's' : ''}* — ${kidsMenuNames[kidsMenuSel] || kidsMenuSel}`);
+
+  if (numAdults > 0 && adultsMenuSel !== 'none')
+    lines.push(`🍽️ Menú para *${numAdults} adulto${numAdults !== 1 ? 's' : ''}* — ${adultMenuNames[adultsMenuSel]}`);
+  else if (numAdults > 0)
+    lines.push(`🧑‍🤝‍🧑 *${numAdults} adulto${numAdults !== 1 ? 's' : ''}* — traen su comida`);
+
+  const staffParts = [];
+  if (b.actualRecs  > 0) staffParts.push(`🎪 ${b.actualRecs} animador${b.actualRecs !== 1 ? 'es' : ''}`);
+  if (b.waiters     > 0) staffParts.push(`🧑‍🍳 ${b.waiters} mozo${b.waiters !== 1 ? 's' : ''}`);
+  if (b.extraStaff  > 0) staffParts.push(`👤 ${b.extraStaff} personal extra`);
+  if (staffParts.length) lines.push(staffParts.join(' · '));
+
+  if (b.extraHours > 0)
+    lines.push(`⏱️ +${b.extraHours} hora${b.extraHours !== 1 ? 's' : ''} extra`);
+
+  if (b.discAmt > 0)
+    lines.push(`🏷️ Con descuento aplicado${b.discountType === 'pct' ? ' (' + b.discVal + '%)' : ''}`);
+
+  lines.push('');
+  lines.push('✨ Incluye decoración básica del salón, vajilla, servilletas y tarjetas digitales 🎊');
+  lines.push('🎡 Toro mecánico o agujas giratorias y castillo inflable ¡sin costo! 🆓');
+  lines.push('');
+  lines.push('¡A las órdenes! 🙌');
+  return lines.join('\n');
+}
+
+// ─── Versión detallada (desglose completo) ───────────────
+function buildWAText() {
+  const b = lastBudget; if (!b.C) return '';
+  const eventName   = document.getElementById('eventName').value || '—';
+  const eventDesc   = document.getElementById('eventDesc').value;
+  const eventOthers = document.getElementById('eventOthers').value;
+  const dateVal     = document.getElementById('eventDate').value;
+  const startTime   = document.getElementById('startTime').value;
+
+  let dateStr = '—';
+  if (dateVal) {
+    const dt = new Date(dateVal + 'T00:00:00');
+    const D=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+    const M=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+    dateStr = `${D[dt.getDay()]} ${dt.getDate()} de ${M[dt.getMonth()]} de ${dt.getFullYear()}`;
+  }
+
+  let t = `🎉 *PRESUPUESTO — SALÓN DE FIESTAS*\n━━━━━━━━━━━━━━━━━━━━━\n\n`;
+  t += `📋 *Evento:* ${eventName}\n`;
+  if (eventDesc)   t += `📝 *Descripción:* ${eventDesc}\n`;
+  t += `📅 *Fecha:* ${dateStr}\n`;
+  if (startTime)   t += `⏰ *Horario:* ${startTime} hs a ${b.endTime || '—'} (${b.totalHrs} hs)\n`;
+  if (eventOthers) t += `📌 *Notas:* ${eventOthers}\n`;
+  t += `\n━━━━━━━━━━━━━━━━━━━━━\n💰 *DETALLE*\n━━━━━━━━━━━━━━━━━━━━━\n\n`;
+  t += `🏠 *Alquiler base:* ${fmtCur(b.basePrice)}\n   └ ${b.dayLabel} · ${b.totalHrs} hs\n`;
+  if (b.extraHrTotCst>0) t += `\n⏱ *Horas extra (${b.extraHours} hs):* ${fmtCur(b.extraHrTotCst)}\n   └ Salón ${fmtCur(b.salonExtraCst)} + ${b.totalStaff} personal × ${fmtCur(b.C.staffExtraHr)}/hs\n`;
+  if (b.kidsExtraCst>0)  t += `\n👶 *Niños extra (${b.kidsExtra}):* ${fmtCur(b.kidsExtraCst)}\n   └ ${b.kidsMenuName} · ${fmtCur(b.kidsMenuPrc)}/niño\n`;
+  if (b.kidsUpgrade>0)   t += `\n🍽️ *Upgrade menú niños:* ${fmtCur(b.kidsUpgrade)}\n`;
+  if (b.adultMenuCst>0)  t += `\n🍕 *Menú adultos (${b.numAdults} pers.):* ${fmtCur(b.adultMenuCst)}\n   └ ${b.adultMenuNames[b.adultsMenuSel]} · ${fmtCur(b.adultMenuPrc)}/pers.\n`;
+  if (b.recsCst>0)       t += `\n🎪 *Recreadores extra (${b.recsExtra}):* ${fmtCur(b.recsCst)}\n`;
+  if (b.waitersCst>0)    t += `\n🧑‍🍳 *Mozos (${b.waiters}):* ${fmtCur(b.waitersCst)}\n`;
+  if (b.xStaffCst>0)     t += `\n👤 *Personal extra (${b.extraStaff}):* ${fmtCur(b.xStaffCst)}\n`;
+  t += `\n━━━━━━━━━━━━━━━━━━━━━\n*Subtotal: ${fmtCur(b.subtotal)}*\n`;
+  if (b.discAmt>0) { const dl=b.discountType==='pct'?`Descuento ${b.discVal}%`:'Descuento'; t += `🏷️ *${dl}: – ${fmtCur(b.discAmt)}*\n`; }
+  t += `\n✅ *TOTAL: ${fmtCur(b.total)}*\n━━━━━━━━━━━━━━━━━━━━━\n_Precios en pesos uruguayos ($UY)_`;
+  return t;
+}
+
+function openWA() {
+  document.querySelector('#waModal h3').textContent = '📱 Presupuesto resumido';
+  const text = buildWASimple();
+  document.getElementById('waText').value = text;
+  openModal('waModal');
+  setTimeout(() => { const ta = document.getElementById('waText'); ta.focus(); ta.select(); }, 200);
+  tryClipboard(text, 'waCopied');
+}
+function openWADetalle() {
+  document.querySelector('#waModal h3').textContent = '📋 Presupuesto detallado';
+  const text = buildWAText();
+  document.getElementById('waText').value = text;
+  openModal('waModal');
+  setTimeout(() => { const ta = document.getElementById('waText'); ta.focus(); ta.select(); }, 200);
+  tryClipboard(text, 'waCopied');
+}
+function copyFromModal() { tryClipboard(document.getElementById('waText').value, 'waCopied'); }
+function tryClipboard(text, feedId) {
+  const ok = () => { const el = document.getElementById(feedId); if(el){el.style.display='inline';setTimeout(()=>el.style.display='none',3000);} };
+  if (navigator.clipboard?.writeText) { navigator.clipboard.writeText(text).then(ok).catch(() => fallbackCopy(text, ok)); }
+  else fallbackCopy(text, ok);
+}
+function fallbackCopy(text, cb) {
+  try { const ta=document.createElement('textarea'); ta.value=text; ta.style.cssText='position:fixed;top:-9999px;opacity:0'; document.body.appendChild(ta); ta.focus(); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); cb&&cb(); } catch(e){}
+}
+
+// ════════════════════════════════════════════
+// CLEAR
+// ════════════════════════════════════════════
+function clearForm() {
+  ['eventDate','eventName','eventDesc','eventOthers'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('startTime').value  = '';
+  document.getElementById('numKids').value    = '0';
+  document.getElementById('numAdults').value  = '0';
+  document.getElementById('extraHours').value = '0';
+  document.getElementById('extraStaff').value = '0';
+  document.getElementById('kidsMenu').value   = 'basic';
+  document.getElementById('adultsMenu').value = 'none';
+  document.getElementById('discValue').value  = '0';
+  document.getElementById('endTimeGroup').style.display = 'none';
+  setDayType('weekend');
+  setDiscountType('none');
+  clearAllErrors();
+  cancelReservaMode();
+  clearEditMode();
+  recalc();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+function doClear() {
+  clearForm();
+  closeModal('clearModal');
+}
+
+// ════════════════════════════════════════════
+// SAVE / LOAD
+// ════════════════════════════════════════════
+const getSaves = () => { try { return JSON.parse(localStorage.getItem('salonSaves') || '[]'); } catch { return []; } };
+const putSaves = arr => localStorage.setItem('salonSaves', JSON.stringify(arr));
+
+function generateSaveName(dateVal, timeVal, excludeId = null) {
+  const d  = dateVal ? new Date(dateVal + 'T00:00:00') : new Date();
+  const M  = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  let base = `${d.getDate()} ${M[d.getMonth()]} ${d.getFullYear()}`;
+  if (timeVal) base += ` · ${timeVal}`;
+  const existing = getSaves().filter(s => s.id !== excludeId).map(s => s.saveName);
+  if (!existing.includes(base)) return base;
+  for (let i = 2; i < 100; i++) { const c = `${base} (${i})`; if (!existing.includes(c)) return c; }
+  return base + ' · ' + Date.now();
+}
+
+function getFormState() {
+  return {
+    eventName: document.getElementById('eventName').value,
+    eventDesc: document.getElementById('eventDesc').value,
+    eventOthers: document.getElementById('eventOthers').value,
+    eventDate: document.getElementById('eventDate').value,
+    startTime: document.getElementById('startTime').value,
+    numKids: document.getElementById('numKids').value,
+    numAdults: document.getElementById('numAdults').value,
+    extraHours: document.getElementById('extraHours').value,
+    extraStaff: document.getElementById('extraStaff').value,
+    kidsMenu: document.getElementById('kidsMenu').value,
+    adultsMenu: document.getElementById('adultsMenu').value,
+    discValue: document.getElementById('discValue').value,
+    dayType, discountType
+  };
+}
+
+function restoreFormState(s) {
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v ?? ''; };
+  set('eventName',  s.eventName);
+  set('eventDesc',  s.eventDesc);
+  set('eventOthers',s.eventOthers);
+  set('eventDate',  s.eventDate);
+  set('startTime',  s.startTime || '');
+  set('numKids',    s.numKids    || '0');
+  set('numAdults',  s.numAdults  || '0');
+  set('extraHours', s.extraHours || '0');
+  set('extraStaff', s.extraStaff || '0');
+  set('kidsMenu',   s.kidsMenu   || 'basic');
+  set('adultsMenu', s.adultsMenu || 'none');
+  set('discValue',  s.discValue  || '0');
+  setDayType(s.dayType || 'weekend');
+  setDiscountType(s.discountType || 'none');
+  recalc();
+}
+
+function saveAsPresupuesto() {
+  const errs = validatePresupuesto();
+  if (errs.length) { showToast(errs); return; }
+  clearAllErrors();
+  const saves   = getSaves();
+  const savedAt = new Date().toISOString();
+  const form    = getFormState();
+  const total   = lastBudget.total || 0;
+
+  if (loadedId) {
+    const idx = saves.findIndex(s => s.id === loadedId);
+    if (idx !== -1) {
+      const newName = generateSaveName(
+        document.getElementById('eventDate').value,
+        document.getElementById('startTime').value || '',
+        loadedId
+      );
+      saves[idx] = { ...saves[idx], saveName: newName, total, savedAt, form, synced: false };
+      putSaves(saves);
+      postToWebhook(saves[idx]);
+      const btn = event.currentTarget;
+      clearForm();
+      flashBtn(btn, '✓ Actualizado', '#d97706');
+      return;
+    }
+  }
+
+  // Nuevo registro
+  const id   = Date.now().toString();
+  const name = generateSaveName(
+    document.getElementById('eventDate').value,
+    document.getElementById('startTime').value || ''
+  );
+  const entry = { id, saveName: name, status: 'presupuesto', total, savedAt, form };
+  saves.unshift(entry);
+  putSaves(saves);
+  postToWebhook(entry);
+  const btn = event.currentTarget;
+  clearForm();
+  flashBtn(btn, '✓ Guardado', 'var(--green)');
+}
+
+function saveAsReserva() {
+  const errs = validateReserva();
+  if (errs.length) { showToast(errs); return; }
+  clearAllErrors();
+
+  const saves   = getSaves();
+  const form    = getFormState();
+  const total   = lastBudget.total || 0;
+  const savedAt = new Date().toISOString();
+
+  const timeVal = document.getElementById('startTime').value || '';
+  const dateVal = document.getElementById('eventDate').value;
+
+  if (completingId) {
+    // Convertir presupuesto → reserva
+    const idx = saves.findIndex(s => s.id === completingId);
+    if (idx !== -1) {
+      saves[idx] = { ...saves[idx], status: 'reserva', total, savedAt, form, synced: false };
+      putSaves(saves);
+      postToWebhook(saves[idx]);             // inserta/actualiza en hoja Reservas
+      deleteFromSheet(completingId, 'Presupuestos'); // borra de hoja Presupuestos
+      const btn = event.currentTarget;
+      clearForm();
+      flashBtn(btn, '✓ Convertida a reserva', 'var(--green-dark)');
+      return;
+    }
+  }
+
+  if (loadedId) {
+    const idx = saves.findIndex(s => s.id === loadedId);
+    if (idx !== -1) {
+      const newName = generateSaveName(
+        document.getElementById('eventDate').value,
+        document.getElementById('startTime').value || '',
+        loadedId
+      );
+      saves[idx] = { ...saves[idx], saveName: newName, total, savedAt, form, synced: false };
+      putSaves(saves);
+      postToWebhook(saves[idx]);
+      const btn = event.currentTarget;
+      clearForm();
+      flashBtn(btn, '✓ Reserva actualizada', 'var(--green-dark)');
+      return;
+    }
+  }
+
+  // Nueva reserva
+  const id   = Date.now().toString();
+  const name = generateSaveName(dateVal, timeVal);
+  const entry = { id, saveName: name, status: 'reserva', total, savedAt, form };
+  saves.unshift(entry);
+  putSaves(saves);
+  postToWebhook(entry);
+  flashBtn(event.currentTarget, '✓ Reserva guardada', 'var(--green-dark)');
+  clearForm();
+}
+
+function flashBtn(btn, label, color) {
+  if (!btn) return;
+  const orig = btn.innerHTML; const origBg = btn.style.background;
+  btn.innerHTML = label; btn.style.background = color;
+  setTimeout(() => { btn.innerHTML = orig; btn.style.background = origBg; }, 2200);
+}
+
+// ════════════════════════════════════════════
+// SAVES LIST
+// ════════════════════════════════════════════
+function openSaves() {
+  const filter = currentTab === 'reserva' ? 'reserva' : 'presupuesto';
+  document.querySelector('#savesModal h3').textContent =
+    filter === 'reserva' ? '📂 Reservas guardadas' : '📂 Presupuestos guardados';
+  renderSavesList(filter);
+  openModal('savesModal');
+}
+
+function renderSavesList(filter = 'presupuesto') {
+  let saves = getSaves().filter(s => s.status === filter);
+  // Apply date filter if set
+  const dateFilterEl = document.getElementById('syncDateFilter');
+  const dateFilter   = dateFilterEl ? dateFilterEl.value : '';
+  if (dateFilter) saves = saves.filter(s => s.form?.eventDate === dateFilter);
+  const el    = document.getElementById('savesList');
+  const label = filter === 'reserva' ? 'reservas' : 'presupuestos';
+  if (!saves.length) {
+    el.innerHTML = `<div class="empty-saves">No hay ${label} guardados${dateFilter ? ' para esa fecha' : ' todavía'}.</div>`; return;
+  }
+  const M = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  el.innerHTML = saves.map(s => {
+    let dateStr = '—';
+    if (s.form?.eventDate) { const d = new Date(s.form.eventDate + 'T00:00:00'); dateStr = `${d.getDate()} ${M[d.getMonth()]} ${d.getFullYear()}`; }
+    const sa = new Date(s.savedAt);
+    const saStr = `${sa.getDate()} ${M[sa.getMonth()]} · ${String(sa.getHours()).padStart(2,'0')}:${String(sa.getMinutes()).padStart(2,'0')}`;
+    const convertBtn = filter === 'presupuesto'
+      ? `<button class="btn btn-sm btn-reserva" onclick="startCompletingReservation('${s.id}')">→ Reserva</button>`
+      : '';
+    return `<div class="save-item">
+      <div class="save-info">
+        <div class="save-name">${escHtml(s.saveName)}</div>
+        <div class="save-meta">Evento: ${dateStr} · Guardado: ${saStr}</div>
+      </div>
+      <div class="save-total">${fmtCur(s.total||0)}</div>
+      <div class="save-actions">
+        <button class="btn btn-sm btn-outline" onclick="loadBudget('${s.id}')">Cargar</button>
+        ${convertBtn}
+        <button class="btn btn-sm btn-gray" onclick="deleteBudget('${s.id}')" title="Eliminar">🗑️</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function loadBudget(id) {
+  const s = getSaves().find(x => x.id === id);
+  if (!s) return;
+  restoreFormState(s.form);
+  clearAllErrors();
+  cancelReservaMode();
+  closeModal('savesModal');
+  switchTab(s.status === 'reserva' ? 'reserva' : 'presupuesto');
+  setEditMode(id);  // sets loadedId + banner + button styles (after switchTab so buttons are visible)
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function startCompletingReservation(id) {
+  const s = getSaves().find(x => x.id === id);
+  if (!s) return;
+  restoreFormState(s.form);
+  clearAllErrors();
+  completingId   = id;
+  completingName = s.saveName;
+  document.getElementById('bannerName').textContent = s.saveName;
+  document.getElementById('reservaBanner').classList.add('show');
+  closeModal('savesModal');
+  switchTab('reserva');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function cancelReservaMode() {
+  completingId = null; completingName = null;
+  document.getElementById('reservaBanner').classList.remove('show');
+}
+
+// ════════════════════════════════════════════
+// EDIT MODE UI
+// ════════════════════════════════════════════
+const PRESUPUESTO_BTN_IDS = ['btn-savePresupuesto', 'btn-savePresupuesto-bot'];
+const RESERVA_BTN_IDS     = ['btn-saveReserva-top', 'btn-saveReserva-mid', 'btn-saveReserva'];
+
+function setEditMode(id) {
+  loadedId = id;
+  const banner = document.getElementById('editModeBanner');
+  if (banner) banner.classList.add('show');
+  const idEl = document.getElementById('editModeId');
+  if (idEl) idEl.textContent = id;
+  updateEditButtons();
+}
+
+function clearEditMode() {
+  loadedId = null;
+  const banner = document.getElementById('editModeBanner');
+  if (banner) banner.classList.remove('show');
+  resetSaveButtons();
+}
+
+function updateEditButtons() {
+  PRESUPUESTO_BTN_IDS.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.innerHTML = '✏️ Actualizar presupuesto';
+    el.classList.remove('btn-primary', 'btn-reserva');
+    el.classList.add('btn-amber');
+  });
+  RESERVA_BTN_IDS.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.innerHTML = '✏️ Actualizar reserva';
+    el.classList.remove('btn-primary', 'btn-reserva');
+    el.classList.add('btn-amber');
+  });
+}
+
+function resetSaveButtons() {
+  PRESUPUESTO_BTN_IDS.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.innerHTML = '💾 Guardar presupuesto';
+    el.classList.remove('btn-amber');
+    el.classList.add('btn-primary');
+  });
+  RESERVA_BTN_IDS.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.innerHTML = '✅ Guardar Reserva';
+    el.classList.remove('btn-amber');
+    el.classList.add('btn-reserva');
+  });
+}
+
+function deleteBudget(id) {
+  putSaves(getSaves().filter(x => x.id !== id));
+  renderSavesList(currentTab === 'reserva' ? 'reserva' : 'presupuesto');
+}
+
+const escHtml = s => (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+// ════════════════════════════════════════════
+// GOOGLE SHEETS WEBHOOK
+// ════════════════════════════════════════════
+function buildSheetPayload(entry) {
+  const f = entry.form || {};
+  const b = lastBudget;
+  const adultMenuNames = { none:'Traen su comida', pizza:'Solo pizzas', pizza_calzone:'Pizzas y calzones', pizza_calzone_chivito:'Pizzas, calzones y chivitos' };
+  const kidsMenuNames  = { basic:'Básico', alt:'Alternativo' };
+
+  let fechaStr = '';
+  if (f.eventDate) {
+    const d = new Date(f.eventDate + 'T00:00:00');
+    fechaStr = `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+  }
+  const dayLabel = (f.dayType === 'weekday') ? 'Lunes–Jueves' : 'Vie/Sáb/Dom/Fer';
+  const totalHrs = 4 + Math.max(0, parseInt(f.extraHours)||0);
+  const horaFin  = b.endTime || '';
+
+  return {
+    'ID':              entry.id || '',
+    'Tipo':            entry.status || 'presupuesto',
+    'Nombre guardado': entry.saveName || '',
+    'Fecha':           fechaStr,
+    'Nombre evento':   f.eventName  || '',
+    'Hora inicio':     f.startTime  || '',
+    'Hora fin':        horaFin,
+    'Duración (hs)':   totalHrs,
+    'Tipo de día':     dayLabel,
+    'Nº niños':        parseInt(f.numKids)   || 0,
+    'Menú niños':      kidsMenuNames[f.kidsMenu] || f.kidsMenu || '',
+    'Nº adultos':      parseInt(f.numAdults) || 0,
+    'Menú adultos':    adultMenuNames[f.adultsMenu] || f.adultsMenu || '',
+    'Horas extra':     Math.max(0, parseInt(f.extraHours)||0),
+    'Personal extra':  parseInt(f.extraStaff) || 0,
+    'Total ($)':       entry.total || 0,
+    'Descuento valor': f.discountType !== 'none' ? (f.discValue || 0) : '',
+    'Descuento tipo':  f.discountType !== 'none' ? f.discountType : '',
+    'Descripción':     f.eventDesc   || '',
+    'Notas':           f.eventOthers || '',
+    'Guardado el':     entry.savedAt || new Date().toISOString()
+  };
+}
+
+// Alias para compatibilidad con copySheetRow
+function buildSheetRow(entry) {
+  const p = buildSheetPayload(entry);
+  return Object.values(p);
+}
+
+function postToWebhook(entry) {
+  const url = cfg().webhookUrl;
+  if (!url || !url.startsWith('http')) return;
+  fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify(buildSheetPayload(entry))
+  }).then(() => {
+    // Marcar como sincronizado
+    const saves = getSaves();
+    const idx = saves.findIndex(s => s.id === entry.id);
+    if (idx !== -1) { saves[idx].synced = true; putSaves(saves); }
+  }).catch(() => {});
+}
+
+// Elimina una fila del sheet por ID (para cuando presupuesto → reserva)
+function deleteFromSheet(id, sheetName) {
+  const url = cfg().webhookUrl;
+  if (!url || !url.startsWith('http')) return;
+  fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify({ action: 'delete', sheetName, id })
+  }).catch(() => {});
+}
+
+// ════════════════════════════════════════════
+// SYNC DESDE GOOGLE SHEETS
+// ════════════════════════════════════════════
+
+function rowToEntry(row) {
+  const fechaStr = String(row['Fecha'] || '');
+  let eventDate = '';
+  if (fechaStr) {
+    const parts = fechaStr.split('/');
+    if (parts.length === 3)
+      eventDate = `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`;
+  }
+  const discTipo = String(row['Descuento tipo'] || '');
+  const kidsMenuMap   = { 'Básico':'basic', 'Alternativo':'alt' };
+  const adultsMenuMap = { 'Traen su comida':'none', 'Solo pizzas':'pizza',
+    'Pizzas y calzones':'pizza_calzone', 'Pizzas, calzones y chivitos':'pizza_calzone_chivito' };
+  return {
+    id:      String(row['ID'] || Date.now()),
+    saveName:String(row['Nombre guardado'] || fechaStr),
+    status:  String(row['Tipo'] || 'presupuesto'),
+    total:   parseFloat(row['Total ($)']) || 0,
+    savedAt: String(row['Guardado el'] || ''),
+    synced:  true,
+    form: {
+      eventDate,
+      eventName:   String(row['Nombre evento']  || ''),
+      startTime:   String(row['Hora inicio']    || ''),
+      numKids:     String(row['Nº niños']       || '0'),
+      kidsMenu:    kidsMenuMap[row['Menú niños']]    || 'basic',
+      numAdults:   String(row['Nº adultos']     || '0'),
+      adultsMenu:  adultsMenuMap[row['Menú adultos']] || 'none',
+      extraHours:  String(row['Horas extra']    || '0'),
+      extraStaff:  String(row['Personal extra'] || '0'),
+      discValue:   String(row['Descuento valor']|| '0'),
+      discountType:(discTipo === 'fixed' || discTipo === 'pct') ? discTipo : 'none',
+      dayType:     row['Tipo de día'] === 'Lunes–Jueves' ? 'weekday' : 'weekend',
+      eventDesc:   String(row['Descripción']    || ''),
+      eventOthers: String(row['Notas']          || '')
+    }
+  };
+}
+
+async function syncFromSheet() {
+  const url = cfg().webhookUrl;
+  if (!url || !url.startsWith('http')) {
+    showSyncStatus('Configurá el webhook en Administración', true); return;
+  }
+
+  // Tipo determinado por la pestaña activa
+  const tipo   = currentTab === 'reserva' ? 'reserva' : 'presupuesto';
+  const sheetKey = tipo === 'reserva' ? 'reservas' : 'presupuestos';
+
+  const btn = document.getElementById('syncBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
+
+  try {
+    // 1. Subir locales no sincronizados del tipo actual
+    let saves = getSaves();
+    const unsynced = saves.filter(s => !s.synced && s.status === tipo);
+    for (const entry of unsynced) {
+      try {
+        await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain' },
+          body: JSON.stringify(buildSheetPayload(entry))
+        });
+        const idx = saves.findIndex(s => s.id === entry.id);
+        if (idx !== -1) saves[idx].synced = true;
+      } catch(e) {}
+    }
+    if (unsynced.length > 0) putSaves(saves);
+
+    // 2. Construir URL con tipo y fecha opcional
+    const dateFilterEl = document.getElementById('syncDateFilter');
+    const dateFilter   = dateFilterEl ? dateFilterEl.value : '';
+    let getUrl = `${url}?action=getData&tipo=${tipo}`;
+    if (dateFilter) {
+      // Convertir YYYY-MM-DD → DD/MM/YYYY para el sheet
+      const [y, m, d] = dateFilter.split('-');
+      getUrl += '&fecha=' + encodeURIComponent(`${d}/${m}/${y}`);
+    }
+
+    // 3. Bajar registros del sheet
+    const res  = await fetch(getUrl);
+    const data = await res.json();
+    if (!data.ok) throw new Error('Respuesta inesperada del servidor.');
+
+    const sheetEntries = (data[sheetKey] || []).map(rowToEntry);
+
+    // 4. Armar el conjunto local a conservar:
+    //    - Todos los registros del OTRO tipo (no tocamos reservas si sinceamos presupuestos, y viceversa)
+    //    - Registros con fecha PASADA del tipo actual (el sheet solo devuelve futuros o el filtro de fecha)
+    //    - Si hay filtro de fecha: también conservar futuros del tipo actual de OTRAS fechas
+    saves = getSaves();
+    const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+
+    const keepSaves = saves.filter(s => {
+      if (s.status !== tipo) return true;          // otro tipo → conservar siempre
+      if (!s.form?.eventDate) return false;
+      const evDate = new Date(s.form.eventDate + 'T00:00:00');
+      if (evDate < hoy) return true;               // pasados → conservar
+      if (dateFilter && s.form.eventDate !== dateFilter) return true; // otras fechas futuras si hay filtro
+      return false;
+    });
+
+    // 5. Combinar y deduplicar (sheet tiene precedencia)
+    const seen   = new Set();
+    const merged = [...sheetEntries, ...keepSaves]
+      .filter(e => { if (seen.has(e.id)) return false; seen.add(e.id); return true; })
+      .sort((a, b) => (b.form?.eventDate || '').localeCompare(a.form?.eventDate || ''));
+
+    putSaves(merged);
+
+    // 6. Refrescar lista si el modal está abierto
+    if (document.getElementById('savesModal')?.classList.contains('open')) {
+      renderSavesList(tipo);
+    }
+
+    const total = sheetEntries.length;
+    const up    = unsynced.length;
+    const tipoLabel = tipo === 'reserva' ? 'reservas' : 'presupuestos';
+    let msg = `✓ ${total} ${tipoLabel} del sheet`;
+    if (up > 0) msg += ` · ${up} subido${up !== 1 ? 's' : ''}`;
+    showSyncStatus(msg);
+
+  } catch (err) {
+    showSyncStatus('✗ ' + err.message, true);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '🔄 Sync'; }
+  }
+}
+
+function showSyncStatus(msg, isError = false) {
+  const el = document.getElementById('syncStatus');
+  if (!el) return;
+  el.style.color = isError ? 'var(--red)' : 'var(--green-dark)';
+  el.textContent = msg;
+  setTimeout(() => { el.textContent = ''; }, 5000);
+}
+
+function onSyncDateChange() {
+  renderSavesList(currentTab === 'reserva' ? 'reserva' : 'presupuesto');
+}
+function clearSyncDate() {
+  const el = document.getElementById('syncDateFilter');
+  if (el) el.value = '';
+  renderSavesList(currentTab === 'reserva' ? 'reserva' : 'presupuesto');
+}
+
+function copySheetRow() {
+  const saves  = getSaves();
+  const latest = saves.find(s => s.status === 'reserva');
+  // Use last saved entry or current form state
+  const entry  = { form: getFormState(), total: lastBudget.total || 0, savedAt: new Date().toISOString() };
+  const row    = buildSheetRow(entry);
+  const text   = row.map(v => String(v ?? '')).join('\t');
+  tryClipboard(text, 'sheetCopied');
+}
+
+// ════════════════════════════════════════════
+// ADMIN
+// ════════════════════════════════════════════
+let adminLoggedIn = false;
+
+function doLogin() {
+  if (document.getElementById('adminPw').value === cfg().adminPassword) {
+    adminLoggedIn = true;
+    document.getElementById('adminLoginCard').style.display = 'none';
+    document.getElementById('adminPanel').style.display = 'block';
+    renderAdminValues();
+  } else { document.getElementById('loginErr').style.display = 'block'; }
+}
+function doLogout() {
+  adminLoggedIn = false;
+  document.getElementById('adminLoginCard').style.display = 'block';
+  document.getElementById('adminPanel').style.display = 'none';
+  document.getElementById('adminPw').value = '';
+  document.getElementById('loginErr').style.display = 'none';
+  document.querySelectorAll('.edit-panel').forEach(el => el.classList.remove('open'));
+}
+
+function renderAdminValues() {
+  const C = cfg();
+  const set = (id, v) => { const el = document.getElementById(id); if(el) el.textContent = v; };
+  set('pv-baseWeekday',     fmtCur(C.baseWeekday));
+  set('pv-baseWeekend',     fmtCur(C.baseWeekend));
+  set('pv-extraHour',       fmtCur(C.extraHour));
+  set('pv-kidsIncluded',    C.kidsIncluded + ' niños');
+  set('pv-kidsBasic',       fmtCur(C.kidsBasic));
+  set('pv-kidsAlt',         fmtCur(C.kidsAlt));
+  set('pv-adultsIncluded',  C.adultsIncluded + ' adultos');
+  set('pv-menuPizza',       fmtCur(C.menuPizza));
+  set('pv-menuPizzaCalzone',fmtCur(C.menuPizzaCalzone));
+  set('pv-menuFull',        fmtCur(C.menuFull));
+  set('pv-recIncluded',     C.recIncluded);
+  set('pv-kidsPerRec',      '1 cada ' + C.kidsPerRec + ' niños');
+  set('pv-adultsPerWaiter', '1 cada ' + C.adultsPerWaiter + ' adultos');
+  set('pv-staffCost',       fmtCur(C.staffCost));
+  set('pv-staffExtraHr',    fmtCur(C.staffExtraHr) + ' / persona / hora');
+  const wh = document.getElementById('pv-webhookUrl');
+  if (wh) wh.textContent = C.webhookUrl ? '✓ Configurado' : 'No configurado';
+}
+
+const EDIT_FIELDS = {
+  base:   ['baseWeekday','baseWeekend','extraHour'],
+  kids:   ['kidsIncluded','kidsBasic','kidsAlt'],
+  adults: ['adultsIncluded','menuPizza','menuPizzaCalzone','menuFull'],
+  staff:  ['recIncluded','kidsPerRec','adultsPerWaiter','staffCost','staffExtraHr'],
+};
+function toggleEdit(s) {
+  const p = document.getElementById('edit-'+s); if(!p) return;
+  const isOpen = p.classList.contains('open');
+  document.querySelectorAll('.edit-panel').forEach(el => el.classList.remove('open'));
+  document.getElementById('webhookTestResult') && (document.getElementById('webhookTestResult').style.display='none');
+  if (!isOpen) {
+    const C = cfg();
+    (EDIT_FIELDS[s]||[]).forEach(k => { const el = document.getElementById('ei-'+k); if(el) el.value = C[k]; });
+    // Special: webhook URL
+    if (s === 'sheets') { const el = document.getElementById('ei-webhookUrl'); if(el) el.value = C.webhookUrl || ''; }
+    p.classList.add('open');
+  }
+}
+function saveEdit(s) {
+  const u = {};
+  (EDIT_FIELDS[s]||[]).forEach(k => { const el = document.getElementById('ei-'+k); if(el) u[k] = parseFloat(el.value)||0; });
+  saveCfg(u);
+  document.querySelectorAll('.edit-panel').forEach(el => el.classList.remove('open'));
+  renderAdminValues(); recalc();
+}
+function saveWebhookUrl() {
+  const url = document.getElementById('ei-webhookUrl').value.trim();
+  saveCfg({ webhookUrl: url });
+  document.querySelectorAll('.edit-panel').forEach(el => el.classList.remove('open'));
+  renderAdminValues();
+}
+
+function testWebhook() {
+  const url = document.getElementById('ei-webhookUrl').value.trim();
+  const res = document.getElementById('webhookTestResult');
+  if (!url) { res.style.display='block'; res.style.color='var(--red)'; res.textContent='⚠️ Ingresá una URL primero.'; return; }
+  res.style.display='block'; res.style.color='var(--gray-400)'; res.textContent='Enviando prueba…';
+  const testPayload = { Fecha:'TEST', 'Nombre evento':'Prueba de conexión', 'Hora inicio':'—',
+    'Hora fin':'—', 'Duración (hs)':4, 'Tipo de día':'TEST', 'Nº niños':0, 'Menú niños':'—',
+    'Nº adultos':0, 'Menú adultos':'—', 'Horas extra':0, 'Personal extra':0,
+    'Total ($)':0, 'Descuento valor':'', 'Descuento tipo':'', 'Descripción':'Fila de prueba — podés eliminarla',
+    'Notas':'', 'Guardado el': new Date().toLocaleString('es-UY') };
+  fetch(url, { method:'POST', headers:{'Content-Type':'text/plain'}, body: JSON.stringify(testPayload) })
+    .then(() => { res.style.color='var(--green)'; res.textContent='✓ Enviado. Verificá tu Google Sheet.'; })
+    .catch(() => { res.style.color='var(--red)'; res.textContent='✗ Error de conexión. Revisá la URL.'; });
+}
+
+function savePw() {
+  const a = document.getElementById('ei-newPw').value, b = document.getElementById('ei-confirmPw').value;
+  const err = document.getElementById('pwErr');
+  if (!a || a!==b) { err.style.display='block'; return; }
+  err.style.display = 'none';
+  saveCfg({ adminPassword: a });
+  document.querySelectorAll('.edit-panel').forEach(el => el.classList.remove('open'));
+  document.getElementById('ei-newPw').value = document.getElementById('ei-confirmPw').value = '';
+  alert('✅ Contraseña actualizada.');
+}
+
+// ════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════
+window.addEventListener('load', () => {
+  const now = new Date(), pad = n => String(n).padStart(2,'0');
+  document.getElementById('eventDate').value = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
+  onDateChange();
+  recalc();
+});
+</script>
+</body>
+</html>
