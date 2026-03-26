@@ -817,7 +817,8 @@ function recalc() {
   // Staff costs (event)
   const recsExtra  = Math.max(0, recsNeeded - C.recIncluded);
   const recsCst    = recsExtra * C.staffCost;
-  const waitersCst = waiters   * C.staffCost;
+  // El primer mozo siempre está incluido; los adicionales se cobran
+  const waitersCst = Math.max(0, waiters - 1) * C.staffCost;
   const xStaffCst  = extraStaff * C.staffCost;
 
   // Hints
@@ -829,8 +830,10 @@ function recalc() {
   } else { kidsHintEl.style.display = 'none'; }
   if (numAdults > 0) {
     adultsHintEl.style.display = '';
-    if (waiters > 0) {
-      adultsHintEl.innerHTML = `🧑‍🍳 <strong>${waiters} mozo${waiters!==1?'s':''}</strong> (1 cada ${C.adultsPerWaiter} adultos). Cargo: ${fmtCur(waitersCst)}.`;
+    if (waiters > 1) {
+      adultsHintEl.innerHTML = `🧑‍🍳 <strong>${waiters} mozos</strong> (1 cada ${C.adultsPerWaiter} adultos) — 1 incluido, ${waiters-1} con cargo: ${fmtCur(waitersCst)}.`;
+    } else if (waiters === 1) {
+      adultsHintEl.innerHTML = `🧑‍🍳 <strong>1 mozo</strong> requerido — <strong>incluido</strong>.`;
     } else {
       adultsHintEl.innerHTML = `🧑‍🍳 Mozos no requeridos (menos de ${freeThr} adultos o sin menú).`;
     }
@@ -863,7 +866,8 @@ function recalc() {
   if (kidsUpgrade > 0)    html += bi('🍽️',`Upgrade Nuggets (${kidsIncl} niños incl.)`,`Tarifa fija: ${fmtCur(C.kidsUpgradeFlat)}`,kidsUpgrade);
   if (adultMenuCst > 0)   html += bi('🍕',`Menú adultos (${numAdults})`,`${numAdults} × ${fmtCur(adultMenuPrc)} — ${adultMenuNames[adultsMenuSel]}`,adultMenuCst);
   if (recsCst > 0)        html += bi('🎪',`Recreadores extra (${recsExtra})`,`${recsExtra} × ${fmtCur(C.staffCost)}`,recsCst);
-  if (waitersCst > 0)     html += bi('🧑‍🍳',`Mozos (${waiters})`,`${waiters} × ${fmtCur(C.staffCost)}`,waitersCst);
+  if (waiters === 1) html += bi('🧑‍🍳','Mozo (incluido)','1 requerido — sin cargo',0);
+  if (waiters > 1)  html += bi('🧑‍🍳',`Mozos (${waiters})`,`1 incluido + ${waiters-1} × ${fmtCur(C.staffCost)}`,waitersCst);
   if (xStaffCst > 0)      html += bi('👤',`Personal extra (${extraStaff})`,`${extraStaff} × ${fmtCur(C.staffCost)}`,xStaffCst);
 
   html += `<div class="subtotal-row"><span>Subtotal</span><span>${fmtCur(subtotal)}</span></div>`;
@@ -1354,7 +1358,6 @@ function buildSheetPayload(entry) {
     'Personal extra':  parseInt(f.extraStaff) || 0,
     'Nº animadores':   b.actualRecs  ?? '',
     'Nº mozos':        b.waiters     ?? '',
-    'Precio original ($)': entry.total || 0,
     'Total ($)':       entry.total || 0,
     'Descuento valor': f.discountType !== 'none' ? (f.discValue || 0) : '',
     'Descuento tipo':  f.discountType !== 'none' ? f.discountType : '',
