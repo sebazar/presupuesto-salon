@@ -603,8 +603,7 @@ const DEFAULTS = {
   menuPizza: 350,      menuPizzaCalzone: 450, menuFull: 500,
   recIncluded: 2,      kidsPerRec: 10,        adultsPerWaiter: 20,
   staffCost: 1900,     staffExtraHr: 450,
-  webhookUrl: WEBHOOK_URL_FB,
-  adminPassword: 'salon2024'
+  webhookUrl: WEBHOOK_URL_FB
 };
 
 let _cfg = { ...DEFAULTS };
@@ -1558,13 +1557,24 @@ function copySheetRow() {
 // ════════════════════════════════════════════
 let adminLoggedIn = false;
 
-function doLogin() {
-  if (document.getElementById('adminPw').value === cfg().adminPassword) {
-    adminLoggedIn = true;
-    document.getElementById('adminLoginCard').style.display = 'none';
-    document.getElementById('adminPanel').style.display = 'block';
-    renderAdminValues();
-  } else { document.getElementById('loginErr').style.display = 'block'; }
+async function doLogin() {
+  const pw  = document.getElementById('adminPw').value;
+  const err = document.getElementById('loginErr');
+  try {
+    const r = await fetch(cfg().webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: 'verifyPassword', password: pw })
+    });
+    const result = await r.json();
+    if (result.ok) {
+      adminLoggedIn = true;
+      document.getElementById('adminLoginCard').style.display = 'none';
+      document.getElementById('adminPanel').style.display = 'block';
+      renderAdminValues();
+      err.style.display = 'none';
+    } else { err.style.display = 'block'; }
+  } catch(e) { err.style.display = 'block'; }
 }
 function doLogout() {
   adminLoggedIn = false;
@@ -1642,9 +1652,8 @@ async function saveConfigToGitHub() {
       headers: { 'Authorization': `Bearer ${GITHUB_PAT}`, 'Accept': 'application/vnd.github+json' }
     });
     const { sha } = await getResp.json();
-    // Armar payload sin adminPassword
+    // Armar payload sin adminPassword (la contraseña vive en Google Sheet)
     const { adminPassword: _pw, ...publicCfg } = cfg();
-    publicCfg.adminPassword = 'salon2024'; // nunca exponer la real en el JSON
     const content = btoa(unescape(encodeURIComponent(JSON.stringify(publicCfg, null, 2))));
     const putResp = await fetch(apiUrl, {
       method: 'PUT',
@@ -1678,15 +1687,24 @@ function testWebhook() {
     .catch(() => { res.style.color='var(--red)'; res.textContent='✗ Error de conexión. Revisá la URL.'; });
 }
 
-function savePw() {
+async function savePw() {
   const a = document.getElementById('ei-newPw').value, b = document.getElementById('ei-confirmPw').value;
   const err = document.getElementById('pwErr');
   if (!a || a!==b) { err.style.display='block'; return; }
   err.style.display = 'none';
-  saveCfg({ adminPassword: a });
-  document.querySelectorAll('.edit-panel').forEach(el => el.classList.remove('open'));
-  document.getElementById('ei-newPw').value = document.getElementById('ei-confirmPw').value = '';
-  alert('✅ Contraseña actualizada.');
+  try {
+    const r = await fetch(cfg().webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: 'updatePassword', newPassword: a })
+    });
+    const result = await r.json();
+    if (result.ok) {
+      document.querySelectorAll('.edit-panel').forEach(el => el.classList.remove('open'));
+      document.getElementById('ei-newPw').value = document.getElementById('ei-confirmPw').value = '';
+      alert('✅ Contraseña actualizada.');
+    } else { alert('❌ Error al actualizar la contraseña.'); }
+  } catch(e) { alert('❌ Error de conexión.'); }
 }
 
 // ════════════════════════════════════════════
