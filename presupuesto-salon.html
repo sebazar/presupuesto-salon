@@ -1354,7 +1354,7 @@ function buildSheetPayload(entry) {
     'Personal extra':  parseInt(f.extraStaff) || 0,
     'Nº animadores':   b.actualRecs  ?? '',
     'Nº mozos':        b.waiters     ?? '',
-    'Precio base ($)': b.basePrice   ?? '',
+    'Precio original ($)': entry.total || 0,
     'Total ($)':       entry.total || 0,
     'Descuento valor': f.discountType !== 'none' ? (f.discValue || 0) : '',
     'Descuento tipo':  f.discountType !== 'none' ? f.discountType : '',
