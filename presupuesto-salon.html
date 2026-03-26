@@ -534,6 +534,16 @@
         </div>
       </div>
 
+      <!-- Guardar config en GitHub -->
+      <div class="card">
+        <div class="card-header"><h2>☁️ Config compartida</h2></div>
+        <p style="font-size:.78rem;color:var(--gray-400);margin-bottom:10px">Guarda los precios actuales en GitHub Pages para que todos vean los mismos valores.</p>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <button class="btn btn-sm btn-primary" onclick="saveConfigToGitHub()">💾 Guardar en GitHub</button>
+          <span id="githubSaveStatus" style="font-size:.8rem"></span>
+        </div>
+      </div>
+
       <!-- Google Sheets -->
       <div class="card">
         <div class="card-header"><h2>📊 Google Sheets</h2><button class="btn btn-sm btn-outline" onclick="toggleEdit('sheets')">✏️ Editar</button></div>
@@ -577,19 +587,39 @@
 
 <script>
 // ════════════════════════════════════════════
-// CONFIG
+// CONFIG — cargada desde config.json en GitHub Pages
 // ════════════════════════════════════════════
+const WEBHOOK_URL_FB = 'https://script.google.com/macros/s/AKfycbxwn2hPDk6ZiBN5qrJ7rNjHIWi3UkmZkcvJDLtbQwjAWyIpbPLuoqWGrnu2xz0_wDjQhQ/exec';
+const CONFIG_URL     = 'https://sebazar.github.io/salon-chatbot/config.json';
+const GITHUB_PAT     = '';
+const GITHUB_REPO    = 'sebazar/salon-chatbot';
+
 const DEFAULTS = {
-  baseWeekday: 20000, baseWeekend: 22000, extraHour: 5000,
-  kidsIncluded: 20, kidsBasic: 200, kidsAlt: 300,
-  adultsIncluded: 10, menuPizza: 300, menuPizzaCalzone: 350, menuFull: 400,
-  recIncluded: 2, kidsPerRec: 10, adultsPerWaiter: 20,
-  staffCost: 2000, staffExtraHr: 250,
-  webhookUrl: '',
+  baseWeekday: 18500,  baseWeekend: 20900,  extraHour: 4900,
+  kidsIncluded: 20,    kidsBasic: 220,       kidsAlt: 350,
+  kidsUpgradeFlat: 2600,
+  adultsSmallThreshold: 20, adultsFreeMenuThreshold: 10,
+  menuPizzaSmall: 450,
+  menuPizza: 350,      menuPizzaCalzone: 450, menuFull: 500,
+  recIncluded: 2,      kidsPerRec: 10,        adultsPerWaiter: 20,
+  staffCost: 1900,     staffExtraHr: 450,
+  webhookUrl: WEBHOOK_URL_FB,
   adminPassword: 'salon2024'
 };
-const cfg = () => { try { const s = localStorage.getItem('salonCfg'); return s ? {...DEFAULTS,...JSON.parse(s)} : {...DEFAULTS}; } catch { return {...DEFAULTS}; } };
-const saveCfg = u => localStorage.setItem('salonCfg', JSON.stringify({...cfg(),...u}));
+
+let _cfg = { ...DEFAULTS };
+async function initConfig() {
+  try {
+    const r = await fetch(CONFIG_URL + '?_=' + Date.now());
+    if (r.ok) {
+      const remote = await r.json();
+      if (!remote.webhookUrl) delete remote.webhookUrl;
+      _cfg = { ...DEFAULTS, ...remote };
+    }
+  } catch(e) { console.warn('Config: usando defaults.', e); }
+}
+const cfg     = () => _cfg;
+const saveCfg = u  => { _cfg = { ..._cfg, ...u }; };
 
 // ════════════════════════════════════════════
 // STATE
@@ -749,16 +779,8 @@ function recalc() {
   const numAdults  = getInt('numAdults');
   const extraStaff = getInt('extraStaff');
 
-  // Staff counts
-  const recsNeeded  = numKids  > 0 ? Math.ceil(numKids  / C.kidsPerRec)      : 0;
-  const actualRecs  = numKids  > 0 ? Math.max(recsNeeded, C.recIncluded)      : 0;
-  const waiters     = numAdults > 0 ? Math.ceil(numAdults / C.adultsPerWaiter) : 0;
-  const totalStaff  = actualRecs + waiters + extraStaff;
-
-  // Extra hours cost: salon + all staff × rate
-  const salonExtraCst = extraHours * C.extraHour;
-  const staffExtraCst = extraHours * totalStaff * C.staffExtraHr;
-  const extraHrTotCst = salonExtraCst + staffExtraCst;
+  const smallThr = C.adultsSmallThreshold    || 20;
+  const freeThr  = C.adultsFreeMenuThreshold || 10;
 
   // Kids
   const kidsMenuSel  = document.getElementById('kidsMenu').value;
@@ -766,22 +788,41 @@ function recalc() {
   const kidsIncl     = Math.min(numKids, C.kidsIncluded);
   const kidsExtra    = Math.max(0, numKids - C.kidsIncluded);
   const kidsExtraCst = kidsExtra * kidsMenuPrc;
-  const kidsUpgrade  = kidsMenuSel === 'alt' ? kidsIncl * (C.kidsAlt - C.kidsBasic) : 0;
+  const kidsUpgrade  = kidsMenuSel === 'alt' ? (C.kidsUpgradeFlat || 0) : 0;
 
   // Adults
   const adultsMenuSel = document.getElementById('adultsMenu').value;
-  const adultPrices   = { none: 0, pizza: C.menuPizza, pizza_calzone: C.menuPizzaCalzone, pizza_calzone_chivito: C.menuFull };
-  const adultMenuPrc  = adultPrices[adultsMenuSel] || 0;
-  const adultMenuCst  = numAdults * adultMenuPrc;
+  let adultMenuPrc = 0;
+  if (adultsMenuSel !== 'none') {
+    if (numAdults < smallThr) {
+      adultMenuPrc = C.menuPizzaSmall;
+    } else {
+      const prices = { pizza: C.menuPizza, pizza_calzone: C.menuPizzaCalzone, pizza_calzone_chivito: C.menuFull };
+      adultMenuPrc = prices[adultsMenuSel] || C.menuPizza;
+    }
+  }
+  const adultMenuCst = numAdults * adultMenuPrc;
+
+  // Staff counts
+  const recsNeeded  = numKids   > 0 ? Math.ceil(numKids   / C.kidsPerRec)     : 0;
+  const actualRecs  = numKids   > 0 ? Math.max(recsNeeded, C.recIncluded)     : 0;
+  const waiters     = (numAdults >= freeThr && adultsMenuSel !== 'none')
+                        ? Math.ceil(numAdults / C.adultsPerWaiter) : 0;
+  const totalStaff  = actualRecs + waiters + extraStaff;
+
+  // Extra hours cost: salon + all staff × rate
+  const salonExtraCst = extraHours * C.extraHour;
+  const staffExtraCst = extraHours * totalStaff * C.staffExtraHr;
+  const extraHrTotCst = salonExtraCst + staffExtraCst;
 
   // Staff costs (event)
   const recsExtra  = Math.max(0, recsNeeded - C.recIncluded);
   const recsCst    = recsExtra * C.staffCost;
-  const waitersCst = waiters * C.staffCost;
+  const waitersCst = waiters   * C.staffCost;
   const xStaffCst  = extraStaff * C.staffCost;
 
   // Hints
-  const kidsHintEl = document.getElementById('kidsHint');
+  const kidsHintEl   = document.getElementById('kidsHint');
   const adultsHintEl = document.getElementById('adultsHint');
   if (numKids > 0) {
     kidsHintEl.style.display = '';
@@ -789,7 +830,11 @@ function recalc() {
   } else { kidsHintEl.style.display = 'none'; }
   if (numAdults > 0) {
     adultsHintEl.style.display = '';
-    adultsHintEl.innerHTML = `🧑‍🍳 <strong>${waiters} mozo${waiters!==1?'s':''}</strong> (1 cada ${C.adultsPerWaiter} adultos). Cargo: ${fmtCur(waitersCst)}.`;
+    if (waiters > 0) {
+      adultsHintEl.innerHTML = `🧑‍🍳 <strong>${waiters} mozo${waiters!==1?'s':''}</strong> (1 cada ${C.adultsPerWaiter} adultos). Cargo: ${fmtCur(waitersCst)}.`;
+    } else {
+      adultsHintEl.innerHTML = `🧑‍🍳 Mozos no requeridos (menos de ${freeThr} adultos o sin menú).`;
+    }
   } else { adultsHintEl.style.display = 'none'; }
 
   // Extra hours info box
@@ -813,10 +858,10 @@ function recalc() {
 
   let html = '';
   const totalHrs = 4 + extraHours;
-  html += bi('🏠','Alquiler base',`${dayLabel} · ${totalHrs} hs · ${C.kidsIncluded} niños + ${C.adultsIncluded} adultos + ${C.recIncluded} recreadores incl.`,basePrice);
+  html += bi('🏠','Alquiler base',`${dayLabel} · ${totalHrs} hs · ${C.kidsIncluded} niños incl. · ${C.recIncluded} recreadores incl.`,basePrice);
   if (extraHrTotCst > 0)  html += bi('⏱',`Horas extra (${extraHours} hs)`,`Salón ${fmtCur(salonExtraCst)} + ${totalStaff} personal × ${extraHours} hs × ${fmtCur(C.staffExtraHr)}`,extraHrTotCst);
   if (kidsExtraCst > 0)   html += bi('👶',`Niños extra (${kidsExtra})`,`${kidsExtra} × ${fmtCur(kidsMenuPrc)} — ${kidsMenuName}`,kidsExtraCst);
-  if (kidsUpgrade > 0)    html += bi('🍽️',`Upgrade menú niños (${kidsIncl} incl.)`,`Menú alternativo: +${fmtCur(C.kidsAlt-C.kidsBasic)} por niño`,kidsUpgrade);
+  if (kidsUpgrade > 0)    html += bi('🍽️',`Upgrade Nuggets (${kidsIncl} niños incl.)`,`Tarifa fija: ${fmtCur(C.kidsUpgradeFlat)}`,kidsUpgrade);
   if (adultMenuCst > 0)   html += bi('🍕',`Menú adultos (${numAdults})`,`${numAdults} × ${fmtCur(adultMenuPrc)} — ${adultMenuNames[adultsMenuSel]}`,adultMenuCst);
   if (recsCst > 0)        html += bi('🎪',`Recreadores extra (${recsExtra})`,`${recsExtra} × ${fmtCur(C.staffCost)}`,recsCst);
   if (waitersCst > 0)     html += bi('🧑‍🍳',`Mozos (${waiters})`,`${waiters} × ${fmtCur(C.staffCost)}`,waitersCst);
@@ -1539,7 +1584,8 @@ function renderAdminValues() {
   set('pv-kidsIncluded',    C.kidsIncluded + ' niños');
   set('pv-kidsBasic',       fmtCur(C.kidsBasic));
   set('pv-kidsAlt',         fmtCur(C.kidsAlt));
-  set('pv-adultsIncluded',  C.adultsIncluded + ' adultos');
+  set('pv-kidsUpgradeFlat', fmtCur(C.kidsUpgradeFlat || 0));
+  set('pv-menuPizzaSmall',  fmtCur(C.menuPizzaSmall || 0) + ' (1–19 adultos)');
   set('pv-menuPizza',       fmtCur(C.menuPizza));
   set('pv-menuPizzaCalzone',fmtCur(C.menuPizzaCalzone));
   set('pv-menuFull',        fmtCur(C.menuFull));
@@ -1554,8 +1600,8 @@ function renderAdminValues() {
 
 const EDIT_FIELDS = {
   base:   ['baseWeekday','baseWeekend','extraHour'],
-  kids:   ['kidsIncluded','kidsBasic','kidsAlt'],
-  adults: ['adultsIncluded','menuPizza','menuPizzaCalzone','menuFull'],
+  kids:   ['kidsIncluded','kidsBasic','kidsAlt','kidsUpgradeFlat'],
+  adults: ['adultsSmallThreshold','adultsFreeMenuThreshold','menuPizzaSmall','menuPizza','menuPizzaCalzone','menuFull'],
   staff:  ['recIncluded','kidsPerRec','adultsPerWaiter','staffCost','staffExtraHr'],
 };
 function toggleEdit(s) {
@@ -1583,6 +1629,38 @@ function saveWebhookUrl() {
   saveCfg({ webhookUrl: url });
   document.querySelectorAll('.edit-panel').forEach(el => el.classList.remove('open'));
   renderAdminValues();
+}
+
+async function saveConfigToGitHub() {
+  const statusEl = document.getElementById('githubSaveStatus');
+  statusEl.style.color = 'var(--gray-400)';
+  statusEl.textContent = 'Guardando…';
+  try {
+    const apiUrl = `https://api.github.com/repos/${GITHUB_REPO}/contents/config.json`;
+    // Obtener SHA actual
+    const getResp = await fetch(apiUrl, {
+      headers: { 'Authorization': `Bearer ${GITHUB_PAT}`, 'Accept': 'application/vnd.github+json' }
+    });
+    const { sha } = await getResp.json();
+    // Armar payload sin adminPassword
+    const { adminPassword: _pw, ...publicCfg } = cfg();
+    publicCfg.adminPassword = 'salon2024'; // nunca exponer la real en el JSON
+    const content = btoa(unescape(encodeURIComponent(JSON.stringify(publicCfg, null, 2))));
+    const putResp = await fetch(apiUrl, {
+      method: 'PUT',
+      headers: { 'Authorization': `Bearer ${GITHUB_PAT}`, 'Accept': 'application/vnd.github+json', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: 'Actualizar config desde admin', content, sha })
+    });
+    if (putResp.ok) {
+      statusEl.style.color = 'var(--green)';
+      statusEl.textContent = '✓ Guardado. Los cambios estarán disponibles en ~1 minuto.';
+    } else {
+      throw new Error(putResp.status);
+    }
+  } catch(e) {
+    statusEl.style.color = 'var(--red)';
+    statusEl.textContent = `✗ Error: ${e.message}`;
+  }
 }
 
 function testWebhook() {
@@ -1614,11 +1692,13 @@ function savePw() {
 // ════════════════════════════════════════════
 // INIT
 // ════════════════════════════════════════════
-window.addEventListener('load', () => {
+window.addEventListener('load', async () => {
+  await initConfig();
   const now = new Date(), pad = n => String(n).padStart(2,'0');
   document.getElementById('eventDate').value = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
   onDateChange();
   recalc();
+  renderAdminValues();
 });
 </script>
 </body>
