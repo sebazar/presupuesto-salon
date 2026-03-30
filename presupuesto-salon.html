@@ -483,6 +483,32 @@
         <div class="time-badge" id="endTimeDisplay">—</div>
       </div>
 
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="flab">Edad del cumpleañero/a</label>
+          <input type="number" id="eventAge" placeholder="Ej: 7" min="1" max="99" oninput="recalc()">
+        </div>
+        <div class="form-group">
+          <label class="flab">Seña ($)</label>
+          <input type="number" id="eventSena" placeholder="0" min="0" oninput="recalc()">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="flab">Roman</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">
+          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:.88rem">
+            <input type="radio" name="romanRole" value="Recreador" onchange="recalc()"> Recreador
+          </label>
+          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:.88rem">
+            <input type="radio" name="romanRole" value="Salon" onchange="recalc()"> Salón
+          </label>
+          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:.88rem">
+            <input type="radio" name="romanRole" value="No ve" onchange="recalc()"> No ve
+          </label>
+        </div>
+      </div>
+
       <div class="form-group">
         <label class="flab">Descripción</label>
         <textarea id="eventDesc" placeholder="Ej: Cumpleaños infantil, temática princesas…" oninput="recalc()"></textarea>
@@ -1089,7 +1115,8 @@ function fallbackCopy(text, cb) {
 // CLEAR
 // ════════════════════════════════════════════
 function clearForm() {
-  ['eventDate','eventName','eventDesc','eventOthers'].forEach(id => document.getElementById(id).value = '');
+  ['eventDate','eventName','eventDesc','eventOthers','eventAge','eventSena'].forEach(id => document.getElementById(id).value = '');
+  document.querySelectorAll('input[name="romanRole"]').forEach(r => r.checked = false);
   document.getElementById('startTime').value  = '';
   document.getElementById('numKids').value    = '0';
   document.getElementById('numAdults').value  = '0';
@@ -1130,19 +1157,23 @@ function generateSaveName(dateVal, timeVal, excludeId = null) {
 }
 
 function getFormState() {
+  const romanEl = document.querySelector('input[name="romanRole"]:checked');
   return {
-    eventName: document.getElementById('eventName').value,
-    eventDesc: document.getElementById('eventDesc').value,
-    eventOthers: document.getElementById('eventOthers').value,
-    eventDate: document.getElementById('eventDate').value,
-    startTime: document.getElementById('startTime').value,
-    numKids: document.getElementById('numKids').value,
-    numAdults: document.getElementById('numAdults').value,
+    eventName:  document.getElementById('eventName').value,
+    eventDesc:  document.getElementById('eventDesc').value,
+    eventOthers:document.getElementById('eventOthers').value,
+    eventDate:  document.getElementById('eventDate').value,
+    startTime:  document.getElementById('startTime').value,
+    numKids:    document.getElementById('numKids').value,
+    numAdults:  document.getElementById('numAdults').value,
     extraHours: document.getElementById('extraHours').value,
     extraStaff: document.getElementById('extraStaff').value,
-    kidsMenu: document.getElementById('kidsMenu').value,
+    kidsMenu:   document.getElementById('kidsMenu').value,
     adultsMenu: document.getElementById('adultsMenu').value,
-    discValue: document.getElementById('discValue').value,
+    discValue:  document.getElementById('discValue').value,
+    eventAge:   document.getElementById('eventAge').value,
+    eventSena:  document.getElementById('eventSena').value,
+    romanRole:  romanEl ? romanEl.value : '',
     dayType, discountType
   };
 }
@@ -1161,6 +1192,10 @@ function restoreFormState(s) {
   set('kidsMenu',   s.kidsMenu   || 'basic');
   set('adultsMenu', s.adultsMenu || 'none');
   set('discValue',  s.discValue  || '0');
+  set('eventAge',   s.eventAge   || '');
+  set('eventSena',  s.eventSena  || '');
+  // Roman radio
+  document.querySelectorAll('input[name="romanRole"]').forEach(r => { r.checked = r.value === (s.romanRole || ''); });
   setDayType(s.dayType || 'weekend');
   setDiscountType(s.discountType || 'none');
   recalc();
@@ -1441,14 +1476,17 @@ function buildSheetPayload(entry) {
     'Duración (hs)':   totalHrs,
     'Tipo de día':     dayLabel,
     'Nº niños':        parseInt(f.numKids)   || 0,
+    'Edad':            parseInt(f.eventAge)  || '',
     'Menú niños':      kidsMenuNames[f.kidsMenu] || f.kidsMenu || '',
     'Nº adultos':      parseInt(f.numAdults) || 0,
     'Menú adultos':    adultMenuNames[f.adultsMenu] || f.adultsMenu || '',
     'Horas extra':     Math.max(0, parseInt(f.extraHours)||0),
     'Personal extra':  parseInt(f.extraStaff) || 0,
+    'Roman':           f.romanRole   || '',
     'Nº animadores':   b.actualRecs  ?? '',
     'Nº mozos':        b.waiters     ?? '',
     'Total ($)':       entry.total || 0,
+    'Seña ($)':        parseInt(f.eventSena) || '',
     'Descuento valor': f.discountType !== 'none' ? (f.discValue || 0) : '',
     'Descuento tipo':  f.discountType !== 'none' ? f.discountType : '',
     'Descripción':     f.eventDesc   || '',
@@ -1526,7 +1564,10 @@ function rowToEntry(row) {
       discountType:(discTipo === 'fixed' || discTipo === 'pct') ? discTipo : 'none',
       dayType:     row['Tipo de día'] === 'Lunes–Jueves' ? 'weekday' : 'weekend',
       eventDesc:   String(row['Descripción']    || ''),
-      eventOthers: String(row['Notas']          || '')
+      eventOthers: String(row['Notas']          || ''),
+      eventAge:    String(row['Edad']           || ''),
+      eventSena:   String(row['Seña ($)']       || ''),
+      romanRole:   String(row['Roman']          || '')
     }
   };
 }
@@ -1826,6 +1867,7 @@ window.addEventListener('message', e => {
 const PROV_COLS = [
   { key: 'Fecha',          label: 'Fecha' },
   { key: 'Nombre evento',  label: 'Evento' },
+  { key: 'Edad',           label: 'Edad' },
   { key: 'Hora inicio',    label: 'Inicio' },
   { key: 'Hora fin',       label: 'Fin' },
   { key: 'Duración (hs)',  label: 'Duración' },
@@ -1833,6 +1875,7 @@ const PROV_COLS = [
   { key: 'Nº adultos',     label: 'Adultos' },
   { key: 'Horas extra',    label: 'Hs extra' },
   { key: 'Personal extra', label: 'Pers. extra' },
+  { key: 'Roman',          label: 'Roman' },
   { key: 'Nº animadores',  label: 'Animadores' },
   { key: 'Nº mozos',       label: 'Mozos' },
 ];
