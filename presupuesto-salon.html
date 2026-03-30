@@ -185,6 +185,12 @@
       .save-actions { flex-direction: column; }
     }
 
+    /* ── OTROS / EXTRAS ── */
+    .extras-toggles { display:flex; gap:8px; flex-wrap:wrap; margin-top:4px; }
+    .extras-btn { padding:7px 14px; border:1.5px solid var(--gray-200); border-radius:8px; background:white; color:var(--gray-600); font-size:.85rem; cursor:pointer; font-family:inherit; transition:.15s; }
+    .extras-btn:hover { border-color:var(--purple); color:var(--purple); }
+    .extras-btn.on { background:var(--purple); color:white; border-color:var(--purple); }
+
     /* ── LOGIN OVERLAY ── */
     .login-overlay { position:fixed; inset:0; background:linear-gradient(135deg,var(--purple),var(--purple-dark)); display:flex; align-items:center; justify-content:center; z-index:9999; }
     .login-box { background:white; border-radius:18px; padding:40px 32px; text-align:center; max-width:340px; width:90%; box-shadow:0 20px 60px rgba(0,0,0,.3); }
@@ -421,20 +427,33 @@
     <!-- OPCIONES (optional) -->
     <div class="card card-optional">
       <div class="card-header">
-        <h2>⚙️ Opciones <span class="stag stag-opt">Opcional</span></h2>
+        <h2>➕ Otros <span class="stag stag-opt">Opcional</span></h2>
       </div>
 
-      <div class="grid-2">
-        <div class="form-group">
-          <label class="flab">Horas extra (más de 4 incluidas)</label>
-          <input type="number" id="extraHours" value="0" min="0" max="8" step="1" oninput="recalc()">
-        </div>
-        <div class="form-group">
-          <label class="flab">Personal extra solicitado</label>
-          <input type="number" id="extraStaff" value="0" min="0" oninput="recalc()">
-        </div>
+      <div class="form-group">
+        <label class="flab">Horas extra (más de 4 incluidas)</label>
+        <input type="number" id="extraHours" value="0" min="0" max="8" step="1" oninput="recalc()">
       </div>
       <div class="hours-info" id="hoursInfo" style="display:none"></div>
+
+      <div class="form-group" style="margin-top:10px">
+        <label class="flab">Personal extra</label>
+        <div class="extras-toggles">
+          <button type="button" id="btn-extraRec" class="extras-btn" onclick="toggleExtra('rec')">🎪 Recreador extra</button>
+          <button type="button" id="btn-extraMoz" class="extras-btn" onclick="toggleExtra('moz')">🧑‍🍳 Mozo extra</button>
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-top:10px">
+        <label class="flab">Otro</label>
+        <div class="grid-2">
+          <input type="text"   id="otroDesc"  placeholder="Descripción (ej: Torta)" oninput="recalc()" style="padding:8px 10px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:.88rem;font-family:inherit">
+          <input type="number" id="otroValor" placeholder="$ valor" min="0" oninput="recalc()" style="padding:8px 10px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:.88rem;font-family:inherit">
+        </div>
+      </div>
+
+      <!-- campo oculto para mantener compatibilidad interna -->
+      <input type="hidden" id="extraStaff" value="0">
     </div>
 
     <!-- DESCUENTO (optional) -->
@@ -504,8 +523,19 @@
             <input type="radio" name="romanRole" value="Salon" onchange="recalc()"> Salón
           </label>
           <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:.88rem">
-            <input type="radio" name="romanRole" value="No ve" onchange="recalc()"> No ve
+            <input type="radio" name="romanRole" value="No va" onchange="recalc()"> No va
           </label>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="flab">Nº animadores</label>
+          <div class="time-badge" id="displayAnimadores">—</div>
+        </div>
+        <div class="form-group">
+          <label class="flab">Nº mozos</label>
+          <div class="time-badge" id="displayMozos">—</div>
         </div>
       </div>
 
@@ -744,6 +774,18 @@ let completingId    = null;
 let completingName  = null;
 let currentTab      = 'presupuesto';
 let loadedId        = null;   // ID del registro cargado para edición
+let extraRecExtra   = false;  // toggle Recreador extra
+let extraMozExtra   = false;  // toggle Mozo extra
+
+function toggleExtra(type) {
+  if (type === 'rec') extraRecExtra = !extraRecExtra;
+  if (type === 'moz') extraMozExtra = !extraMozExtra;
+  document.getElementById('btn-extraRec').classList.toggle('on', extraRecExtra);
+  document.getElementById('btn-extraMoz').classList.toggle('on', extraMozExtra);
+  // actualizar campo oculto extraStaff para cálculo
+  document.getElementById('extraStaff').value = (extraRecExtra ? 1 : 0) + (extraMozExtra ? 1 : 0);
+  recalc();
+}
 
 // ════════════════════════════════════════════
 // TABS
@@ -963,8 +1005,12 @@ function recalc() {
     hoursEl.innerHTML = `⏱ <strong>${totalHrs} hs en total</strong> (4 base + ${extraHours} extra). Costo extra: salón ${fmtCur(salonExtraCst)} + personal ${totalStaff} × ${extraHours} hs × ${fmtCur(C.staffExtraHr)} = <strong>${fmtCur(extraHrTotCst)}</strong>`;
   } else { hoursEl.style.display = 'none'; }
 
+  // Otro extra libre
+  const otroValor = parseInt(document.getElementById('otroValor')?.value) || 0;
+  const otroDesc  = document.getElementById('otroDesc')?.value || '';
+
   // Subtotal
-  const subtotal = basePrice + extraHrTotCst + kidsExtraCst + kidsUpgrade + adultMenuCst + recsCst + waitersCst + xStaffCst;
+  const subtotal = basePrice + extraHrTotCst + kidsExtraCst + kidsUpgrade + adultMenuCst + recsCst + waitersCst + xStaffCst + otroValor;
   const discVal  = parseFloat(document.getElementById('discValue')?.value) || 0;
   let discAmt    = 0;
   if (discountType === 'fixed') discAmt = Math.min(discVal, subtotal);
@@ -984,7 +1030,9 @@ function recalc() {
   if (recsCst > 0)        html += bi('🎪',`Recreadores extra (${recsExtra})`,`${recsExtra} × ${fmtCur(C.staffCost)}`,recsCst);
   if (waiters === 1) html += bi('🧑‍🍳','Mozo (incluido)','1 requerido — sin cargo',0);
   if (waiters > 1)  html += bi('🧑‍🍳',`Mozos (${waiters})`,`1 incluido + ${waiters-1} × ${fmtCur(C.staffCost)}`,waitersCst);
-  if (xStaffCst > 0)      html += bi('👤',`Personal extra (${extraStaff})`,`${extraStaff} × ${fmtCur(C.staffCost)}`,xStaffCst);
+  if (extraRecExtra)       html += bi('🎪','Recreador extra',`1 × ${fmtCur(C.staffCost)}`,C.staffCost);
+  if (extraMozExtra)       html += bi('🧑‍🍳','Mozo extra',`1 × ${fmtCur(C.staffCost)}`,C.staffCost);
+  if (otroValor > 0)       html += bi('➕', otroDesc || 'Otro', '', otroValor);
 
   html += `<div class="subtotal-row"><span>Subtotal</span><span>${fmtCur(subtotal)}</span></div>`;
   if (discAmt > 0) {
@@ -999,7 +1047,14 @@ function recalc() {
     totalStaff, subtotal, discAmt, total, discountType, discVal, endTime,
     numKids, kidsExtra, kidsIncl, kidsMenuSel, kidsMenuName, kidsMenuPrc, kidsUpgrade, kidsExtraCst,
     numAdults, adultMenuCst, adultMenuPrc, adultsMenuSel, adultMenuNames,
-    recsExtra, recsCst, waiters, waitersCst, extraStaff, xStaffCst, C };
+    actualRecs, recsExtra, recsCst, waiters, waitersCst, extraStaff, xStaffCst,
+    otroValor, otroDesc, C };
+
+  // Actualizar campos de visualización en la card de Reserva
+  const dispAnim = document.getElementById('displayAnimadores');
+  const dispMozo = document.getElementById('displayMozos');
+  if (dispAnim) dispAnim.textContent = numKids > 0 ? actualRecs : '—';
+  if (dispMozo) dispMozo.textContent = (numAdults > 0) ? waiters : '—';
 }
 
 // ════════════════════════════════════════════
@@ -1115,8 +1170,12 @@ function fallbackCopy(text, cb) {
 // CLEAR
 // ════════════════════════════════════════════
 function clearForm() {
-  ['eventDate','eventName','eventDesc','eventOthers','eventAge','eventSena'].forEach(id => document.getElementById(id).value = '');
+  ['eventDate','eventName','eventDesc','eventOthers','eventAge','eventSena','otroDesc','otroValor'].forEach(id => document.getElementById(id).value = '');
   document.querySelectorAll('input[name="romanRole"]').forEach(r => r.checked = false);
+  extraRecExtra = false; extraMozExtra = false;
+  document.getElementById('btn-extraRec').classList.remove('on');
+  document.getElementById('btn-extraMoz').classList.remove('on');
+  document.getElementById('extraStaff').value = '0';
   document.getElementById('startTime').value  = '';
   document.getElementById('numKids').value    = '0';
   document.getElementById('numAdults').value  = '0';
@@ -1171,9 +1230,12 @@ function getFormState() {
     kidsMenu:   document.getElementById('kidsMenu').value,
     adultsMenu: document.getElementById('adultsMenu').value,
     discValue:  document.getElementById('discValue').value,
-    eventAge:   document.getElementById('eventAge').value,
-    eventSena:  document.getElementById('eventSena').value,
-    romanRole:  romanEl ? romanEl.value : '',
+    eventAge:      document.getElementById('eventAge').value,
+    eventSena:     document.getElementById('eventSena').value,
+    romanRole:     romanEl ? romanEl.value : '',
+    extraRecExtra, extraMozExtra,
+    otroDesc:      document.getElementById('otroDesc').value,
+    otroValor:     document.getElementById('otroValor').value,
     dayType, discountType
   };
 }
@@ -1194,8 +1256,16 @@ function restoreFormState(s) {
   set('discValue',  s.discValue  || '0');
   set('eventAge',   s.eventAge   || '');
   set('eventSena',  s.eventSena  || '');
+  set('otroDesc',   s.otroDesc   || '');
+  set('otroValor',  s.otroValor  || '');
   // Roman radio
   document.querySelectorAll('input[name="romanRole"]').forEach(r => { r.checked = r.value === (s.romanRole || ''); });
+  // Extras toggles
+  extraRecExtra = s.extraRecExtra || false;
+  extraMozExtra = s.extraMozExtra || false;
+  document.getElementById('btn-extraRec').classList.toggle('on', extraRecExtra);
+  document.getElementById('btn-extraMoz').classList.toggle('on', extraMozExtra);
+  document.getElementById('extraStaff').value = (extraRecExtra ? 1 : 0) + (extraMozExtra ? 1 : 0);
   setDayType(s.dayType || 'weekend');
   setDiscountType(s.discountType || 'none');
   recalc();
@@ -1467,8 +1537,6 @@ function buildSheetPayload(entry) {
 
   return {
     'ID':              entry.id || '',
-    'Tipo':            entry.status || 'presupuesto',
-    'Nombre guardado': entry.saveName || '',
     'Fecha':           fechaStr,
     'Nombre evento':   f.eventName  || '',
     'Hora inicio':     f.startTime  || '',
@@ -1487,6 +1555,8 @@ function buildSheetPayload(entry) {
     'Nº mozos':        b.waiters     ?? '',
     'Total ($)':       entry.total || 0,
     'Seña ($)':        parseInt(f.eventSena) || '',
+    'Extras detalle':  f.otroDesc    || '',
+    'Extras valor ($)':parseInt(f.otroValor) || '',
     'Descuento valor': f.discountType !== 'none' ? (f.discValue || 0) : '',
     'Descuento tipo':  f.discountType !== 'none' ? f.discountType : '',
     'Descripción':     f.eventDesc   || '',
@@ -1504,10 +1574,12 @@ function buildSheetRow(entry) {
 function postToWebhook(entry) {
   const url = cfg().webhookUrl;
   if (!url || !url.startsWith('http')) return;
+  const payload = buildSheetPayload(entry);
+  payload.sheetName = (entry.status === 'reserva') ? 'Reservas' : 'Presupuestos';
   fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain' },
-    body: JSON.stringify(buildSheetPayload(entry))
+    body: JSON.stringify(payload)
   }).then(() => {
     // Marcar como sincronizado
     const saves = getSaves();
@@ -1545,8 +1617,8 @@ function rowToEntry(row) {
     'Pizzas y calzones':'pizza_calzone', 'Pizzas, calzones y chivitos':'pizza_calzone_chivito' };
   return {
     id:      String(row['ID'] || Date.now()),
-    saveName:String(row['Nombre guardado'] || fechaStr),
-    status:  String(row['Tipo'] || 'presupuesto'),
+    saveName:String(row['Nombre evento'] || fechaStr || String(Date.now())),
+    status:  row._status || 'presupuesto',
     total:   parseFloat(row['Total ($)']) || 0,
     savedAt: String(row['Guardado el'] || ''),
     synced:  true,
@@ -1565,9 +1637,13 @@ function rowToEntry(row) {
       dayType:     row['Tipo de día'] === 'Lunes–Jueves' ? 'weekday' : 'weekend',
       eventDesc:   String(row['Descripción']    || ''),
       eventOthers: String(row['Notas']          || ''),
-      eventAge:    String(row['Edad']           || ''),
-      eventSena:   String(row['Seña ($)']       || ''),
-      romanRole:   String(row['Roman']          || '')
+      eventAge:      String(row['Edad']             || ''),
+      eventSena:     String(row['Seña ($)']         || ''),
+      romanRole:     String(row['Roman']            || ''),
+      otroDesc:      String(row['Extras detalle']   || ''),
+      otroValor:     String(row['Extras valor ($)'] || ''),
+      extraRecExtra: false,
+      extraMozExtra: false
     }
   };
 }
@@ -1591,10 +1667,12 @@ async function syncFromSheet() {
     const unsynced = saves.filter(s => !s.synced && s.status === tipo);
     for (const entry of unsynced) {
       try {
+        const p = buildSheetPayload(entry);
+        p.sheetName = (entry.status === 'reserva') ? 'Reservas' : 'Presupuestos';
         await fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'text/plain' },
-          body: JSON.stringify(buildSheetPayload(entry))
+          body: JSON.stringify(p)
         });
         const idx = saves.findIndex(s => s.id === entry.id);
         if (idx !== -1) saves[idx].synced = true;
@@ -1617,7 +1695,7 @@ async function syncFromSheet() {
     const data = await res.json();
     if (!data.ok) throw new Error('Respuesta inesperada del servidor.');
 
-    const sheetEntries = (data[sheetKey] || []).map(rowToEntry);
+    const sheetEntries = (data[sheetKey] || []).map(r => rowToEntry(Object.assign({ _status: tipo }, r)));
 
     // 4. Armar el conjunto local a conservar:
     //    - Todos los registros del OTRO tipo (no tocamos reservas si sinceamos presupuestos, y viceversa)
