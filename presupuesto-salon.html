@@ -183,6 +183,22 @@
       .action-bar .btn { justify-content: center; }
       .save-actions { flex-direction: column; }
     }
+
+    /* ── VISTA PROVEEDORES ── */
+    .prov-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 8px; }
+    .prov-header h2 { font-size: 1rem; font-weight: 700; color: var(--gray-800); }
+    .prov-header small { color: var(--gray-400); font-size: .8rem; }
+    .prov-refresh { background: var(--purple); color: white; border: none; border-radius: 6px; padding: 6px 14px; font-size: .82rem; cursor: pointer; font-family: inherit; }
+    .prov-table-wrap { overflow-x: auto; border-radius: var(--radius); box-shadow: var(--shadow); }
+    table.prov { width: 100%; border-collapse: collapse; background: white; font-size: .82rem; }
+    table.prov th { background: var(--purple-dark); color: white; padding: 9px 12px; text-align: left; white-space: nowrap; font-weight: 600; }
+    table.prov td { padding: 9px 12px; border-bottom: 1px solid var(--gray-200); white-space: nowrap; }
+    table.prov tr:last-child td { border-bottom: none; }
+    table.prov tr:hover td { background: var(--purple-light); }
+    table.prov td.prov-fecha { font-weight: 700; color: var(--purple-dark); }
+    table.prov td.prov-nombre { font-weight: 600; }
+    .prov-empty { text-align: center; padding: 40px 20px; color: var(--gray-400); font-size: .9rem; }
+    .prov-loading { text-align: center; padding: 30px; color: var(--gray-400); font-size: .88rem; }
   </style>
 </head>
 <body>
@@ -242,6 +258,7 @@
 <nav>
   <button class="active" onclick="switchTab('presupuesto')">📋 Presupuestos</button>
   <button onclick="switchTab('reserva')">✅ Reservas</button>
+  <button onclick="switchTab('proveedor')">🚚 Proveedores</button>
   <button onclick="switchTab('admin')">⚙️ Administración</button>
 </nav>
 
@@ -445,6 +462,20 @@
   </div><!-- /form-area -->
 
 
+  <!-- ══════════════ TAB PROVEEDORES ══════════════ -->
+  <div id="tab-proveedor" style="display:none">
+    <div class="card">
+      <div class="prov-header">
+        <div>
+          <h2>🚚 Próximos eventos reservados</h2>
+          <small id="prov-updated"></small>
+        </div>
+        <button class="prov-refresh" onclick="loadProveedorView()">↻ Actualizar</button>
+      </div>
+      <div id="prov-content" class="prov-loading">Cargando eventos...</div>
+    </div>
+  </div>
+
   <!-- ══════════════ TAB ADMINISTRACIÓN ══════════════ -->
   <div id="tab-admin" style="display:none">
 
@@ -636,12 +667,13 @@ let loadedId        = null;   // ID del registro cargado para edición
 // ════════════════════════════════════════════
 function switchTab(t) {
   currentTab = t;
-  const tabs = ['presupuesto', 'reserva', 'admin'];
+  const tabs = ['presupuesto', 'reserva', 'proveedor', 'admin'];
   document.querySelectorAll('nav button').forEach((el, i) => el.classList.toggle('active', tabs[i] === t));
 
-  const isForm  = t !== 'admin';
-  document.getElementById('form-area').style.display  = isForm ? '' : 'none';
-  document.getElementById('tab-admin').style.display  = isForm ? 'none' : '';
+  const isForm  = t === 'presupuesto' || t === 'reserva';
+  document.getElementById('form-area').style.display     = isForm ? '' : 'none';
+  document.getElementById('tab-admin').style.display     = t === 'admin'     ? '' : 'none';
+  document.getElementById('tab-proveedor').style.display = t === 'proveedor' ? '' : 'none';
 
   const isP = t === 'presupuesto';
   const isR = t === 'reserva';
@@ -662,7 +694,8 @@ function switchTab(t) {
   document.getElementById('btn-savePresupuesto-bot').style.display = isP ? '' : 'none';
   document.getElementById('btn-saveReserva').style.display         = isR ? '' : 'none';
 
-  if (t === 'admin') renderAdminValues();
+  if (t === 'admin')     renderAdminValues();
+  if (t === 'proveedor') loadProveedorView();
   if (loadedId) updateEditButtons();
 }
 
@@ -1589,6 +1622,56 @@ function doLogout() {
   document.getElementById('adminPw').value = '';
   document.getElementById('loginErr').style.display = 'none';
   document.querySelectorAll('.edit-panel').forEach(el => el.classList.remove('open'));
+}
+
+// ════════════════════════════════════════════
+// VISTA PROVEEDORES
+// ════════════════════════════════════════════
+const PROV_COLS = [
+  { key: 'Fecha',          label: 'Fecha' },
+  { key: 'Nombre evento',  label: 'Evento' },
+  { key: 'Hora inicio',    label: 'Inicio' },
+  { key: 'Hora fin',       label: 'Fin' },
+  { key: 'Duración (hs)',  label: 'Duración' },
+  { key: 'Nº niños',       label: 'Niños' },
+  { key: 'Nº adultos',     label: 'Adultos' },
+  { key: 'Horas extra',    label: 'Hs extra' },
+  { key: 'Personal extra', label: 'Pers. extra' },
+  { key: 'Nº animadores',  label: 'Animadores' },
+  { key: 'Nº mozos',       label: 'Mozos' },
+];
+
+async function loadProveedorView() {
+  const el = document.getElementById('prov-content');
+  el.innerHTML = '<div class="prov-loading">⏳ Cargando eventos...</div>';
+  try {
+    const url = cfg().webhookUrl + '?action=getData&tipo=reserva';
+    const res = await fetch(url);
+    const data = await res.json();
+    const reservas = (data.reservas || []).sort((a, b) => {
+      const toDate = s => { const p = String(s).split('/'); return p.length===3 ? new Date(p[2],p[1]-1,p[0]) : new Date(0); };
+      return toDate(a['Fecha']) - toDate(b['Fecha']);
+    });
+    if (!reservas.length) {
+      el.innerHTML = '<div class="prov-empty">No hay eventos reservados próximos.</div>';
+    } else {
+      const heads = PROV_COLS.map(c => `<th>${c.label}</th>`).join('');
+      const rows = reservas.map(r => {
+        const cells = PROV_COLS.map((c, i) => {
+          const v = r[c.key] ?? '';
+          if (i === 0) return `<td class="prov-fecha">${v}</td>`;
+          if (i === 1) return `<td class="prov-nombre">${v}</td>`;
+          return `<td>${v}</td>`;
+        }).join('');
+        return `<tr>${cells}</tr>`;
+      }).join('');
+      el.innerHTML = `<div class="prov-table-wrap"><table class="prov"><thead><tr>${heads}</tr></thead><tbody>${rows}</tbody></table></div>`;
+    }
+    const now = new Date().toLocaleTimeString('es-AR', {hour:'2-digit', minute:'2-digit'});
+    document.getElementById('prov-updated').textContent = `Actualizado a las ${now} · ${reservas.length} evento${reservas.length!==1?'s':''}`;
+  } catch(e) {
+    el.innerHTML = '<div class="prov-empty">⚠️ Error al cargar los eventos. Verificá la conexión.</div>';
+  }
 }
 
 function renderAdminValues() {
