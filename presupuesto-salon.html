@@ -2005,28 +2005,20 @@ const PROV_COLS = [
   { key: 'Nº mozos',        label: 'Mozos' },
 ];
 
-// Campos que se muestran en el popup de detalle (con emojis)
-const PROV_POPUP_FIELDS = [
-  { key: 'Fecha',            label: '📅 Fecha' },
-  { key: 'Nombre evento',    label: '🎉 Evento' },
-  { key: 'Edad',             label: '🎂 Edad cumpleañero/a' },
-  { key: 'Hora inicio',      label: '🕐 Hora inicio' },
-  { key: 'Hora fin',         label: '🕔 Hora fin' },
-  { key: 'Duración (hs)',    label: '⏱️ Duración' },
-  { key: 'Nº niños',         label: '👶 Niños' },
-  { key: 'Menú niños',       label: '🌭 Menú niños' },
-  { key: 'Nº adultos',       label: '👥 Adultos' },
-  { key: 'Menú adultos',     label: '🍕 Menú adultos' },
-  { key: 'Roman',            label: '🎭 Roman' },
-  { key: 'Nº animadores',    label: '🎪 Animadores' },
-  { key: 'Horas extra',      label: '⏰ Horas extra' },
-  { key: 'Recreador extra',  label: '🎪 Recreador extra' },
-  { key: 'Mozo extra',       label: '🧑‍🍳 Mozo extra' },
-  { key: 'Descripción',      label: '📝 Descripción' },
-  { key: 'Notas',            label: '🗒️ Notas' },
-  { key: 'Seña ($)',         label: '💵 Seña' },
-  { key: 'Total ($)',        label: '💰 Total' },
-];
+// El popup usa exactamente los mismos campos que la tabla, con emojis
+const PROV_POPUP_LABELS = {
+  'Fecha':           '📅 Fecha',
+  'Nombre evento':   '🎉 Evento',
+  'Edad':            '🎂 Edad',
+  'Hora inicio':     '🕐 Inicio',
+  'Hora fin':        '🕔 Fin',
+  'Roman':           '🎭 Roman',
+  'Nº niños':        '👶 Niños',
+  'Nº animadores':   '🎪 Animadores',
+  'Recreador extra': '🎪 Rec. extra',
+  'Nº adultos':      '👥 Adultos',
+  'Nº mozos':        '🧑‍🍳 Mozos',
+};
 
 let _provReservas = [];
 
@@ -2070,14 +2062,12 @@ function openProvModal(idx) {
   document.getElementById('prov-modal-subtitle').textContent =
     `📅 ${r['Fecha'] || '—'}  ·  🕐 ${r['Hora inicio'] || '—'} → ${r['Hora fin'] || '—'}`;
   const body = document.getElementById('prov-modal-body');
-  body.innerHTML = PROV_POPUP_FIELDS.map(f => {
-    let v = r[f.key];
-    // Mostrar si tiene cualquier valor real (incluye 0 numérico, excluye vacío/null/undefined)
+  body.innerHTML = PROV_COLS.map(c => {
+    const v = r[c.key];
     if (v === undefined || v === null || String(v).trim() === '') return '';
-    if (f.key === 'Total ($)' || f.key === 'Seña ($)') v = '$' + Number(v).toLocaleString('es-AR');
-    if (f.key === 'Duración (hs)') v = v + ' hs';
+    const label = PROV_POPUP_LABELS[c.key] || c.label;
     return `<div class="prov-field">
-      <span class="prov-field-label">${f.label}</span>
+      <span class="prov-field-label">${label}</span>
       <span class="prov-field-value">${v}</span>
     </div>`;
   }).join('');
