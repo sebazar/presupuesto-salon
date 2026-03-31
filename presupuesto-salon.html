@@ -1881,6 +1881,8 @@ async function handleGoogleLogin(response) {
 }
 
 function onLoginSuccess() {
+  // Persistir sesión para no pedir login en cada refresh
+  try { localStorage.setItem('salon_user', JSON.stringify(currentUser)); } catch(e) {}
   document.getElementById('login-overlay').style.display = 'none';
   // Avatar
   const av = document.getElementById('user-avatar');
@@ -1930,6 +1932,7 @@ document.addEventListener('click', e => {
 
 function logout() {
   currentUser = null;
+  try { localStorage.removeItem('salon_user'); } catch(e) {}
   document.getElementById('user-avatar').style.display = 'none';
   document.getElementById('user-menu').classList.remove('open');
   document.getElementById('login-overlay').style.display = 'flex';
@@ -1948,6 +1951,16 @@ function initGoogleAuth() {
     onLoginSuccess();
     return;
   }
+  // Intentar restaurar sesión guardada
+  try {
+    const saved = localStorage.getItem('salon_user');
+    if (saved) {
+      currentUser = JSON.parse(saved);
+      onLoginSuccess();
+      return;  // sesión restaurada, no mostramos el botón de login
+    }
+  } catch(e) {}
+  // Sin sesión guardada → mostrar botón de Google
   const renderBtn = () => {
     google.accounts.id.initialize({ client_id: clientId, callback: handleGoogleLogin, auto_select: false });
     google.accounts.id.renderButton(document.getElementById('google-login-btn'),
