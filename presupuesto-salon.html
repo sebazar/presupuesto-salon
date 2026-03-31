@@ -452,7 +452,7 @@
       <div class="hours-info" id="hoursInfo" style="display:none"></div>
 
       <div class="form-group" style="margin-top:10px">
-        <label class="flab">Personal extra</label>
+        <label class="flab">Staff adicional</label>
         <div class="extras-toggles">
           <button type="button" id="btn-extraRec" class="extras-btn" onclick="toggleExtra('rec')">🎪 Recreador extra</button>
           <button type="button" id="btn-extraMoz" class="extras-btn" onclick="toggleExtra('moz')">🧑‍🍳 Mozo extra</button>
@@ -1462,12 +1462,22 @@ function renderSavesList(filter = 'presupuesto') {
 function loadBudget(id) {
   const s = getSaves().find(x => x.id === id);
   if (!s) return;
-  restoreFormState(s.form);
+  restoreFormState(s.form);   // llama recalc() → actualiza lastBudget.total
   clearAllErrors();
   cancelReservaMode();
   closeModal('savesModal');
   switchTab(s.status === 'reserva' ? 'reserva' : 'presupuesto');
   setEditMode(id);  // sets loadedId + banner + button styles (after switchTab so buttons are visible)
+  // Si el total guardado difiere del calculado, fue un precio editado manualmente → restaurarlo
+  const pfo = document.getElementById('precioFinalOverride');
+  if (pfo && s.total && Math.round(s.total) !== Math.round(lastBudget.total || 0)) {
+    pfo.value = s.total;
+    updateFinalPriceDisplay();
+  } else if (pfo) {
+    pfo.value = '';
+    const oh = document.getElementById('overrideHint');
+    if (oh) oh.style.display = 'none';
+  }
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -1587,6 +1597,7 @@ function buildSheetPayload(entry) {
     'Nº animadores':   b.actualRecs  ?? '',
     'Nº mozos':        b.waiters     ?? '',
     'Tipo de día':     dayLabel,
+    'Precio calculado': lastBudget.total || 0,  // usado por Apps Script como Precio original en INSERT
     'Total ($)':       entry.total || 0,
     'Seña ($)':        parseInt(f.eventSena) || '',
     'Descripción':     f.eventDesc   || '',
@@ -1981,15 +1992,17 @@ window.addEventListener('message', e => {
 // VISTA PROVEEDORES
 // ════════════════════════════════════════════
 const PROV_COLS = [
-  { key: 'Fecha',          label: 'Fecha' },
-  { key: 'Nombre evento',  label: 'Evento' },
-  { key: 'Edad',           label: 'Edad' },
-  { key: 'Hora inicio',    label: 'Inicio' },
-  { key: 'Hora fin',       label: 'Fin' },
-  { key: 'Roman',          label: 'Roman' },
-  { key: 'Nº animadores',  label: 'Animadores' },
-  { key: 'Nº niños',       label: 'Niños' },
-  { key: 'Nº adultos',     label: 'Adultos' },
+  { key: 'Fecha',           label: 'Fecha' },
+  { key: 'Nombre evento',   label: 'Evento' },
+  { key: 'Edad',            label: 'Edad' },
+  { key: 'Hora inicio',     label: 'Inicio' },
+  { key: 'Hora fin',        label: 'Fin' },
+  { key: 'Roman',           label: 'Roman' },
+  { key: 'Nº niños',        label: 'Niños' },
+  { key: 'Nº animadores',   label: 'Animadores' },
+  { key: 'Recreador extra', label: 'Rec. extra' },
+  { key: 'Nº adultos',      label: 'Adultos' },
+  { key: 'Nº mozos',        label: 'Mozos' },
 ];
 
 // Campos que se muestran en el popup de detalle (con emojis)
@@ -2059,7 +2072,8 @@ function openProvModal(idx) {
   const body = document.getElementById('prov-modal-body');
   body.innerHTML = PROV_POPUP_FIELDS.map(f => {
     let v = r[f.key];
-    if (v === undefined || v === null || v === '') return '';
+    // Mostrar si tiene cualquier valor real (incluye 0 numérico, excluye vacío/null/undefined)
+    if (v === undefined || v === null || String(v).trim() === '') return '';
     if (f.key === 'Total ($)' || f.key === 'Seña ($)') v = '$' + Number(v).toLocaleString('es-AR');
     if (f.key === 'Duración (hs)') v = v + ' hs';
     return `<div class="prov-field">
