@@ -242,6 +242,21 @@
     table.prov td.prov-nombre { font-weight: 600; }
     .prov-empty { text-align: center; padding: 40px 20px; color: var(--gray-400); font-size: .9rem; }
     .prov-loading { text-align: center; padding: 30px; color: var(--gray-400); font-size: .88rem; }
+    table.prov tr { cursor: pointer; }
+
+    /* POPUP PROVEEDOR */
+    .prov-modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:1000; align-items:center; justify-content:center; padding:16px; }
+    .prov-modal-overlay.open { display:flex; }
+    .prov-modal { background:white; border-radius:14px; max-width:480px; width:100%; max-height:85vh; overflow-y:auto; box-shadow:0 8px 32px rgba(0,0,0,.25); }
+    .prov-modal-header { background:linear-gradient(135deg,var(--purple),var(--purple-dark)); color:white; padding:16px 20px; border-radius:14px 14px 0 0; display:flex; justify-content:space-between; align-items:flex-start; }
+    .prov-modal-header h3 { font-size:1.05rem; font-weight:700; line-height:1.3; }
+    .prov-modal-header .prov-modal-date { font-size:.82rem; opacity:.85; margin-top:3px; }
+    .prov-modal-close { background:rgba(255,255,255,.2); border:none; color:white; width:28px; height:28px; border-radius:50%; cursor:pointer; font-size:1rem; line-height:28px; text-align:center; flex-shrink:0; margin-left:12px; }
+    .prov-modal-body { padding:16px 20px; display:flex; flex-direction:column; gap:8px; }
+    .prov-field { display:flex; gap:8px; align-items:baseline; padding:6px 0; border-bottom:1px solid var(--gray-200); }
+    .prov-field:last-child { border-bottom:none; }
+    .prov-field-label { font-size:.78rem; color:var(--gray-400); min-width:110px; flex-shrink:0; }
+    .prov-field-value { font-size:.88rem; font-weight:600; color:var(--gray-800); flex:1; }
   </style>
 </head>
 <body>
@@ -396,8 +411,8 @@
         <div class="form-group">
           <label class="flab">Menú <span class="req-star">*</span></label>
           <select id="kidsMenu" onchange="recalc()">
-            <option value="basic">Básico (incluido)</option>
-            <option value="alt">Alternativo (con cargo)</option>
+            <option value="basic">🌭 Panchos y snacks (incluido)</option>
+            <option value="alt">🍗 Nuggets con papas fritas (con cargo)</option>
           </select>
         </div>
       </div>
@@ -559,6 +574,13 @@
       <div class="card-header"><h2>💰 Detalle del presupuesto</h2></div>
       <div id="budgetLines"></div>
       <div id="budgetTotal"></div>
+      <div style="margin-top:10px;padding:10px 12px;background:#fff8e1;border:1px solid #ffe082;border-radius:8px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <label style="font-size:.82rem;font-weight:600;color:#b45309;white-space:nowrap">✏️ Precio final manual ($)</label>
+        <input type="number" id="precioFinalOverride" placeholder="Dejar vacío = usar calculado"
+          style="flex:1;min-width:160px;border:1px solid #ffe082;border-radius:6px;padding:6px 10px;font-size:.88rem;background:white"
+          oninput="updateFinalPriceDisplay()">
+        <span id="overrideHint" style="font-size:.78rem;color:#92400e;display:none">⚠️ Precio editado — se guardará este valor</span>
+      </div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:16px">
         <button class="btn btn-wa" onclick="openWA()">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
@@ -1018,7 +1040,7 @@ function recalc() {
   const total    = subtotal - discAmt;
 
   const adultMenuNames = { none:'Traen su comida', pizza:'Solo pizzas', pizza_calzone:'Pizzas y calzones', pizza_calzone_chivito:'Pizzas, calzones y chivitos' };
-  const kidsMenuName   = kidsMenuSel === 'basic' ? 'Menú básico' : 'Menú alternativo';
+  const kidsMenuName   = kidsMenuSel === 'basic' ? 'Panchos y snacks' : 'Nuggets con papas fritas';
 
   let html = '';
   const totalHrs = 4 + extraHours;
@@ -1063,7 +1085,7 @@ function recalc() {
 // ─── Versión resumida (amigable) ────────────────────────
 function buildWASimple() {
   const b = lastBudget; if (!b.C) return '';
-  const kidsMenuNames  = { basic: 'menú básico', alt: 'menú alternativo' };
+  const kidsMenuNames  = { basic: 'Panchos y snacks', alt: 'Nuggets con papas fritas' };
   const adultMenuNames = { none: 'traen su comida', pizza: 'solo pizzas', pizza_calzone: 'pizzas y calzones', pizza_calzone_chivito: 'pizzas, calzones y chivitos' };
   const kidsMenuSel   = document.getElementById('kidsMenu').value;
   const adultsMenuSel = document.getElementById('adultsMenu').value;
@@ -1184,6 +1206,10 @@ function clearForm() {
   document.getElementById('kidsMenu').value   = 'basic';
   document.getElementById('adultsMenu').value = 'none';
   document.getElementById('discValue').value  = '0';
+  const pfo = document.getElementById('precioFinalOverride');
+  if (pfo) { pfo.value = ''; }
+  const oh = document.getElementById('overrideHint');
+  if (oh) oh.style.display = 'none';
   document.getElementById('endTimeGroup').style.display = 'none';
   setDayType('weekend');
   setDiscountType('none');
@@ -1271,6 +1297,16 @@ function restoreFormState(s) {
   recalc();
 }
 
+function updateFinalPriceDisplay() {
+  const v = parseFloat(document.getElementById('precioFinalOverride').value);
+  const hint = document.getElementById('overrideHint');
+  if (hint) hint.style.display = (!isNaN(v) && v > 0) ? '' : 'none';
+}
+function getEffectiveTotal() {
+  const v = parseFloat(document.getElementById('precioFinalOverride').value);
+  return (!isNaN(v) && v > 0) ? v : (lastBudget.total || 0);
+}
+
 function saveAsPresupuesto() {
   const errs = validatePresupuesto();
   if (errs.length) { showToast(errs); return; }
@@ -1278,7 +1314,7 @@ function saveAsPresupuesto() {
   const saves   = getSaves();
   const savedAt = new Date().toISOString();
   const form    = getFormState();
-  const total   = lastBudget.total || 0;
+  const total   = getEffectiveTotal();
 
   if (loadedId) {
     const idx = saves.findIndex(s => s.id === loadedId);
@@ -1320,7 +1356,7 @@ function saveAsReserva() {
 
   const saves   = getSaves();
   const form    = getFormState();
-  const total   = lastBudget.total || 0;
+  const total   = getEffectiveTotal();
   const savedAt = new Date().toISOString();
 
   const timeVal = document.getElementById('startTime').value || '';
@@ -1524,7 +1560,7 @@ function buildSheetPayload(entry) {
   const f = entry.form || {};
   const b = lastBudget;
   const adultMenuNames = { none:'Traen su comida', pizza:'Solo pizzas', pizza_calzone:'Pizzas y calzones', pizza_calzone_chivito:'Pizzas, calzones y chivitos' };
-  const kidsMenuNames  = { basic:'Básico', alt:'Alternativo' };
+  const kidsMenuNames  = { basic:'Panchos y snacks', alt:'Nuggets con papas fritas' };
 
   let fechaStr = '';
   if (f.eventDate) {
@@ -1538,29 +1574,30 @@ function buildSheetPayload(entry) {
   return {
     'ID':              entry.id || '',
     'Fecha':           fechaStr,
-    'Nombre evento':   f.eventName  || '',
     'Hora inicio':     f.startTime  || '',
     'Hora fin':        horaFin,
     'Duración (hs)':   totalHrs,
-    'Tipo de día':     dayLabel,
-    'Nº niños':        parseInt(f.numKids)   || 0,
+    'Nombre evento':   f.eventName  || '',
     'Edad':            parseInt(f.eventAge)  || '',
+    'Nº niños':        parseInt(f.numKids)   || 0,
     'Menú niños':      kidsMenuNames[f.kidsMenu] || f.kidsMenu || '',
     'Nº adultos':      parseInt(f.numAdults) || 0,
     'Menú adultos':    adultMenuNames[f.adultsMenu] || f.adultsMenu || '',
-    'Horas extra':     Math.max(0, parseInt(f.extraHours)||0),
-    'Personal extra':  parseInt(f.extraStaff) || 0,
     'Roman':           f.romanRole   || '',
     'Nº animadores':   b.actualRecs  ?? '',
     'Nº mozos':        b.waiters     ?? '',
+    'Tipo de día':     dayLabel,
     'Total ($)':       entry.total || 0,
     'Seña ($)':        parseInt(f.eventSena) || '',
+    'Descripción':     f.eventDesc   || '',
+    'Notas':           f.eventOthers || '',
+    'Horas extra':     Math.max(0, parseInt(f.extraHours)||0),
+    'Recreador extra': f.extraRecExtra ? 'Sí' : '',
+    'Mozo extra':      f.extraMozExtra ? 'Sí' : '',
     'Extras detalle':  f.otroDesc    || '',
     'Extras valor ($)':parseInt(f.otroValor) || '',
     'Descuento valor': f.discountType !== 'none' ? (f.discValue || 0) : '',
     'Descuento tipo':  f.discountType !== 'none' ? f.discountType : '',
-    'Descripción':     f.eventDesc   || '',
-    'Notas':           f.eventOthers || '',
     'Guardado el':     entry.savedAt || new Date().toISOString()
   };
 }
@@ -1612,7 +1649,8 @@ function rowToEntry(row) {
       eventDate = `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`;
   }
   const discTipo = String(row['Descuento tipo'] || '');
-  const kidsMenuMap   = { 'Básico':'basic', 'Alternativo':'alt' };
+  const kidsMenuMap   = { 'Panchos y snacks':'basic', 'Nuggets con papas fritas':'alt',
+                          'Básico':'basic', 'Alternativo':'alt' };  // retrocompat
   const adultsMenuMap = { 'Traen su comida':'none', 'Solo pizzas':'pizza',
     'Pizzas y calzones':'pizza_calzone', 'Pizzas, calzones y chivitos':'pizza_calzone_chivito' };
   return {
@@ -1631,7 +1669,7 @@ function rowToEntry(row) {
       numAdults:   String(row['Nº adultos']     || '0'),
       adultsMenu:  adultsMenuMap[row['Menú adultos']] || 'none',
       extraHours:  String(row['Horas extra']    || '0'),
-      extraStaff:  String(row['Personal extra'] || '0'),
+      extraStaff:  (row['Recreador extra'] === 'Sí' ? 1 : 0) + (row['Mozo extra'] === 'Sí' ? 1 : 0),
       discValue:   String(row['Descuento valor']|| '0'),
       discountType:(discTipo === 'fixed' || discTipo === 'pct') ? discTipo : 'none',
       dayType:     row['Tipo de día'] === 'Lunes–Jueves' ? 'weekday' : 'weekend',
@@ -1642,8 +1680,8 @@ function rowToEntry(row) {
       romanRole:     String(row['Roman']            || ''),
       otroDesc:      String(row['Extras detalle']   || ''),
       otroValor:     String(row['Extras valor ($)'] || ''),
-      extraRecExtra: false,
-      extraMozExtra: false
+      extraRecExtra: row['Recreador extra'] === 'Sí',
+      extraMozExtra: row['Mozo extra'] === 'Sí'
     }
   };
 }
@@ -1948,15 +1986,36 @@ const PROV_COLS = [
   { key: 'Edad',           label: 'Edad' },
   { key: 'Hora inicio',    label: 'Inicio' },
   { key: 'Hora fin',       label: 'Fin' },
-  { key: 'Duración (hs)',  label: 'Duración' },
-  { key: 'Nº niños',       label: 'Niños' },
-  { key: 'Nº adultos',     label: 'Adultos' },
-  { key: 'Horas extra',    label: 'Hs extra' },
-  { key: 'Personal extra', label: 'Pers. extra' },
   { key: 'Roman',          label: 'Roman' },
   { key: 'Nº animadores',  label: 'Animadores' },
-  { key: 'Nº mozos',       label: 'Mozos' },
+  { key: 'Nº niños',       label: 'Niños' },
+  { key: 'Nº adultos',     label: 'Adultos' },
 ];
+
+// Campos que se muestran en el popup de detalle (con emojis)
+const PROV_POPUP_FIELDS = [
+  { key: 'Fecha',            label: '📅 Fecha' },
+  { key: 'Nombre evento',    label: '🎉 Evento' },
+  { key: 'Edad',             label: '🎂 Edad cumpleañero/a' },
+  { key: 'Hora inicio',      label: '🕐 Hora inicio' },
+  { key: 'Hora fin',         label: '🕔 Hora fin' },
+  { key: 'Duración (hs)',    label: '⏱️ Duración' },
+  { key: 'Nº niños',         label: '👶 Niños' },
+  { key: 'Menú niños',       label: '🌭 Menú niños' },
+  { key: 'Nº adultos',       label: '👥 Adultos' },
+  { key: 'Menú adultos',     label: '🍕 Menú adultos' },
+  { key: 'Roman',            label: '🎭 Roman' },
+  { key: 'Nº animadores',    label: '🎪 Animadores' },
+  { key: 'Horas extra',      label: '⏰ Horas extra' },
+  { key: 'Recreador extra',  label: '🎪 Recreador extra' },
+  { key: 'Mozo extra',       label: '🧑‍🍳 Mozo extra' },
+  { key: 'Descripción',      label: '📝 Descripción' },
+  { key: 'Notas',            label: '🗒️ Notas' },
+  { key: 'Seña ($)',         label: '💵 Seña' },
+  { key: 'Total ($)',        label: '💰 Total' },
+];
+
+let _provReservas = [];
 
 async function loadProveedorView() {
   const el = document.getElementById('prov-content');
@@ -1965,30 +2024,55 @@ async function loadProveedorView() {
     const url = cfg().webhookUrl + '?action=getData&tipo=reserva';
     const res = await fetch(url);
     const data = await res.json();
-    const reservas = (data.reservas || []).sort((a, b) => {
+    _provReservas = (data.reservas || []).sort((a, b) => {
       const toDate = s => { const p = String(s).split('/'); return p.length===3 ? new Date(p[2],p[1]-1,p[0]) : new Date(0); };
       return toDate(a['Fecha']) - toDate(b['Fecha']);
     });
-    if (!reservas.length) {
+    if (!_provReservas.length) {
       el.innerHTML = '<div class="prov-empty">No hay eventos reservados próximos.</div>';
     } else {
       const heads = PROV_COLS.map(c => `<th>${c.label}</th>`).join('');
-      const rows = reservas.map(r => {
+      const rows = _provReservas.map((r, idx) => {
         const cells = PROV_COLS.map((c, i) => {
           const v = r[c.key] ?? '';
           if (i === 0) return `<td class="prov-fecha">${v}</td>`;
           if (i === 1) return `<td class="prov-nombre">${v}</td>`;
           return `<td>${v}</td>`;
         }).join('');
-        return `<tr>${cells}</tr>`;
+        return `<tr onclick="openProvModal(${idx})" title="Ver detalle">${cells}</tr>`;
       }).join('');
       el.innerHTML = `<div class="prov-table-wrap"><table class="prov"><thead><tr>${heads}</tr></thead><tbody>${rows}</tbody></table></div>`;
     }
     const now = new Date().toLocaleTimeString('es-AR', {hour:'2-digit', minute:'2-digit'});
-    document.getElementById('prov-updated').textContent = `Actualizado a las ${now} · ${reservas.length} evento${reservas.length!==1?'s':''}`;
+    document.getElementById('prov-updated').textContent = `Actualizado a las ${now} · ${_provReservas.length} evento${_provReservas.length!==1?'s':''}`;
   } catch(e) {
     el.innerHTML = '<div class="prov-empty">⚠️ Error al cargar los eventos. Verificá la conexión.</div>';
   }
+}
+
+function openProvModal(idx) {
+  const r = _provReservas[idx];
+  if (!r) return;
+  document.getElementById('prov-modal-title').textContent = r['Nombre evento'] || 'Sin nombre';
+  document.getElementById('prov-modal-subtitle').textContent =
+    `📅 ${r['Fecha'] || '—'}  ·  🕐 ${r['Hora inicio'] || '—'} → ${r['Hora fin'] || '—'}`;
+  const body = document.getElementById('prov-modal-body');
+  body.innerHTML = PROV_POPUP_FIELDS.map(f => {
+    let v = r[f.key];
+    if (v === undefined || v === null || v === '') return '';
+    if (f.key === 'Total ($)' || f.key === 'Seña ($)') v = '$' + Number(v).toLocaleString('es-AR');
+    if (f.key === 'Duración (hs)') v = v + ' hs';
+    return `<div class="prov-field">
+      <span class="prov-field-label">${f.label}</span>
+      <span class="prov-field-value">${v}</span>
+    </div>`;
+  }).join('');
+  document.getElementById('prov-modal-overlay').classList.add('open');
+}
+
+function closeProvModal(e) {
+  if (e && e.target !== document.getElementById('prov-modal-overlay')) return;
+  document.getElementById('prov-modal-overlay').classList.remove('open');
 }
 
 function renderAdminValues() {
@@ -2085,9 +2169,10 @@ function testWebhook() {
   res.style.display='block'; res.style.color='var(--gray-400)'; res.textContent='Enviando prueba…';
   const testPayload = { Fecha:'TEST', 'Nombre evento':'Prueba de conexión', 'Hora inicio':'—',
     'Hora fin':'—', 'Duración (hs)':4, 'Tipo de día':'TEST', 'Nº niños':0, 'Menú niños':'—',
-    'Nº adultos':0, 'Menú adultos':'—', 'Horas extra':0, 'Personal extra':0,
+    'Nº adultos':0, 'Menú adultos':'—', 'Horas extra':0,
     'Total ($)':0, 'Descuento valor':'', 'Descuento tipo':'', 'Descripción':'Fila de prueba — podés eliminarla',
-    'Notas':'', 'Guardado el': new Date().toLocaleString('es-UY') };
+    'Notas':'', 'Guardado el': new Date().toLocaleString('es-UY'),
+    sheetName: 'Presupuestos' };
   fetch(url, { method:'POST', headers:{'Content-Type':'text/plain'}, body: JSON.stringify(testPayload) })
     .then(() => { res.style.color='var(--green)'; res.textContent='✓ Enviado. Verificá tu Google Sheet.'; })
     .catch(() => { res.style.color='var(--red)'; res.textContent='✗ Error de conexión. Revisá la URL.'; });
@@ -2128,6 +2213,20 @@ window.addEventListener('load', async () => {
 </script>
 
 <!-- CHATBOT BUBBLE -->
+<!-- MODAL DETALLE PROVEEDOR -->
+<div id="prov-modal-overlay" class="prov-modal-overlay" onclick="closeProvModal(event)">
+  <div class="prov-modal" onclick="event.stopPropagation()">
+    <div class="prov-modal-header">
+      <div>
+        <h3 id="prov-modal-title">Evento</h3>
+        <div class="prov-modal-date" id="prov-modal-subtitle"></div>
+      </div>
+      <button class="prov-modal-close" onclick="closeProvModal()">✕</button>
+    </div>
+    <div class="prov-modal-body" id="prov-modal-body"></div>
+  </div>
+</div>
+
 <button id="chatbot-bubble" class="chatbot-bubble" onclick="toggleChatbot()" title="Asistente IA">💬</button>
 <div id="chatbot-panel" class="chatbot-panel">
   <div class="chatbot-panel-hdr">
