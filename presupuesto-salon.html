@@ -71,6 +71,10 @@
     }
     input:focus, select:focus, textarea:focus { outline: none; border-color: var(--purple); }
     textarea { resize: vertical; min-height: 52px; }
+    /* Quitar flechitas de todos los campos numéricos */
+    input[type="number"]::-webkit-outer-spin-button,
+    input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    input[type="number"] { -moz-appearance: textfield; }
     /* Field error state */
     .form-group.err input, .form-group.err select, .form-group.err textarea { border-color: var(--red); }
     .field-err-msg { color: var(--red); font-size: .75rem; margin-top: 3px; display: none; }
@@ -405,7 +409,7 @@
       <div class="grid-2">
         <div class="form-group" id="fg-numKids">
           <label class="flab">Cantidad <span class="req-star">*</span></label>
-          <input type="number" id="numKids" value="0" min="0" oninput="recalc()">
+          <input type="number" id="numKids" placeholder="0" min="0" oninput="recalc()">
           <div class="field-err-msg">Ingresá al menos niños o adultos</div>
         </div>
         <div class="form-group">
@@ -423,14 +427,14 @@
       <div class="grid-2">
         <div class="form-group" id="fg-numAdults">
           <label class="flab">Cantidad <span class="req-star">*</span></label>
-          <input type="number" id="numAdults" value="0" min="0" oninput="recalc()">
+          <input type="number" id="numAdults" placeholder="0" min="0" oninput="recalc()">
           <div class="field-err-msg">Ingresá al menos niños o adultos</div>
         </div>
         <div class="form-group">
           <label class="flab">Menú <span class="req-star">*</span></label>
           <select id="adultsMenu" onchange="recalc()">
             <option value="none">Traen su comida (sin cargo)</option>
-            <option value="pizza">Solo pizzas</option>
+            <option value="pizza">Pizzas con gustos</option>
             <option value="pizza_calzone">Pizzas y calzones</option>
             <option value="pizza_calzone_chivito">Pizzas, calzones y chivitos</option>
           </select>
@@ -447,7 +451,7 @@
 
       <div class="form-group">
         <label class="flab">Horas extra (más de 4 incluidas)</label>
-        <input type="number" id="extraHours" value="0" min="0" max="8" step="1" oninput="recalc()">
+        <input type="number" id="extraHours" placeholder="0" min="0" max="8" step="1" oninput="recalc()">
       </div>
       <div class="hours-info" id="hoursInfo" style="display:none"></div>
 
@@ -487,7 +491,7 @@
         </div>
         <div class="form-group" id="discGroup" style="display:none">
           <label class="flab" id="discLabel">Monto ($)</label>
-          <input type="number" id="discValue" value="0" min="0" oninput="recalc()">
+          <input type="number" id="discValue" placeholder="0" min="0" oninput="recalc()">
         </div>
       </div>
     </div>
@@ -540,12 +544,12 @@
 
       <div class="grid-2">
         <div class="form-group">
-          <label class="flab">Nº animadores</label>
-          <div class="time-badge" id="displayAnimadores">—</div>
+          <label class="flab">Nº animadores <span style="font-weight:400;color:var(--gray-400);text-transform:none">(auto)</span></label>
+          <input type="number" id="numAnimadores" placeholder="—" min="0" oninput="recalc()">
         </div>
         <div class="form-group">
-          <label class="flab">Nº mozos</label>
-          <div class="time-badge" id="displayMozos">—</div>
+          <label class="flab">Nº mozos <span style="font-weight:400;color:var(--gray-400);text-transform:none">(auto)</span></label>
+          <input type="number" id="numMozos" placeholder="—" min="0" oninput="recalc()">
         </div>
       </div>
 
@@ -754,8 +758,8 @@
 // ════════════════════════════════════════════
 const WEBHOOK_URL_FB = 'https://script.google.com/macros/s/AKfycbxwn2hPDk6ZiBN5qrJ7rNjHIWi3UkmZkcvJDLtbQwjAWyIpbPLuoqWGrnu2xz0_wDjQhQ/exec';
 const CONFIG_URL     = 'https://sebazar.github.io/salon-chatbot/config.json';
-const GITHUB_PAT     = '';
 const GITHUB_REPO    = 'sebazar/salon-chatbot';
+const GITHUB_PAT     = '';  // Token manejado por subir_config.py — no usar desde el browser
 
 const DEFAULTS = {
   baseWeekday: 18500,  baseWeekend: 20900,  extraHour: 4900,
@@ -1038,7 +1042,7 @@ function recalc() {
   if (discountType === 'pct')   discAmt = Math.round(subtotal * discVal / 100);
   const total    = subtotal - discAmt;
 
-  const adultMenuNames = { none:'Traen su comida', pizza:'Solo pizzas', pizza_calzone:'Pizzas y calzones', pizza_calzone_chivito:'Pizzas, calzones y chivitos' };
+  const adultMenuNames = { none:'Traen su comida', pizza:'Pizzas con gustos', pizza_calzone:'Pizzas y calzones', pizza_calzone_chivito:'Pizzas, calzones y chivitos' };
   const kidsMenuName   = kidsMenuSel === 'basic' ? 'Panchos y snacks' : 'Nuggets con papas fritas';
 
   let html = '';
@@ -1062,7 +1066,11 @@ function recalc() {
   }
 
   document.getElementById('budgetLines').innerHTML = html;
-  document.getElementById('budgetTotal').innerHTML = `<div class="total-box"><div class="tb-label">TOTAL</div><div class="tb-amt">${fmtCur(total)}</div></div>`;
+  const _ov = parseFloat(document.getElementById('precioFinalOverride').value);
+  const _effTotal = (!isNaN(_ov) && _ov > 0) ? _ov : total;
+  let _totalHtml = `<div class="total-box"><div class="tb-label">TOTAL${_ov > 0 ? ' ✏️' : ''}</div><div class="tb-amt">${fmtCur(_effTotal)}</div></div>`;
+  if (_ov > 0) _totalHtml += `<div style="text-align:right;font-size:.76rem;color:#92400e;margin-top:3px;padding-right:2px">Calculado: ${fmtCur(total)}</div>`;
+  document.getElementById('budgetTotal').innerHTML = _totalHtml;
 
   lastBudget = { basePrice, dayLabel, extraHours, totalHrs, salonExtraCst, staffExtraCst, extraHrTotCst,
     totalStaff, subtotal, discAmt, total, discountType, discVal, endTime,
@@ -1071,11 +1079,11 @@ function recalc() {
     actualRecs, recsExtra, recsCst, waiters, waitersCst, extraStaff, xStaffCst,
     otroValor, otroDesc, C };
 
-  // Actualizar campos de visualización en la card de Reserva
-  const dispAnim = document.getElementById('displayAnimadores');
-  const dispMozo = document.getElementById('displayMozos');
-  if (dispAnim) dispAnim.textContent = numKids > 0 ? actualRecs : '—';
-  if (dispMozo) dispMozo.textContent = (numAdults > 0) ? waiters : '—';
+  // Auto-poblar animadores/mozos si el usuario no los está editando
+  const animEl = document.getElementById('numAnimadores');
+  const mozosEl = document.getElementById('numMozos');
+  if (animEl && animEl !== document.activeElement) animEl.value = numKids > 0 ? actualRecs : '';
+  if (mozosEl && mozosEl !== document.activeElement) mozosEl.value = numAdults > 0 ? waiters : '';
 }
 
 // ════════════════════════════════════════════
@@ -1085,14 +1093,14 @@ function recalc() {
 function buildWASimple() {
   const b = lastBudget; if (!b.C) return '';
   const kidsMenuNames  = { basic: 'Panchos y snacks', alt: 'Nuggets con papas fritas' };
-  const adultMenuNames = { none: 'traen su comida', pizza: 'solo pizzas', pizza_calzone: 'pizzas y calzones', pizza_calzone_chivito: 'pizzas, calzones y chivitos' };
+  const adultMenuNames = { none: 'traen su comida', pizza: 'pizzas con gustos', pizza_calzone: 'pizzas y calzones', pizza_calzone_chivito: 'pizzas, calzones y chivitos' };
   const kidsMenuSel   = document.getElementById('kidsMenu').value;
   const adultsMenuSel = document.getElementById('adultsMenu').value;
   const numKids   = b.numKids   || 0;
   const numAdults = b.numAdults || 0;
 
   let lines = [];
-  lines.push(`🎉 ¡Te quedaría un presupuesto de *${fmtCur(b.total)}*!`);
+  lines.push(`🎉 ¡Te quedaría un presupuesto de *${fmtCur(getEffectiveTotal())}*!`);
   lines.push('');
 
   if (numKids > 0)
@@ -1157,7 +1165,7 @@ function buildWAText() {
   if (b.xStaffCst>0)     t += `\n👤 *Personal extra (${b.extraStaff}):* ${fmtCur(b.xStaffCst)}\n`;
   t += `\n━━━━━━━━━━━━━━━━━━━━━\n*Subtotal: ${fmtCur(b.subtotal)}*\n`;
   if (b.discAmt>0) { const dl=b.discountType==='pct'?`Descuento ${b.discVal}%`:'Descuento'; t += `🏷️ *${dl}: – ${fmtCur(b.discAmt)}*\n`; }
-  t += `\n✅ *TOTAL: ${fmtCur(b.total)}*\n━━━━━━━━━━━━━━━━━━━━━\n_Precios en pesos uruguayos ($UY)_`;
+  t += `\n✅ *TOTAL: ${fmtCur(getEffectiveTotal())}*\n━━━━━━━━━━━━━━━━━━━━━\n_Precios en pesos uruguayos ($UY)_`;
   return t;
 }
 
@@ -1193,6 +1201,8 @@ function fallbackCopy(text, cb) {
 function clearForm() {
   ['eventDate','eventName','eventDesc','eventOthers','eventAge','eventSena','otroDesc','otroValor'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('romanRole').value = '';
+  document.getElementById('numAnimadores').value = '';
+  document.getElementById('numMozos').value = '';
   document.getElementById('pagoTotal').checked = false;
   extraRecExtra = false; extraMozExtra = false;
   document.getElementById('btn-extraRec').classList.remove('on');
@@ -1259,6 +1269,8 @@ function getFormState() {
     eventSena:     document.getElementById('eventSena').value,
     romanRole:     document.getElementById('romanRole').value,
     pagoTotal:     document.getElementById('pagoTotal').checked,
+    numAnimadores: document.getElementById('numAnimadores').value,
+    numMozos:      document.getElementById('numMozos').value,
     extraRecExtra, extraMozExtra,
     otroDesc:      document.getElementById('otroDesc').value,
     otroValor:     document.getElementById('otroValor').value,
@@ -1286,6 +1298,8 @@ function restoreFormState(s) {
   set('otroValor',  s.otroValor  || '');
   // Roman dropdown
   set('romanRole', s.romanRole || '');
+  set('numAnimadores', s.numAnimadores ?? '');
+  set('numMozos',      s.numMozos      ?? '');
   // Pago total checkbox
   const ptEl = document.getElementById('pagoTotal');
   if (ptEl) ptEl.checked = s.pagoTotal || false;
@@ -1572,7 +1586,7 @@ const escHtml = s => (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(
 function buildSheetPayload(entry) {
   const f = entry.form || {};
   const b = lastBudget;
-  const adultMenuNames = { none:'Traen su comida', pizza:'Solo pizzas', pizza_calzone:'Pizzas y calzones', pizza_calzone_chivito:'Pizzas, calzones y chivitos' };
+  const adultMenuNames = { none:'Traen su comida', pizza:'Pizzas con gustos', pizza_calzone:'Pizzas y calzones', pizza_calzone_chivito:'Pizzas, calzones y chivitos' };
   const kidsMenuNames  = { basic:'Panchos y snacks', alt:'Nuggets con papas fritas' };
 
   let fechaStr = '';
@@ -1597,8 +1611,8 @@ function buildSheetPayload(entry) {
     'Nº adultos':      parseInt(f.numAdults) || 0,
     'Menú adultos':    adultMenuNames[f.adultsMenu] || f.adultsMenu || '',
     'Roman':           f.romanRole   || '',
-    'Nº animadores':   b.actualRecs  ?? '',
-    'Nº mozos':        b.waiters     ?? '',
+    'Nº animadores':   parseInt(f.numAnimadores) >= 0 ? parseInt(f.numAnimadores) : (b.actualRecs ?? ''),
+    'Nº mozos':        parseInt(f.numMozos)      >= 0 ? parseInt(f.numMozos)      : (b.waiters    ?? ''),
     'Precio calculado': lastBudget.total || 0,  // usado por Apps Script como Precio original en INSERT
     'Total ($)':       entry.total || 0,
     'P Total ($)':     f.pagoTotal ? (entry.total || 0) : '',
@@ -1666,7 +1680,7 @@ function rowToEntry(row) {
   const discTipo = String(row['Descuento tipo'] || '');
   const kidsMenuMap   = { 'Panchos y snacks':'basic', 'Nuggets con papas fritas':'alt',
                           'Básico':'basic', 'Alternativo':'alt' };  // retrocompat
-  const adultsMenuMap = { 'Traen su comida':'none', 'Solo pizzas':'pizza',
+  const adultsMenuMap = { 'Traen su comida':'none', 'Solo pizzas':'pizza', 'Pizzas con gustos':'pizza',
     'Pizzas y calzones':'pizza_calzone', 'Pizzas, calzones y chivitos':'pizza_calzone_chivito' };
   return {
     id:      String(row['ID'] || Date.now()),
