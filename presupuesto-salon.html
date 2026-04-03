@@ -318,7 +318,7 @@
     <h3>💳 Registrar pago</h3>
     <div id="pagoModal-info" style="margin-bottom:12px"></div>
     <div class="pago-sena-total" id="pagoSenaTotal">
-      <span class="pago-sena-lbl">Seña acumulada</span>
+      <span class="pago-sena-lbl">Pagos acumulados</span>
       <span class="pago-sena-amt" id="pagoSenaAmt">$0</span>
     </div>
     <div style="margin-top:14px;display:flex;flex-direction:column;gap:10px">
@@ -624,7 +624,7 @@
           <input type="number" id="eventAge" placeholder="Ej: 7" min="1" max="99" oninput="recalc()">
         </div>
         <div class="form-group">
-          <label class="flab">Seña ($)</label>
+          <label class="flab">Pago ($)</label>
           <input type="number" id="eventSena" placeholder="0" min="0" oninput="recalc()">
         </div>
       </div>
@@ -1684,7 +1684,7 @@ function renderGuardadosTab() {
     const saStr = `${sa.getDate()} ${M[sa.getMonth()]} · ${String(sa.getHours()).padStart(2,'0')}:${String(sa.getMinutes()).padStart(2,'0')}`;
     const senaAcum = getSenaBase(s);
     const isPaid   = s.form?.pagoTotal || false;
-    const senaTag  = tipo === 'reserva' ? `<span style="font-size:.75rem;color:${isPaid ? '#065f46' : '#b45309'};font-weight:600">${isPaid ? '✅ Pagado' : (senaAcum > 0 ? `Seña: ${fmtCur(senaAcum)}` : '')}</span>` : '';
+    const senaTag  = tipo === 'reserva' ? `<span style="font-size:.75rem;color:${isPaid ? '#065f46' : '#b45309'};font-weight:600">${isPaid ? '✅ Pagado' : (senaAcum > 0 ? `Pagos: ${fmtCur(senaAcum)}` : '')}</span>` : '';
     const actionsId = `actions-${s.id}`;
     const extraActions = tipo === 'presupuesto'
       ? `<button class="sad-item" onclick="startCompletingReservation('${s.id}');closeActionsDropdown('${actionsId}')">→ Convertir en Reserva</button>`
@@ -1747,7 +1747,7 @@ function openVerModal(id) {
     ['Roman',       f.romanRole || '—'],
     ['Animadores',  f.numAnimadores ?? '—'],
     ['Mozos',       f.numMozos ?? '—'],
-    ['Seña ($)',    f.eventSena || '0'],
+    ['Pago ($)',    f.eventSena || '0'],
     ['Pago total',  f.pagoTotal ? 'Sí' : 'No'],
     ['Descripción', f.eventDesc || '—'],
   ].filter(([,v]) => v && v !== '—');
@@ -1821,8 +1821,10 @@ function confirmarPago() {
   saves[idx].form.eventSena = String(nuevaSena);
   saves[idx].form.pagoTotal = pagado;
   localStorage.setItem('salonSaves', JSON.stringify(saves));
-  // Registrar en pestaña Entradas del sheet
+  // 1. Registrar en pestaña Entradas del sheet
   postEntrada({ eventoId: s.id, importe, concepto, formaPago, comentarios });
+  // 2. Actualizar fila de Reservas en el sheet (Pagos $ + P Total $)
+  postToWebhook(saves[idx]);
   closeModal('pagoModal');
   renderGuardadosTab();
 }
@@ -1971,7 +1973,7 @@ function buildSheetPayload(entry) {
     'Precio calculado': lastBudget.total || 0,  // usado por Apps Script como Precio original en INSERT
     'Total ($)':       entry.total || 0,
     'P Total ($)':     f.pagoTotal ? (entry.total || 0) : '',
-    'Seña ($)':        parseInt(f.eventSena) || '',
+    'Pagos ($)':       parseFloat(f.eventSena) || '',
     'Descripción':     f.eventDesc   || '',
     'Notas':           f.eventOthers || '',
     'Tipo de día':     dayLabel,
@@ -2085,7 +2087,7 @@ function rowToEntry(row) {
       eventDesc:   String(row['Descripción']    || ''),
       eventOthers: String(row['Notas']          || ''),
       eventAge:      String(row['Edad']             || ''),
-      eventSena:     String(row['Seña ($)']         || ''),
+      eventSena:     String(row['Pagos ($)']          || ''),
       romanRole:     String(row['Roman']            || ''),
       otroDesc:      String(row['Extras detalle']   || ''),
       otroValor:     String(row['Extras valor ($)'] || ''),
