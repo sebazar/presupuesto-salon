@@ -530,17 +530,12 @@
 
       <div class="form-group">
         <label class="flab">Roman</label>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">
-          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:.88rem">
-            <input type="radio" name="romanRole" value="Recreador" onchange="recalc()"> Recreador
-          </label>
-          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:.88rem">
-            <input type="radio" name="romanRole" value="Salon" onchange="recalc()"> Salón
-          </label>
-          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:.88rem">
-            <input type="radio" name="romanRole" value="No va" onchange="recalc()"> No va
-          </label>
-        </div>
+        <select id="romanRole" onchange="recalc()">
+          <option value="">— Sin definir —</option>
+          <option value="Recreador">Recreador</option>
+          <option value="Salon">Salón</option>
+          <option value="No va">No va</option>
+        </select>
       </div>
 
       <div class="grid-2">
@@ -579,6 +574,10 @@
         <input type="number" id="precioFinalOverride" placeholder="Dejar vacío = usar calculado"
           style="flex:1;min-width:160px;border:1px solid #ffe082;border-radius:6px;padding:6px 10px;font-size:.88rem;background:white"
           oninput="updateFinalPriceDisplay()">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.82rem;font-weight:600;color:#b45309;white-space:nowrap;user-select:none">
+          <input type="checkbox" id="pagoTotal" style="width:16px;height:16px;accent-color:#b45309;cursor:pointer">
+          💳 Pago total
+        </label>
         <span id="overrideHint" style="font-size:.78rem;color:#92400e;display:none">⚠️ Precio editado — se guardará este valor</span>
       </div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:16px">
@@ -1193,7 +1192,8 @@ function fallbackCopy(text, cb) {
 // ════════════════════════════════════════════
 function clearForm() {
   ['eventDate','eventName','eventDesc','eventOthers','eventAge','eventSena','otroDesc','otroValor'].forEach(id => document.getElementById(id).value = '');
-  document.querySelectorAll('input[name="romanRole"]').forEach(r => r.checked = false);
+  document.getElementById('romanRole').value = '';
+  document.getElementById('pagoTotal').checked = false;
   extraRecExtra = false; extraMozExtra = false;
   document.getElementById('btn-extraRec').classList.remove('on');
   document.getElementById('btn-extraMoz').classList.remove('on');
@@ -1242,7 +1242,6 @@ function generateSaveName(dateVal, timeVal, excludeId = null) {
 }
 
 function getFormState() {
-  const romanEl = document.querySelector('input[name="romanRole"]:checked');
   return {
     eventName:  document.getElementById('eventName').value,
     eventDesc:  document.getElementById('eventDesc').value,
@@ -1258,7 +1257,8 @@ function getFormState() {
     discValue:  document.getElementById('discValue').value,
     eventAge:      document.getElementById('eventAge').value,
     eventSena:     document.getElementById('eventSena').value,
-    romanRole:     romanEl ? romanEl.value : '',
+    romanRole:     document.getElementById('romanRole').value,
+    pagoTotal:     document.getElementById('pagoTotal').checked,
     extraRecExtra, extraMozExtra,
     otroDesc:      document.getElementById('otroDesc').value,
     otroValor:     document.getElementById('otroValor').value,
@@ -1284,8 +1284,11 @@ function restoreFormState(s) {
   set('eventSena',  s.eventSena  || '');
   set('otroDesc',   s.otroDesc   || '');
   set('otroValor',  s.otroValor  || '');
-  // Roman radio
-  document.querySelectorAll('input[name="romanRole"]').forEach(r => { r.checked = r.value === (s.romanRole || ''); });
+  // Roman dropdown
+  set('romanRole', s.romanRole || '');
+  // Pago total checkbox
+  const ptEl = document.getElementById('pagoTotal');
+  if (ptEl) ptEl.checked = s.pagoTotal || false;
   // Extras toggles
   extraRecExtra = s.extraRecExtra || false;
   extraMozExtra = s.extraMozExtra || false;
@@ -1596,12 +1599,13 @@ function buildSheetPayload(entry) {
     'Roman':           f.romanRole   || '',
     'Nº animadores':   b.actualRecs  ?? '',
     'Nº mozos':        b.waiters     ?? '',
-    'Tipo de día':     dayLabel,
     'Precio calculado': lastBudget.total || 0,  // usado por Apps Script como Precio original en INSERT
     'Total ($)':       entry.total || 0,
+    'P Total ($)':     f.pagoTotal ? (entry.total || 0) : '',
     'Seña ($)':        parseInt(f.eventSena) || '',
     'Descripción':     f.eventDesc   || '',
     'Notas':           f.eventOthers || '',
+    'Tipo de día':     dayLabel,
     'Horas extra':     Math.max(0, parseInt(f.extraHours)||0),
     'Recreador extra': f.extraRecExtra ? 'Sí' : '',
     'Mozo extra':      f.extraMozExtra ? 'Sí' : '',
