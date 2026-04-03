@@ -314,18 +314,45 @@
 
 <!-- MODAL: Pago -->
 <div class="modal-ov" id="pagoModal">
-  <div class="modal-box" style="max-width:420px">
+  <div class="modal-box" style="max-width:440px">
     <h3>💳 Registrar pago</h3>
     <div id="pagoModal-info" style="margin-bottom:12px"></div>
     <div class="pago-sena-total" id="pagoSenaTotal">
       <span class="pago-sena-lbl">Seña acumulada</span>
       <span class="pago-sena-amt" id="pagoSenaAmt">$0</span>
     </div>
-    <div style="margin-top:14px" class="form-group">
-      <label class="flab">Importe a registrar ($)</label>
-      <input type="number" id="pagoImporte" placeholder="0" min="0" oninput="onPagoImporteInput()">
+    <div style="margin-top:14px;display:flex;flex-direction:column;gap:10px">
+      <div class="form-group" style="margin:0">
+        <label class="flab">Importe ($)</label>
+        <input type="number" id="pagoImporte" placeholder="0" min="0" oninput="onPagoImporteInput()">
+      </div>
+      <div class="grid-2" style="gap:10px">
+        <div class="form-group" style="margin:0">
+          <label class="flab">Concepto</label>
+          <select id="pagoConcepto">
+            <option value="Seña">Seña</option>
+            <option value="Adelanto">Adelanto</option>
+            <option value="Pago final">Pago final</option>
+            <option value="Bebidas">Bebidas</option>
+            <option value="Otros">Otros</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin:0">
+          <label class="flab">Forma de pago</label>
+          <select id="pagoFormaPago">
+            <option value="">— Sin especificar —</option>
+            <option value="Banco Seba">Banco Seba</option>
+            <option value="Banco Vir">Banco Vir</option>
+            <option value="Efectivo Fede">Efectivo Fede</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group" style="margin:0">
+        <label class="flab">Comentarios</label>
+        <textarea id="pagoComentarios" placeholder="Opcional…" style="min-height:56px"></textarea>
+      </div>
     </div>
-    <p id="pagoAutoMsg" style="font-size:.78rem;color:#065f46;margin-top:4px;display:none">✅ Este pago completará el total del evento.</p>
+    <p id="pagoAutoMsg" style="font-size:.78rem;color:#065f46;margin-top:8px;display:none">✅ Este pago completará el total del evento.</p>
     <div class="modal-foot">
       <button class="btn btn-primary" onclick="confirmarPago()">Confirmar pago</button>
       <button class="btn btn-gray" onclick="closeModal('pagoModal')">Cancelar</button>
@@ -600,6 +627,32 @@
           <label class="flab">Seña ($)</label>
           <input type="number" id="eventSena" placeholder="0" min="0" oninput="recalc()">
         </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="flab">Concepto seña</label>
+          <select id="senaConcepto">
+            <option value="Seña">Seña</option>
+            <option value="Adelanto">Adelanto</option>
+            <option value="Pago final">Pago final</option>
+            <option value="Bebidas">Bebidas</option>
+            <option value="Otros">Otros</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="flab">Forma de pago</label>
+          <select id="senaFormaPago">
+            <option value="">— Sin especificar —</option>
+            <option value="Banco Seba">Banco Seba</option>
+            <option value="Banco Vir">Banco Vir</option>
+            <option value="Efectivo Fede">Efectivo Fede</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="flab">Comentarios del pago</label>
+        <input type="text" id="senaComentarios" placeholder="Opcional…">
       </div>
 
       <div class="form-group">
@@ -1314,7 +1367,9 @@ function fallbackCopy(text, cb) {
 // CLEAR
 // ════════════════════════════════════════════
 function clearForm() {
-  ['eventDate','eventName','eventDesc','eventOthers','eventAge','eventSena','otroDesc','otroValor'].forEach(id => document.getElementById(id).value = '');
+  ['eventDate','eventName','eventDesc','eventOthers','eventAge','eventSena','senaComentarios','otroDesc','otroValor'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('senaConcepto').value  = 'Seña';
+  document.getElementById('senaFormaPago').value = '';
   document.getElementById('romanRole').value = '';
   document.getElementById('numAnimadores').value = '';
   document.getElementById('numMozos').value = '';
@@ -1381,14 +1436,17 @@ function getFormState() {
     adultsMenu: document.getElementById('adultsMenu').value,
     discValue:  document.getElementById('discValue').value,
     eventAge:      document.getElementById('eventAge').value,
-    eventSena:     document.getElementById('eventSena').value,
-    romanRole:     document.getElementById('romanRole').value,
-    pagoTotal:     document.getElementById('pagoTotal').checked,
-    numAnimadores: document.getElementById('numAnimadores').value,
-    numMozos:      document.getElementById('numMozos').value,
+    eventSena:        document.getElementById('eventSena').value,
+    senaConcepto:     document.getElementById('senaConcepto').value,
+    senaFormaPago:    document.getElementById('senaFormaPago').value,
+    senaComentarios:  document.getElementById('senaComentarios').value,
+    romanRole:        document.getElementById('romanRole').value,
+    pagoTotal:        document.getElementById('pagoTotal').checked,
+    numAnimadores:    document.getElementById('numAnimadores').value,
+    numMozos:         document.getElementById('numMozos').value,
     extraRecExtra, extraMozExtra,
-    otroDesc:      document.getElementById('otroDesc').value,
-    otroValor:     document.getElementById('otroValor').value,
+    otroDesc:         document.getElementById('otroDesc').value,
+    otroValor:        document.getElementById('otroValor').value,
     dayType, discountType
   };
 }
@@ -1408,8 +1466,11 @@ function restoreFormState(s) {
   set('adultsMenu', s.adultsMenu || 'none');
   set('discValue',  s.discValue  || '0');
   set('eventAge',   s.eventAge   || '');
-  set('eventSena',  s.eventSena  || '');
-  set('otroDesc',   s.otroDesc   || '');
+  set('eventSena',       s.eventSena       || '');
+  set('senaConcepto',    s.senaConcepto    || 'Seña');
+  set('senaFormaPago',   s.senaFormaPago   || '');
+  set('senaComentarios', s.senaComentarios || '');
+  set('otroDesc',        s.otroDesc        || '');
   set('otroValor',  s.otroValor  || '');
   // Roman dropdown
   set('romanRole', s.romanRole || '');
@@ -1500,8 +1561,11 @@ function saveAsReserva() {
     if (idx !== -1) {
       saves[idx] = { ...saves[idx], status: 'reserva', total, savedAt, form, synced: false };
       putSaves(saves);
-      postToWebhook(saves[idx]);             // inserta/actualiza en hoja Reservas
-      deleteFromSheet(completingId, 'Presupuestos'); // borra de hoja Presupuestos
+      postToWebhook(saves[idx]);
+      deleteFromSheet(completingId, 'Presupuestos');
+      // Registrar seña inicial en Entradas si hay importe
+      const senaVal = parseFloat(form.eventSena) || 0;
+      if (senaVal > 0) postEntrada({ eventoId: completingId, importe: senaVal, concepto: form.senaConcepto || 'Seña', formaPago: form.senaFormaPago || '', comentarios: form.senaComentarios || '' });
       const btn = event.currentTarget;
       clearForm();
       flashBtn(btn, '✓ Convertida a reserva', 'var(--green-dark)');
@@ -1534,6 +1598,9 @@ function saveAsReserva() {
   saves.unshift(entry);
   putSaves(saves);
   postToWebhook(entry);
+  // Registrar seña inicial en Entradas si hay importe
+  const senaVal = parseFloat(form.eventSena) || 0;
+  if (senaVal > 0) postEntrada({ eventoId: id, importe: senaVal, concepto: form.senaConcepto || 'Seña', formaPago: form.senaFormaPago || '', comentarios: form.senaComentarios || '' });
   flashBtn(event.currentTarget, '✓ Reserva guardada', 'var(--green-dark)');
   clearForm();
 }
@@ -1713,6 +1780,9 @@ function openPagoModal(id) {
   totalBox.className = 'pago-sena-total' + (isPaid ? ' complete' : '');
   document.getElementById('pagoSenaAmt').textContent = fmtCur(senaAcum);
   document.getElementById('pagoImporte').value = '';
+  document.getElementById('pagoConcepto').value = 'Seña';
+  document.getElementById('pagoFormaPago').value = '';
+  document.getElementById('pagoComentarios').value = '';
   document.getElementById('pagoAutoMsg').style.display = 'none';
   openModal('pagoModal');
 }
@@ -1735,19 +1805,24 @@ function onPagoImporteInput() {
 function confirmarPago() {
   const s = getSaves().find(x => x.id === _pagoId);
   if (!s) return;
-  const importe = parseFloat(document.getElementById('pagoImporte').value) || 0;
+  const importe     = parseFloat(document.getElementById('pagoImporte').value) || 0;
   if (importe <= 0) { alert('Ingresá un importe mayor a 0.'); return; }
-  const nuevaSena = getSenaBase(s) + importe;
-  const total     = s.total || 0;
-  const pagado    = nuevaSena >= total && total > 0;
-  // Actualizar el registro: eventSena es la única fuente de verdad
+  const concepto    = document.getElementById('pagoConcepto').value;
+  const formaPago   = document.getElementById('pagoFormaPago').value;
+  const comentarios = document.getElementById('pagoComentarios').value.trim();
+  const nuevaSena   = getSenaBase(s) + importe;
+  const total       = s.total || 0;
+  const pagado      = nuevaSena >= total && total > 0;
+  // Actualizar el registro local: eventSena es la única fuente de verdad
   const saves = getSaves();
   const idx = saves.findIndex(x => x.id === _pagoId);
   if (idx < 0) return;
   saves[idx].form = saves[idx].form || {};
-  saves[idx].form.eventSena  = String(nuevaSena);
-  saves[idx].form.pagoTotal  = pagado;
+  saves[idx].form.eventSena = String(nuevaSena);
+  saves[idx].form.pagoTotal = pagado;
   localStorage.setItem('salonSaves', JSON.stringify(saves));
+  // Registrar en pestaña Entradas del sheet
+  postEntrada({ eventoId: s.id, importe, concepto, formaPago, comentarios });
   closeModal('pagoModal');
   renderGuardadosTab();
 }
@@ -1931,6 +2006,31 @@ function postToWebhook(entry) {
     const saves = getSaves();
     const idx = saves.findIndex(s => s.id === entry.id);
     if (idx !== -1) { saves[idx].synced = true; putSaves(saves); }
+  }).catch(() => {});
+}
+
+// Registra una entrada de pago en la pestaña "Entradas" del sheet
+function postEntrada({ eventoId, importe, concepto, formaPago, comentarios }) {
+  const url = cfg().webhookUrl;
+  if (!url || !url.startsWith('http')) return;
+  const hoy = new Date();
+  const fechaStr = `${String(hoy.getDate()).padStart(2,'0')}/${String(hoy.getMonth()+1).padStart(2,'0')}/${hoy.getFullYear()}`;
+  const payload = {
+    action: 'insert',
+    sheetName: 'Entradas',
+    row: {
+      'Fecha':      fechaStr,
+      'Importe':    importe,
+      'N. Evento':  eventoId || '',
+      'Concepto':   concepto || '',
+      'Forma Pago': formaPago || '',
+      'Comentarios': comentarios || '',
+    }
+  };
+  fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify(payload)
   }).catch(() => {});
 }
 
