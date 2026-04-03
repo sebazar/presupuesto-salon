@@ -253,13 +253,13 @@
     table.prov tr { cursor: pointer; }
 
     /* ── GUARDADOS TAB STYLES ── */
-    .guardados-filters { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:14px; padding:12px 14px; background:var(--gray-50); border-radius:8px; border:1.5px solid var(--gray-200); }
+    .guardados-filters { display:flex; flex-direction:column; gap:8px; margin-bottom:14px; padding:12px 14px; background:var(--gray-50); border-radius:8px; border:1.5px solid var(--gray-200); }
     .filter-radio-group { display:flex; gap:6px; }
     .filter-radio-group label { display:flex; align-items:center; gap:5px; font-size:.83rem; font-weight:600; color:var(--gray-600); cursor:pointer; padding:5px 11px; border:1.5px solid var(--gray-200); border-radius:20px; transition:.15s; user-select:none; }
     .filter-radio-group input[type="radio"] { display:none; }
     .filter-radio-group input[type="radio"]:checked + span { color:var(--purple); }
     .filter-radio-group label:has(input:checked) { border-color:var(--purple); background:var(--purple-light); color:var(--purple); }
-    .guardados-list-wrap { background:white; border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden; }
+    .guardados-list-wrap { background:white; border-radius:var(--radius); box-shadow:var(--shadow); min-height:180px; position:relative; }
 
     /* ── SAVE ITEM ACTIONS DROPDOWN ── */
     .save-actions-wrap { position:relative; flex-shrink:0; }
@@ -687,17 +687,21 @@
     <div class="card">
       <div class="card-header"><h2>📂 Guardados</h2></div>
       <div class="guardados-filters">
-        <div class="filter-radio-group">
-          <label><input type="radio" name="guardadosTipo" value="presupuesto" checked onchange="renderGuardadosTab()"><span>📋 Presupuestos</span></label>
-          <label><input type="radio" name="guardadosTipo" value="reserva" onchange="renderGuardadosTab()"><span>✅ Reservas</span></label>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;width:100%">
+          <div class="filter-radio-group">
+            <label><input type="radio" name="guardadosTipo" value="presupuesto" checked onchange="renderGuardadosTab()"><span>📋 Presupuestos</span></label>
+            <label><input type="radio" name="guardadosTipo" value="reserva" onchange="renderGuardadosTab()"><span>✅ Reservas</span></label>
+          </div>
+          <div style="display:flex;gap:6px;align-items:center;flex:1;min-width:180px">
+            <input type="month" id="guardadosMesFilter" style="flex:1;min-width:0;padding:5px 9px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:.83rem" onchange="renderGuardadosTab()" title="Filtrar por mes">
+            <input type="date" id="guardadosFechaFilter" style="flex:1;min-width:0;padding:5px 9px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:.83rem" onchange="onGuardadosFechaChange()" title="Filtrar por fecha exacta">
+            <button class="btn btn-sm btn-gray" onclick="clearGuardadosFilters()" title="Limpiar filtros" style="padding:5px 9px;font-size:.78rem;flex-shrink:0">✕</button>
+          </div>
+          <button id="guardados-syncBtn" class="btn btn-sm btn-outline" onclick="syncFromSheetGuardados()" style="flex-shrink:0">🔄 Sync</button>
         </div>
-        <div style="display:flex;gap:6px;align-items:center;flex:1;min-width:200px">
-          <input type="month" id="guardadosMesFilter" style="flex:1;padding:5px 9px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:.83rem" onchange="renderGuardadosTab()" title="Filtrar por mes">
-          <input type="date" id="guardadosFechaFilter" style="flex:1;padding:5px 9px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:.83rem" onchange="onGuardadosFechaChange()" title="Filtrar por fecha exacta">
-          <button class="btn btn-sm btn-gray" onclick="clearGuardadosFilters()" title="Limpiar filtros" style="padding:5px 9px;font-size:.78rem">✕</button>
+        <div style="width:100%;min-height:16px">
+          <span id="syncStatus" style="font-size:.75rem;color:var(--green-dark)"></span>
         </div>
-        <button id="guardados-syncBtn" class="btn btn-sm btn-outline" onclick="syncFromSheetGuardados()">🔄 Sync</button>
-        <span id="syncStatus" style="font-size:.75rem;color:var(--green-dark)"></span>
       </div>
       <div class="guardados-list-wrap">
         <div id="guardadosList"></div>
@@ -1599,7 +1603,10 @@ function renderGuardadosTab() {
   const label = tipo === 'reserva' ? 'reservas' : 'presupuestos';
   if (!saves.length) {
     const hint = (!mesVal && !fechaVal) ? ' desde hoy en adelante' : (fechaVal ? ' para esa fecha' : ' en ese mes');
-    el.innerHTML = `<div class="empty-saves" style="padding:28px;text-align:center;color:var(--gray-400);font-size:.875rem">No hay ${label}${hint}.</div>`;
+    el.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:160px;gap:8px;color:var(--gray-400);text-align:center;padding:24px">
+      <span style="font-size:1.8rem">📭</span>
+      <span style="font-size:.875rem">No hay ${label}${hint}.</span>
+    </div>`;
     return;
   }
   const M = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
