@@ -45,7 +45,9 @@
     .reserva-banner button { background: rgba(255,255,255,.2); border: 1px solid rgba(255,255,255,.4); color: white; border-radius: 6px; padding: 5px 12px; font-size: .8rem; cursor: pointer; font-family: inherit; white-space: nowrap; }
 
     /* ACTION BAR */
-    .action-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+    .action-bar { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+    .action-bar-row { display: flex; gap: 8px; }
+    .btn-xs { padding: 6px 12px; font-size: .8rem; }
 
     /* CARDS */
     .card { background: white; border-radius: var(--radius); padding: 20px; margin-bottom: 12px; box-shadow: var(--shadow); }
@@ -184,9 +186,9 @@
     @media (max-width: 560px) {
       .grid-2, .grid-3 { grid-template-columns: 1fr; }
       .day-selector { flex-direction: column; }
-      .action-bar { flex-direction: column; }
-      .action-bar .btn { justify-content: center; }
+      .action-bar-row .btn { justify-content: center; }
       .save-actions { flex-direction: column; }
+      .guardados-filters { flex-direction: column; align-items: stretch; }
     }
 
     /* ── OTROS / EXTRAS ── */
@@ -218,6 +220,8 @@
     .user-menu hr  { border:none; border-top:1px solid var(--gray-200); margin:12px 0; }
     .user-menu-logout { width:100%; padding:8px; border:1px solid var(--gray-200); border-radius:7px; background:none; cursor:pointer; font-size:.85rem; color:var(--gray-600); font-family:inherit; transition:.15s; }
     .user-menu-logout:hover { background:var(--gray-50); color:var(--red); border-color:var(--red); }
+    .user-menu-settings { width:100%; padding:8px; border:1px solid var(--gray-200); border-radius:7px; background:none; cursor:pointer; font-size:.85rem; color:var(--gray-600); font-family:inherit; transition:.15s; text-align:left; margin-bottom:6px; }
+    .user-menu-settings:hover { background:var(--gray-50); color:var(--purple); border-color:var(--purple); }
 
     /* ── CHATBOT BUBBLE + PANEL ── */
     .chatbot-bubble { position:fixed; bottom:24px; right:24px; width:54px; height:54px; border-radius:50%; background:var(--purple); color:white; border:none; font-size:1.5rem; cursor:pointer; box-shadow:0 4px 18px rgba(124,92,191,.55); display:none; align-items:center; justify-content:center; z-index:400; transition:.2s; }
@@ -248,6 +252,38 @@
     .prov-loading { text-align: center; padding: 30px; color: var(--gray-400); font-size: .88rem; }
     table.prov tr { cursor: pointer; }
 
+    /* ── GUARDADOS TAB STYLES ── */
+    .guardados-filters { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:14px; padding:12px 14px; background:var(--gray-50); border-radius:8px; border:1.5px solid var(--gray-200); }
+    .filter-radio-group { display:flex; gap:6px; }
+    .filter-radio-group label { display:flex; align-items:center; gap:5px; font-size:.83rem; font-weight:600; color:var(--gray-600); cursor:pointer; padding:5px 11px; border:1.5px solid var(--gray-200); border-radius:20px; transition:.15s; user-select:none; }
+    .filter-radio-group input[type="radio"] { display:none; }
+    .filter-radio-group input[type="radio"]:checked + span { color:var(--purple); }
+    .filter-radio-group label:has(input:checked) { border-color:var(--purple); background:var(--purple-light); color:var(--purple); }
+    .guardados-list-wrap { background:white; border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden; }
+
+    /* ── SAVE ITEM ACTIONS DROPDOWN ── */
+    .save-actions-wrap { position:relative; flex-shrink:0; }
+    .save-actions-trigger { background:var(--gray-100); border:1.5px solid var(--gray-200); border-radius:7px; color:var(--gray-600); font-size:.85rem; font-weight:700; cursor:pointer; padding:4px 10px; line-height:1; transition:.15s; font-family:inherit; }
+    .save-actions-trigger:hover { background:var(--gray-200); }
+    .save-actions-dropdown { display:none; position:absolute; right:0; top:calc(100% + 4px); background:white; border-radius:10px; box-shadow:0 6px 20px rgba(0,0,0,.14); border:1px solid var(--gray-200); min-width:160px; z-index:200; overflow:hidden; }
+    .save-actions-dropdown.open { display:block; }
+    .sad-item { display:flex; align-items:center; gap:8px; padding:9px 14px; font-size:.84rem; color:var(--gray-700); cursor:pointer; transition:.1s; border:none; background:none; width:100%; text-align:left; font-family:inherit; }
+    .sad-item:hover { background:var(--gray-50); }
+    .sad-item.danger { color:var(--red); }
+    .sad-item.danger:hover { background:#fff5f5; }
+
+    /* ── PAGO MODAL ── */
+    .pago-field { display:flex; gap:8px; align-items:baseline; padding:6px 0; border-bottom:1px solid var(--gray-200); }
+    .pago-field:last-child { border-bottom:none; }
+    .pago-field-lbl { font-size:.78rem; color:var(--gray-400); min-width:130px; flex-shrink:0; }
+    .pago-field-val { font-size:.88rem; font-weight:600; color:var(--gray-800); flex:1; }
+    .pago-sena-total { display:flex; justify-content:space-between; align-items:center; background:#f0fdf4; border:1.5px solid #bbf7d0; border-radius:8px; padding:10px 14px; margin-top:8px; }
+    .pago-sena-total.complete { background:#fef3c7; border-color:#fde68a; }
+    .pago-sena-lbl { font-size:.83rem; color:#065f46; font-weight:600; }
+    .pago-sena-total.complete .pago-sena-lbl { color:#92400e; }
+    .pago-sena-amt { font-size:1.05rem; font-weight:800; color:#065f46; }
+    .pago-sena-total.complete .pago-sena-amt { color:#92400e; }
+
     /* POPUP PROVEEDOR */
     .prov-modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:1000; align-items:center; justify-content:center; padding:16px; }
     .prov-modal-overlay.open { display:flex; }
@@ -264,6 +300,38 @@
   </style>
 </head>
 <body>
+
+<!-- MODAL: Ver detalle (read-only) -->
+<div class="modal-ov" id="verModal">
+  <div class="modal-box" style="max-width:540px">
+    <h3 id="verModal-title">📋 Detalle del presupuesto</h3>
+    <div id="verModal-body" style="margin-bottom:8px"></div>
+    <div class="modal-foot">
+      <button class="btn btn-gray" onclick="closeModal('verModal')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Pago -->
+<div class="modal-ov" id="pagoModal">
+  <div class="modal-box" style="max-width:420px">
+    <h3>💳 Registrar pago</h3>
+    <div id="pagoModal-info" style="margin-bottom:12px"></div>
+    <div class="pago-sena-total" id="pagoSenaTotal">
+      <span class="pago-sena-lbl">Seña acumulada</span>
+      <span class="pago-sena-amt" id="pagoSenaAmt">$0</span>
+    </div>
+    <div style="margin-top:14px" class="form-group">
+      <label class="flab">Importe a registrar ($)</label>
+      <input type="number" id="pagoImporte" placeholder="0" min="0" oninput="onPagoImporteInput()">
+    </div>
+    <p id="pagoAutoMsg" style="font-size:.78rem;color:#065f46;margin-top:4px;display:none">✅ Este pago completará el total del evento.</p>
+    <div class="modal-foot">
+      <button class="btn btn-primary" onclick="confirmarPago()">Confirmar pago</button>
+      <button class="btn btn-gray" onclick="closeModal('pagoModal')">Cancelar</button>
+    </div>
+  </div>
+</div>
 
 <!-- MODAL: WhatsApp -->
 <div class="modal-ov" id="waModal">
@@ -294,7 +362,6 @@
     <div id="savesList"></div>
     <div class="modal-foot">
       <button id="syncBtn" class="btn btn-outline" onclick="syncFromSheet()">🔄 Sync</button>
-      <span id="syncStatus" style="font-size:.78rem;margin-left:4px;"></span>
       <div style="flex:1"></div>
       <button class="btn btn-gray" onclick="closeModal('savesModal')">Cerrar</button>
     </div>
@@ -333,13 +400,14 @@
   <div class="user-menu-email" id="um-email"></div>
   <span class="role-badge" id="um-role"></span>
   <hr>
+  <button class="user-menu-settings" onclick="openAdminFromMenu()">⚙️ Configuración</button>
   <button class="user-menu-logout" onclick="logout()">↩ Cerrar sesión</button>
 </div>
 <nav>
   <button class="active" onclick="switchTab('presupuesto')">📋 Presupuestos</button>
   <button onclick="switchTab('reserva')">✅ Reservas</button>
+  <button onclick="switchTab('guardados')">📂 Guardados</button>
   <button onclick="switchTab('proveedor')">🚚 Proveedores</button>
-  <button onclick="switchTab('admin')">⚙️ Administración</button>
 </nav>
 
 <main>
@@ -364,18 +432,20 @@
 
     <!-- Action bar -->
     <div class="action-bar">
-      <!-- presupuesto tab -->
-      <button id="btn-wa-top" class="btn btn-wa" onclick="openWA()">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-        WhatsApp
-      </button>
-      <button id="btn-detalle-top" class="btn btn-outline" onclick="openWADetalle()">📋 Detalle</button>
-      <button id="btn-savePresupuesto" class="btn btn-primary" onclick="saveAsPresupuesto()">💾 Guardar presupuesto</button>
-      <!-- reserva tab -->
-      <button id="btn-saveReserva-top" class="btn btn-reserva" onclick="saveAsReserva()" style="display:none">✅ Guardar Reserva</button>
-      <!-- shared -->
-      <button class="btn btn-outline" onclick="openSaves()">📂 Guardados</button>
-      <button class="btn btn-gray" onclick="openModal('clearModal')">🗑️ Limpiar</button>
+      <!-- Row 1: WA + Detalle (presupuesto tab) | Guardar Reserva (reserva tab) -->
+      <div class="action-bar-row">
+        <button id="btn-wa-top" class="btn btn-wa btn-xs" onclick="openWA()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+          WhatsApp
+        </button>
+        <button id="btn-detalle-top" class="btn btn-outline btn-xs" onclick="openWADetalle()">📋 Detalle</button>
+        <button id="btn-saveReserva-top" class="btn btn-reserva btn-xs" onclick="saveAsReserva()" style="display:none">✅ Guardar Reserva</button>
+      </div>
+      <!-- Row 2: Guardar + Limpiar -->
+      <div class="action-bar-row">
+        <button id="btn-savePresupuesto" class="btn btn-primary btn-xs" onclick="saveAsPresupuesto()" style="flex:1">💾 Guardar</button>
+        <button class="btn btn-gray btn-xs" onclick="confirmClear()" style="flex:0 0 auto">🗑️ Limpiar</button>
+      </div>
     </div>
 
     <!-- DATOS DEL PRESUPUESTO (mandatory) -->
@@ -612,6 +682,29 @@
     </div>
   </div>
 
+  <!-- ══════════════ TAB GUARDADOS ══════════════ -->
+  <div id="tab-guardados" style="display:none">
+    <div class="card">
+      <div class="card-header"><h2>📂 Guardados</h2></div>
+      <div class="guardados-filters">
+        <div class="filter-radio-group">
+          <label><input type="radio" name="guardadosTipo" value="presupuesto" checked onchange="renderGuardadosTab()"><span>📋 Presupuestos</span></label>
+          <label><input type="radio" name="guardadosTipo" value="reserva" onchange="renderGuardadosTab()"><span>✅ Reservas</span></label>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;flex:1;min-width:200px">
+          <input type="month" id="guardadosMesFilter" style="flex:1;padding:5px 9px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:.83rem" onchange="renderGuardadosTab()" title="Filtrar por mes">
+          <input type="date" id="guardadosFechaFilter" style="flex:1;padding:5px 9px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:.83rem" onchange="onGuardadosFechaChange()" title="Filtrar por fecha exacta">
+          <button class="btn btn-sm btn-gray" onclick="clearGuardadosFilters()" title="Limpiar filtros" style="padding:5px 9px;font-size:.78rem">✕</button>
+        </div>
+        <button id="guardados-syncBtn" class="btn btn-sm btn-outline" onclick="syncFromSheetGuardados()">🔄 Sync</button>
+        <span id="syncStatus" style="font-size:.75rem;color:var(--green-dark)"></span>
+      </div>
+      <div class="guardados-list-wrap">
+        <div id="guardadosList"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- ══════════════ TAB ADMINISTRACIÓN ══════════════ -->
   <div id="tab-admin" style="display:none">
 
@@ -817,36 +910,54 @@ function toggleExtra(type) {
 // ════════════════════════════════════════════
 function switchTab(t) {
   currentTab = t;
-  const tabs = ['presupuesto', 'reserva', 'proveedor', 'admin'];
+  const tabs = ['presupuesto', 'reserva', 'guardados', 'proveedor'];
   document.querySelectorAll('nav button').forEach((el, i) => el.classList.toggle('active', tabs[i] === t));
 
   const isForm  = t === 'presupuesto' || t === 'reserva';
-  document.getElementById('form-area').style.display     = isForm ? '' : 'none';
-  document.getElementById('tab-admin').style.display     = t === 'admin'     ? '' : 'none';
-  document.getElementById('tab-proveedor').style.display = t === 'proveedor' ? '' : 'none';
+  document.getElementById('form-area').style.display       = isForm ? '' : 'none';
+  document.getElementById('tab-admin').style.display       = t === 'admin'     ? '' : 'none';
+  document.getElementById('tab-proveedor').style.display   = t === 'proveedor' ? '' : 'none';
+  document.getElementById('tab-guardados').style.display   = t === 'guardados' ? '' : 'none';
 
   const isP = t === 'presupuesto';
   const isR = t === 'reserva';
 
   // Reserva card
-  document.getElementById('reservaCard').style.display            = isR ? '' : 'none';
+  document.getElementById('reservaCard').style.display              = isR ? '' : 'none';
   // Botón guardar reserva encima del detalle
   document.getElementById('btn-saveReserva-mid-wrap').style.display = isR ? '' : 'none';
 
-  // Action bar: presupuesto
-  document.getElementById('btn-wa-top').style.display            = isP ? '' : 'none';
-  document.getElementById('btn-detalle-top').style.display       = isP ? '' : 'none';
-  document.getElementById('btn-savePresupuesto').style.display   = isP ? '' : 'none';
-  // Action bar: reserva
-  document.getElementById('btn-saveReserva-top').style.display   = isR ? '' : 'none';
+  // Action bar visibility (only shown in form tabs)
+  document.getElementById('btn-wa-top').style.display             = isP ? '' : 'none';
+  document.getElementById('btn-detalle-top').style.display        = isP ? '' : 'none';
+  document.getElementById('btn-savePresupuesto').style.display    = isP ? '' : 'none';
+  document.getElementById('btn-saveReserva-top').style.display    = isR ? '' : 'none';
 
   // Botones del pie
   document.getElementById('btn-savePresupuesto-bot').style.display = isP ? '' : 'none';
-  document.getElementById('btn-saveReserva').style.display         = isR ? '' : 'none';
+  document.getElementById('btn-saveReserva').style.display          = isR ? '' : 'none';
 
   if (t === 'admin')     renderAdminValues();
   if (t === 'proveedor') loadProveedorView();
+  if (t === 'guardados') renderGuardadosTab();
   if (loadedId) updateEditButtons();
+}
+
+function openAdminFromMenu() {
+  closeUserMenu();
+  // Show admin tab (not in nav; shown as overlay)
+  document.getElementById('tab-admin').style.display = '';
+  document.getElementById('form-area').style.display = 'none';
+  document.getElementById('tab-guardados').style.display = 'none';
+  document.getElementById('tab-proveedor').style.display = 'none';
+  document.querySelectorAll('nav button').forEach(el => el.classList.remove('active'));
+  currentTab = 'admin';
+  renderAdminValues();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function closeUserMenu() {
+  document.getElementById('user-menu').classList.remove('open');
 }
 
 // ════════════════════════════════════════════
@@ -1434,23 +1545,62 @@ function flashBtn(btn, label, color) {
 // SAVES LIST
 // ════════════════════════════════════════════
 function openSaves() {
-  const filter = currentTab === 'reserva' ? 'reserva' : 'presupuesto';
-  document.querySelector('#savesModal h3').textContent =
-    filter === 'reserva' ? '📂 Reservas guardadas' : '📂 Presupuestos guardados';
-  renderSavesList(filter);
-  openModal('savesModal');
+  // Deprecated: now Guardados is a tab — just navigate there
+  switchTab('guardados');
 }
 
-function renderSavesList(filter = 'presupuesto') {
-  let saves = getSaves().filter(s => s.status === filter);
-  // Apply date filter if set
-  const dateFilterEl = document.getElementById('syncDateFilter');
-  const dateFilter   = dateFilterEl ? dateFilterEl.value : '';
-  if (dateFilter) saves = saves.filter(s => s.form?.eventDate === dateFilter);
-  const el    = document.getElementById('savesList');
-  const label = filter === 'reserva' ? 'reservas' : 'presupuestos';
+// ════════════════════════════════════════════
+// TAB GUARDADOS
+// ════════════════════════════════════════════
+function getGuardadosTipo() {
+  const r = document.querySelector('input[name="guardadosTipo"]:checked');
+  return r ? r.value : 'presupuesto';
+}
+
+function onGuardadosFechaChange() {
+  // When a specific date is set, clear month filter
+  const fecha = document.getElementById('guardadosFechaFilter').value;
+  if (fecha) document.getElementById('guardadosMesFilter').value = '';
+  renderGuardadosTab();
+}
+
+function clearGuardadosFilters() {
+  document.getElementById('guardadosMesFilter').value = '';
+  document.getElementById('guardadosFechaFilter').value = '';
+  renderGuardadosTab();
+}
+
+function syncFromSheetGuardados() {
+  syncFromSheet(); // re-use existing sync, then re-render
+}
+
+function renderGuardadosTab() {
+  const tipo    = getGuardadosTipo();
+  const mesVal  = document.getElementById('guardadosMesFilter')?.value || '';
+  const fechaVal= document.getElementById('guardadosFechaFilter')?.value || '';
+  const todayStr= new Date().toISOString().slice(0,10); // YYYY-MM-DD
+
+  let saves = getSaves().filter(s => s.status === tipo);
+
+  // Default: only from today forward (if no filter)
+  if (!mesVal && !fechaVal) {
+    saves = saves.filter(s => (s.form?.eventDate || '') >= todayStr);
+  } else if (fechaVal) {
+    saves = saves.filter(s => s.form?.eventDate === fechaVal);
+  } else if (mesVal) {
+    // mesVal = "YYYY-MM"
+    saves = saves.filter(s => (s.form?.eventDate || '').startsWith(mesVal));
+  }
+
+  // Sort by event date ascending
+  saves.sort((a,b) => (a.form?.eventDate||'') < (b.form?.eventDate||'') ? -1 : 1);
+
+  const el    = document.getElementById('guardadosList');
+  const label = tipo === 'reserva' ? 'reservas' : 'presupuestos';
   if (!saves.length) {
-    el.innerHTML = `<div class="empty-saves">No hay ${label} guardados${dateFilter ? ' para esa fecha' : ' todavía'}.</div>`; return;
+    const hint = (!mesVal && !fechaVal) ? ' desde hoy en adelante' : (fechaVal ? ' para esa fecha' : ' en ese mes');
+    el.innerHTML = `<div class="empty-saves" style="padding:28px;text-align:center;color:var(--gray-400);font-size:.875rem">No hay ${label}${hint}.</div>`;
+    return;
   }
   const M = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
   el.innerHTML = saves.map(s => {
@@ -1458,22 +1608,145 @@ function renderSavesList(filter = 'presupuesto') {
     if (s.form?.eventDate) { const d = new Date(s.form.eventDate + 'T00:00:00'); dateStr = `${d.getDate()} ${M[d.getMonth()]} ${d.getFullYear()}`; }
     const sa = new Date(s.savedAt);
     const saStr = `${sa.getDate()} ${M[sa.getMonth()]} · ${String(sa.getHours()).padStart(2,'0')}:${String(sa.getMinutes()).padStart(2,'0')}`;
-    const convertBtn = filter === 'presupuesto'
-      ? `<button class="btn btn-sm btn-reserva" onclick="startCompletingReservation('${s.id}')">→ Reserva</button>`
-      : '';
-    return `<div class="save-item">
+    const senaAcum = s.senaAcumulada || 0;
+    const isPaid   = s.pagoTotalConfirmado || false;
+    const senaTag  = tipo === 'reserva' ? `<span style="font-size:.75rem;color:${isPaid ? '#065f46' : '#b45309'};font-weight:600">${isPaid ? '✅ Pagado' : (senaAcum > 0 ? `Seña: ${fmtCur(senaAcum)}` : '')}</span>` : '';
+    const actionsId = `actions-${s.id}`;
+    const extraActions = tipo === 'presupuesto'
+      ? `<button class="sad-item" onclick="startCompletingReservation('${s.id}');closeActionsDropdown('${actionsId}')">→ Convertir en Reserva</button>`
+      : `<button class="sad-item" onclick="openVerModal('${s.id}');closeActionsDropdown('${actionsId}')">👁 Ver detalle</button>
+         <button class="sad-item" onclick="openPagoModal('${s.id}');closeActionsDropdown('${actionsId}')">💳 Registrar pago</button>`;
+    return `<div class="save-item" style="padding:11px 14px">
       <div class="save-info">
         <div class="save-name">${escHtml(s.saveName)}</div>
         <div class="save-meta">Evento: ${dateStr} · Guardado: ${saStr}</div>
+        ${senaTag ? `<div style="margin-top:2px">${senaTag}</div>` : ''}
       </div>
-      <div class="save-total">${fmtCur(s.total||0)}</div>
-      <div class="save-actions">
-        <button class="btn btn-sm btn-outline" onclick="loadBudget('${s.id}')">Cargar</button>
-        ${convertBtn}
-        <button class="btn btn-sm btn-gray" onclick="deleteBudget('${s.id}')" title="Eliminar">🗑️</button>
+      <div class="save-total" style="margin-right:8px">${fmtCur(s.total||0)}</div>
+      <div class="save-actions-wrap">
+        <button class="save-actions-trigger" onclick="toggleActionsDropdown('${actionsId}')">···</button>
+        <div class="save-actions-dropdown" id="${actionsId}">
+          <button class="sad-item" onclick="loadBudget('${s.id}');closeActionsDropdown('${actionsId}')">✏️ Editar</button>
+          ${extraActions}
+          <button class="sad-item danger" onclick="deleteBudget('${s.id}')">🗑️ Eliminar</button>
+        </div>
       </div>
     </div>`;
   }).join('');
+}
+
+function toggleActionsDropdown(id) {
+  // Close all others first
+  document.querySelectorAll('.save-actions-dropdown.open').forEach(el => {
+    if (el.id !== id) el.classList.remove('open');
+  });
+  document.getElementById(id)?.classList.toggle('open');
+}
+function closeActionsDropdown(id) {
+  document.getElementById(id)?.classList.remove('open');
+}
+// Close dropdowns when clicking outside
+document.addEventListener('click', e => {
+  if (!e.target.closest('.save-actions-wrap')) {
+    document.querySelectorAll('.save-actions-dropdown.open').forEach(el => el.classList.remove('open'));
+  }
+});
+
+// ── VER MODAL (read-only) ──
+function openVerModal(id) {
+  const s = getSaves().find(x => x.id === id);
+  if (!s) return;
+  const f = s.form || {};
+  const M = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  let dateStr = '—';
+  if (f.eventDate) { const d = new Date(f.eventDate + 'T00:00:00'); dateStr = `${d.getDate()} ${M[d.getMonth()]} ${d.getFullYear()}`; }
+  const fields = [
+    ['Nombre',      f.clientName || '—'],
+    ['Teléfono',    f.clientPhone || '—'],
+    ['Fecha',       dateStr],
+    ['Horario',     [f.startTime, f.endTime].filter(Boolean).join(' → ') || '—'],
+    ['Tipo de día', f.dayType === 'weekend' ? 'Fin de semana' : 'Semana'],
+    ['Menú niños',  f.menuKids || '—'],
+    ['Cant. niños', f.numKids || '—'],
+    ['Menú adultos',f.menuAdults || '—'],
+    ['Cant. adultos',f.numAdults || '—'],
+    ['Roman',       f.romanRole || '—'],
+    ['Animadores',  f.numAnimadores ?? '—'],
+    ['Mozos',       f.numMozos ?? '—'],
+    ['Seña ($)',    f.eventSena || '0'],
+    ['Pago total',  f.pagoTotal ? 'Sí' : 'No'],
+    ['Descripción', f.eventDesc || '—'],
+  ].filter(([,v]) => v && v !== '—');
+  document.getElementById('verModal-title').textContent = `📋 ${s.saveName}`;
+  document.getElementById('verModal-body').innerHTML = `<div style="display:flex;flex-direction:column;gap:0">${
+    fields.map(([l,v]) => `<div class="pago-field"><span class="pago-field-lbl">${l}</span><span class="pago-field-val">${escHtml(String(v))}</span></div>`).join('')
+  }</div><div style="margin-top:12px;padding:10px 14px;background:var(--purple-light);border-radius:8px;display:flex;justify-content:space-between;align-items:center"><span style="font-weight:700;color:var(--purple-dark)">TOTAL</span><span style="font-weight:800;font-size:1.1rem;color:var(--purple-dark)">${fmtCur(s.total||0)}</span></div>`;
+  openModal('verModal');
+}
+
+// ── PAGO MODAL ──
+let _pagoId = null;
+function openPagoModal(id) {
+  const s = getSaves().find(x => x.id === id);
+  if (!s) return;
+  _pagoId = id;
+  const f = s.form || {};
+  const M = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  let dateStr = '—';
+  if (f.eventDate) { const d = new Date(f.eventDate + 'T00:00:00'); dateStr = `${d.getDate()} ${M[d.getMonth()]} ${d.getFullYear()}`; }
+  const timeStr = [f.startTime, f.endTime].filter(Boolean).join(' → ') || '—';
+  document.getElementById('pagoModal-info').innerHTML = `<div style="display:flex;flex-direction:column;gap:0">
+    <div class="pago-field"><span class="pago-field-lbl">Evento</span><span class="pago-field-val">${escHtml(s.saveName)}</span></div>
+    <div class="pago-field"><span class="pago-field-lbl">Fecha / Hora</span><span class="pago-field-val">${dateStr} · ${timeStr}</span></div>
+    <div class="pago-field"><span class="pago-field-lbl">Precio total</span><span class="pago-field-val">${fmtCur(s.total||0)}</span></div>
+  </div>`;
+  const senaAcum = s.senaAcumulada || 0;
+  const isPaid   = s.pagoTotalConfirmado || false;
+  const totalBox = document.getElementById('pagoSenaTotal');
+  totalBox.className = 'pago-sena-total' + (isPaid ? ' complete' : '');
+  document.getElementById('pagoSenaAmt').textContent = fmtCur(senaAcum);
+  document.getElementById('pagoImporte').value = '';
+  document.getElementById('pagoAutoMsg').style.display = 'none';
+  openModal('pagoModal');
+}
+
+function onPagoImporteInput() {
+  const s = getSaves().find(x => x.id === _pagoId);
+  if (!s) return;
+  const importe  = parseFloat(document.getElementById('pagoImporte').value) || 0;
+  const senaAcum = (s.senaAcumulada || 0) + importe;
+  const total    = s.total || 0;
+  const willComplete = senaAcum >= total && total > 0;
+  document.getElementById('pagoAutoMsg').style.display = willComplete ? '' : 'none';
+}
+
+function confirmarPago() {
+  const s = getSaves().find(x => x.id === _pagoId);
+  if (!s) return;
+  const importe = parseFloat(document.getElementById('pagoImporte').value) || 0;
+  if (importe <= 0) { alert('Ingresá un importe mayor a 0.'); return; }
+  const senaAcum = (s.senaAcumulada || 0) + importe;
+  const total    = s.total || 0;
+  const pagado   = senaAcum >= total && total > 0;
+  // Update the save
+  const saves = getSaves();
+  const idx = saves.findIndex(x => x.id === _pagoId);
+  if (idx < 0) return;
+  saves[idx].senaAcumulada     = senaAcum;
+  saves[idx].pagoTotalConfirmado = pagado;
+  if (pagado) {
+    saves[idx].form = saves[idx].form || {};
+    saves[idx].form.pagoTotal = true;
+    saves[idx].form.eventSena = String(senaAcum);
+  }
+  localStorage.setItem('salonSaves', JSON.stringify(saves));
+  closeModal('pagoModal');
+  renderGuardadosTab();
+}
+
+function renderSavesList(filter = 'presupuesto') {
+  // Legacy: redirect to guardados tab renderer
+  renderGuardadosTab();
 }
 
 function loadBudget(id) {
@@ -1482,7 +1755,6 @@ function loadBudget(id) {
   restoreFormState(s.form);   // llama recalc() → actualiza lastBudget.total
   clearAllErrors();
   cancelReservaMode();
-  closeModal('savesModal');
   switchTab(s.status === 'reserva' ? 'reserva' : 'presupuesto');
   setEditMode(id);  // sets loadedId + banner + button styles (after switchTab so buttons are visible)
   // Si el total guardado difiere del calculado, fue un precio editado manualmente → restaurarlo
@@ -1507,7 +1779,6 @@ function startCompletingReservation(id) {
   completingName = s.saveName;
   document.getElementById('bannerName').textContent = s.saveName;
   document.getElementById('reservaBanner').classList.add('show');
-  closeModal('savesModal');
   switchTab('reserva');
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -1574,8 +1845,9 @@ function resetSaveButtons() {
 }
 
 function deleteBudget(id) {
+  if (!confirm('¿Eliminar este registro guardado?')) return;
   putSaves(getSaves().filter(x => x.id !== id));
-  renderSavesList(currentTab === 'reserva' ? 'reserva' : 'presupuesto');
+  if (currentTab === 'guardados') renderGuardadosTab();
 }
 
 const escHtml = s => (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -1721,11 +1993,11 @@ async function syncFromSheet() {
     showSyncStatus('Configurá el webhook en Administración', true); return;
   }
 
-  // Tipo determinado por la pestaña activa
-  const tipo   = currentTab === 'reserva' ? 'reserva' : 'presupuesto';
+  // Tipo determinado por filtro en guardados tab o pestaña activa
+  const tipo   = (currentTab === 'guardados') ? getGuardadosTipo() : (currentTab === 'reserva' ? 'reserva' : 'presupuesto');
   const sheetKey = tipo === 'reserva' ? 'reservas' : 'presupuestos';
 
-  const btn = document.getElementById('syncBtn');
+  const btn = document.getElementById('guardados-syncBtn') || document.getElementById('syncBtn');
   if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
 
   try {
@@ -1788,9 +2060,9 @@ async function syncFromSheet() {
 
     putSaves(merged);
 
-    // 6. Refrescar lista si el modal está abierto
-    if (document.getElementById('savesModal')?.classList.contains('open')) {
-      renderSavesList(tipo);
+    // 6. Refrescar lista si el tab guardados está activo
+    if (currentTab === 'guardados') {
+      renderGuardadosTab();
     }
 
     const total = sheetEntries.length;
@@ -1803,7 +2075,7 @@ async function syncFromSheet() {
   } catch (err) {
     showSyncStatus('✗ ' + err.message, true);
   } finally {
-    if (btn) { btn.disabled = false; btn.textContent = '🔄 Sync'; }
+    if (btn) { btn.disabled = false; btn.textContent = '🔄 Sync'; btn.style.minWidth=''; }
   }
 }
 
@@ -1816,12 +2088,16 @@ function showSyncStatus(msg, isError = false) {
 }
 
 function onSyncDateChange() {
-  renderSavesList(currentTab === 'reserva' ? 'reserva' : 'presupuesto');
+  if (currentTab === 'guardados') renderGuardadosTab();
 }
 function clearSyncDate() {
   const el = document.getElementById('syncDateFilter');
   if (el) el.value = '';
-  renderSavesList(currentTab === 'reserva' ? 'reserva' : 'presupuesto');
+  if (currentTab === 'guardados') renderGuardadosTab();
+}
+
+function confirmClear() {
+  openModal('clearModal');
 }
 
 function copySheetRow() {
@@ -1873,11 +2149,11 @@ function doLogout() {
 let currentUser = null; // { email, name, picture, role }
 
 const ROLE_TABS = {
-  admin:     ['presupuesto','reserva','proveedor','admin'],
-  ventas:    ['presupuesto','reserva','proveedor'],
+  admin:     ['presupuesto','reserva','guardados','proveedor'],
+  ventas:    ['presupuesto','reserva','guardados','proveedor'],
   proveedor: ['proveedor'],
 };
-const ALL_TABS = ['presupuesto','reserva','proveedor','admin'];
+const ALL_TABS = ['presupuesto','reserva','guardados','proveedor'];
 
 function parseJwt(token) {
   try { return JSON.parse(atob(token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))); }
