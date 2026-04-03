@@ -1615,8 +1615,8 @@ function renderGuardadosTab() {
     if (s.form?.eventDate) { const d = new Date(s.form.eventDate + 'T00:00:00'); dateStr = `${d.getDate()} ${M[d.getMonth()]} ${d.getFullYear()}`; }
     const sa = new Date(s.savedAt);
     const saStr = `${sa.getDate()} ${M[sa.getMonth()]} · ${String(sa.getHours()).padStart(2,'0')}:${String(sa.getMinutes()).padStart(2,'0')}`;
-    const senaAcum = s.senaAcumulada || 0;
-    const isPaid   = s.pagoTotalConfirmado || false;
+    const senaAcum = getSenaBase(s);
+    const isPaid   = s.form?.pagoTotal || false;
     const senaTag  = tipo === 'reserva' ? `<span style="font-size:.75rem;color:${isPaid ? '#065f46' : '#b45309'};font-weight:600">${isPaid ? '✅ Pagado' : (senaAcum > 0 ? `Seña: ${fmtCur(senaAcum)}` : '')}</span>` : '';
     const actionsId = `actions-${s.id}`;
     const extraActions = tipo === 'presupuesto'
@@ -1707,8 +1707,8 @@ function openPagoModal(id) {
     <div class="pago-field"><span class="pago-field-lbl">Fecha / Hora</span><span class="pago-field-val">${dateStr} · ${timeStr}</span></div>
     <div class="pago-field"><span class="pago-field-lbl">Precio total</span><span class="pago-field-val">${fmtCur(s.total||0)}</span></div>
   </div>`;
-  const senaAcum = s.senaAcumulada || 0;
-  const isPaid   = s.pagoTotalConfirmado || false;
+  const senaAcum = getSenaBase(s);
+  const isPaid   = s.form?.pagoTotal || false;
   const totalBox = document.getElementById('pagoSenaTotal');
   totalBox.className = 'pago-sena-total' + (isPaid ? ' complete' : '');
   document.getElementById('pagoSenaAmt').textContent = fmtCur(senaAcum);
@@ -1717,13 +1717,18 @@ function openPagoModal(id) {
   openModal('pagoModal');
 }
 
+// Seña: única fuente de verdad es form.eventSena
+function getSenaBase(s) {
+  return parseFloat(s.form?.eventSena) || 0;
+}
+
 function onPagoImporteInput() {
   const s = getSaves().find(x => x.id === _pagoId);
   if (!s) return;
   const importe  = parseFloat(document.getElementById('pagoImporte').value) || 0;
-  const senaAcum = (s.senaAcumulada || 0) + importe;
+  const nuevaSena = getSenaBase(s) + importe;
   const total    = s.total || 0;
-  const willComplete = senaAcum >= total && total > 0;
+  const willComplete = nuevaSena >= total && total > 0;
   document.getElementById('pagoAutoMsg').style.display = willComplete ? '' : 'none';
 }
 
@@ -1732,20 +1737,16 @@ function confirmarPago() {
   if (!s) return;
   const importe = parseFloat(document.getElementById('pagoImporte').value) || 0;
   if (importe <= 0) { alert('Ingresá un importe mayor a 0.'); return; }
-  const senaAcum = (s.senaAcumulada || 0) + importe;
-  const total    = s.total || 0;
-  const pagado   = senaAcum >= total && total > 0;
-  // Update the save
+  const nuevaSena = getSenaBase(s) + importe;
+  const total     = s.total || 0;
+  const pagado    = nuevaSena >= total && total > 0;
+  // Actualizar el registro: eventSena es la única fuente de verdad
   const saves = getSaves();
   const idx = saves.findIndex(x => x.id === _pagoId);
   if (idx < 0) return;
-  saves[idx].senaAcumulada     = senaAcum;
-  saves[idx].pagoTotalConfirmado = pagado;
-  if (pagado) {
-    saves[idx].form = saves[idx].form || {};
-    saves[idx].form.pagoTotal = true;
-    saves[idx].form.eventSena = String(senaAcum);
-  }
+  saves[idx].form = saves[idx].form || {};
+  saves[idx].form.eventSena  = String(nuevaSena);
+  saves[idx].form.pagoTotal  = pagado;
   localStorage.setItem('salonSaves', JSON.stringify(saves));
   closeModal('pagoModal');
   renderGuardadosTab();
