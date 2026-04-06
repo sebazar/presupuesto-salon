@@ -701,7 +701,7 @@
         <input type="number" id="precioFinalOverride" placeholder="Dejar vacío = usar calculado"
           style="flex:1;min-width:160px;border:1px solid #ffe082;border-radius:6px;padding:6px 10px;font-size:.88rem;background:white"
           oninput="updateFinalPriceDisplay()">
-        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.82rem;font-weight:600;color:#b45309;white-space:nowrap;user-select:none">
+        <label id="pagoTotalLabel" style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.82rem;font-weight:600;color:#b45309;white-space:nowrap;user-select:none">
           <input type="checkbox" id="pagoTotal" style="width:16px;height:16px;accent-color:#b45309;cursor:pointer">
           💳 Pago total
         </label>
@@ -993,6 +993,10 @@ function switchTab(t) {
   // Botones del pie
   document.getElementById('btn-savePresupuesto-bot').style.display = isP ? '' : 'none';
   document.getElementById('btn-saveReserva').style.display          = isR ? '' : 'none';
+
+  // Pago total checkbox: solo visible en tab Reserva
+  const ptLabel = document.getElementById('pagoTotalLabel');
+  if (ptLabel) ptLabel.style.display = isR ? '' : 'none';
 
   if (t === 'admin')     renderAdminValues();
   if (t === 'proveedor') loadProveedorView();
@@ -2110,8 +2114,10 @@ function rowToEntry(row) {
       eventDesc:   String(row['Descripción']    || ''),
       eventOthers: String(row['Notas']          || ''),
       eventAge:      String(row['Edad']             || ''),
-      eventSena:     String(row['Pagos ($)']          || ''),
+      eventSena:     String(row['Pagos ($)'] || row['Seña ($)'] || ''),
       romanRole:     String(row['Roman']            || ''),
+      numAnimadores: String(row['Nº animadores']    ?? ''),
+      numMozos:      String(row['Nº mozos']         ?? ''),
       otroDesc:      String(row['Extras detalle']   || ''),
       otroValor:     String(row['Extras valor ($)'] || ''),
       extraRecExtra: row['Recreador extra'] === 'Sí',
