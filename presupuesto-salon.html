@@ -321,6 +321,10 @@
       <span class="pago-sena-lbl">Pagos acumulados</span>
       <span class="pago-sena-amt" id="pagoSenaAmt">$0</span>
     </div>
+    <div id="pagoFaltaWrap" style="display:none;margin-top:6px;padding:7px 12px;background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;font-size:.82rem;color:#92400e;justify-content:space-between">
+      <span>Falta para completar</span>
+      <strong id="pagoFaltaAmt"></strong>
+    </div>
     <div style="margin-top:14px;display:flex;flex-direction:column;gap:10px">
       <div class="form-group" style="margin:0">
         <label class="flab">Importe ($)</label>
@@ -701,10 +705,6 @@
         <input type="number" id="precioFinalOverride" placeholder="Dejar vacío = usar calculado"
           style="flex:1;min-width:160px;border:1px solid #ffe082;border-radius:6px;padding:6px 10px;font-size:.88rem;background:white"
           oninput="updateFinalPriceDisplay()">
-        <label id="pagoTotalLabel" style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.82rem;font-weight:600;color:#b45309;white-space:nowrap;user-select:none">
-          <input type="checkbox" id="pagoTotal" style="width:16px;height:16px;accent-color:#b45309;cursor:pointer">
-          💳 Pago total
-        </label>
         <span id="overrideHint" style="font-size:.78rem;color:#92400e;display:none">⚠️ Precio editado — se guardará este valor</span>
       </div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:16px">
@@ -993,10 +993,6 @@ function switchTab(t) {
   // Botones del pie
   document.getElementById('btn-savePresupuesto-bot').style.display = isP ? '' : 'none';
   document.getElementById('btn-saveReserva').style.display          = isR ? '' : 'none';
-
-  // Pago total checkbox: solo visible en tab Reserva
-  const ptLabel = document.getElementById('pagoTotalLabel');
-  if (ptLabel) ptLabel.style.display = isR ? '' : 'none';
 
   if (t === 'admin')     renderAdminValues();
   if (t === 'proveedor') loadProveedorView();
@@ -1377,7 +1373,6 @@ function clearForm() {
   document.getElementById('romanRole').value = '';
   document.getElementById('numAnimadores').value = '';
   document.getElementById('numMozos').value = '';
-  document.getElementById('pagoTotal').checked = false;
   extraRecExtra = false; extraMozExtra = false;
   document.getElementById('btn-extraRec').classList.remove('on');
   document.getElementById('btn-extraMoz').classList.remove('on');
@@ -1445,7 +1440,6 @@ function getFormState() {
     senaFormaPago:    document.getElementById('senaFormaPago').value,
     senaComentarios:  document.getElementById('senaComentarios').value,
     romanRole:        document.getElementById('romanRole').value,
-    pagoTotal:        document.getElementById('pagoTotal').checked,
     numAnimadores:    document.getElementById('numAnimadores').value,
     numMozos:         document.getElementById('numMozos').value,
     extraRecExtra, extraMozExtra,
@@ -1480,9 +1474,6 @@ function restoreFormState(s) {
   set('romanRole', s.romanRole || '');
   set('numAnimadores', s.numAnimadores ?? '');
   set('numMozos',      s.numMozos      ?? '');
-  // Pago total checkbox
-  const ptEl = document.getElementById('pagoTotal');
-  if (ptEl) ptEl.checked = s.pagoTotal || false;
   // Extras toggles
   extraRecExtra = s.extraRecExtra || false;
   extraMozExtra = s.extraMozExtra || false;
@@ -1504,109 +1495,111 @@ function getEffectiveTotal() {
   return (!isNaN(v) && v > 0) ? v : (lastBudget.total || 0);
 }
 
-function saveAsPresupuesto() {
+async function saveAsPresupuesto() {
   const errs = validatePresupuesto();
   if (errs.length) { showToast(errs); return; }
   clearAllErrors();
-  const saves   = getSaves();
+  const btn    = event.currentTarget;
+  const saves  = getSaves();
   const savedAt = new Date().toISOString();
-  const form    = getFormState();
-  const total   = getEffectiveTotal();
+  const form   = getFormState();
+  const total  = getEffectiveTotal();
 
+  btn.disabled = true; btn.innerHTML = '⏳ Guardando...';
+
+  let entry;
   if (loadedId) {
     const idx = saves.findIndex(s => s.id === loadedId);
     if (idx !== -1) {
-      const newName = generateSaveName(
-        document.getElementById('eventDate').value,
-        document.getElementById('startTime').value || '',
-        loadedId
-      );
+      const newName = generateSaveName(document.getElementById('eventDate').value, document.getElementById('startTime').value || '', loadedId);
       saves[idx] = { ...saves[idx], saveName: newName, total, savedAt, form, synced: false };
       putSaves(saves);
-      postToWebhook(saves[idx]);
-      const btn = event.currentTarget;
-      clearForm();
-      flashBtn(btn, '✓ Actualizado', '#d97706');
-      return;
+      entry = saves[idx];
     }
+  } else {
+    const id   = Date.now().toString();
+    const name = generateSaveName(document.getElementById('eventDate').value, document.getElementById('startTime').value || '');
+    entry = { id, saveName: name, status: 'presupuesto', total, savedAt, form };
+    saves.unshift(entry);
+    putSaves(saves);
   }
 
-  // Nuevo registro
-  const id   = Date.now().toString();
-  const name = generateSaveName(
-    document.getElementById('eventDate').value,
-    document.getElementById('startTime').value || ''
-  );
-  const entry = { id, saveName: name, status: 'presupuesto', total, savedAt, form };
-  saves.unshift(entry);
-  putSaves(saves);
-  postToWebhook(entry);
-  const btn = event.currentTarget;
-  clearForm();
-  flashBtn(btn, '✓ Guardado', 'var(--green)');
+  if (entry) {
+    const res = await postToWebhook(entry);
+    clearForm();
+    if (res.ok) {
+      flashBtn(btn, '✓ Guardado en planilla', 'var(--green)');
+    } else {
+      btn.disabled = false;
+      flashBtn(btn, '✗ Error al guardar', '#dc2626');
+      showToast(['Error: ' + (res.error || 'sin respuesta del servidor')]);
+    }
+  } else {
+    btn.disabled = false;
+    clearForm();
+  }
 }
 
-function saveAsReserva() {
+async function saveAsReserva() {
   const errs = validateReserva();
   if (errs.length) { showToast(errs); return; }
   clearAllErrors();
-
-  const saves   = getSaves();
-  const form    = getFormState();
-  const total   = getEffectiveTotal();
+  const btn    = event.currentTarget;
+  const saves  = getSaves();
+  const form   = getFormState();
+  const total  = getEffectiveTotal();
   const savedAt = new Date().toISOString();
-
   const timeVal = document.getElementById('startTime').value || '';
   const dateVal = document.getElementById('eventDate').value;
 
+  btn.disabled = true; btn.innerHTML = '⏳ Guardando...';
+
+  let entry, successMsg = '✓ Guardado en planilla';
+
   if (completingId) {
-    // Convertir presupuesto → reserva
     const idx = saves.findIndex(s => s.id === completingId);
     if (idx !== -1) {
       saves[idx] = { ...saves[idx], status: 'reserva', total, savedAt, form, synced: false };
       putSaves(saves);
-      postToWebhook(saves[idx]);
+      entry = saves[idx];
+      successMsg = '✓ Convertida a reserva';
       deleteFromSheet(completingId, 'Presupuestos');
-      // Registrar seña inicial en Entradas si hay importe
       const senaVal = parseFloat(form.eventSena) || 0;
       if (senaVal > 0) postEntrada({ eventoId: completingId, importe: senaVal, concepto: form.senaConcepto || 'Seña', formaPago: form.senaFormaPago || '', comentarios: form.senaComentarios || '' });
-      const btn = event.currentTarget;
-      clearForm();
-      flashBtn(btn, '✓ Convertida a reserva', 'var(--green-dark)');
-      return;
     }
-  }
-
-  if (loadedId) {
+  } else if (loadedId) {
     const idx = saves.findIndex(s => s.id === loadedId);
     if (idx !== -1) {
-      const newName = generateSaveName(
-        document.getElementById('eventDate').value,
-        document.getElementById('startTime').value || '',
-        loadedId
-      );
+      const newName = generateSaveName(dateVal, timeVal, loadedId);
       saves[idx] = { ...saves[idx], saveName: newName, total, savedAt, form, synced: false };
       putSaves(saves);
-      postToWebhook(saves[idx]);
-      const btn = event.currentTarget;
-      clearForm();
-      flashBtn(btn, '✓ Reserva actualizada', 'var(--green-dark)');
-      return;
+      entry = saves[idx];
+      successMsg = '✓ Reserva actualizada';
     }
+  } else {
+    const id   = Date.now().toString();
+    const name = generateSaveName(dateVal, timeVal);
+    entry = { id, saveName: name, status: 'reserva', total, savedAt, form };
+    saves.unshift(entry);
+    putSaves(saves);
+    const senaVal = parseFloat(form.eventSena) || 0;
+    if (senaVal > 0) postEntrada({ eventoId: id, importe: senaVal, concepto: form.senaConcepto || 'Seña', formaPago: form.senaFormaPago || '', comentarios: form.senaComentarios || '' });
   }
 
-  // Nueva reserva
-  const id   = Date.now().toString();
-  const name = generateSaveName(dateVal, timeVal);
-  const entry = { id, saveName: name, status: 'reserva', total, savedAt, form };
-  saves.unshift(entry);
-  putSaves(saves);
-  postToWebhook(entry);
-  // Registrar seña inicial en Entradas si hay importe
-  const senaVal = parseFloat(form.eventSena) || 0;
-  if (senaVal > 0) postEntrada({ eventoId: id, importe: senaVal, concepto: form.senaConcepto || 'Seña', formaPago: form.senaFormaPago || '', comentarios: form.senaComentarios || '' });
-  flashBtn(event.currentTarget, '✓ Reserva guardada', 'var(--green-dark)');
-  clearForm();
+  if (entry) {
+    const res = await postToWebhook(entry);
+    clearForm();
+    if (res.ok) {
+      flashBtn(btn, successMsg, 'var(--green-dark)');
+    } else {
+      btn.disabled = false;
+      flashBtn(btn, '✗ Error al guardar', '#dc2626');
+      showToast(['Error: ' + (res.error || 'sin respuesta del servidor')]);
+    }
+  } else {
+    btn.disabled = false;
+    clearForm();
+  }
 }
 
 function flashBtn(btn, label, color) {
@@ -1687,7 +1680,7 @@ function renderGuardadosTab() {
     const sa = new Date(s.savedAt);
     const saStr = `${sa.getDate()} ${M[sa.getMonth()]} · ${String(sa.getHours()).padStart(2,'0')}:${String(sa.getMinutes()).padStart(2,'0')}`;
     const senaAcum = getSenaBase(s);
-    const isPaid   = s.form?.pagoTotal || false;
+    const isPaid   = senaAcum > 0 && (s.total || 0) > 0 && senaAcum >= (s.total || 0);
     const senaTag  = tipo === 'reserva' ? `<span style="font-size:.75rem;color:${isPaid ? '#065f46' : '#b45309'};font-weight:600">${isPaid ? '✅ Pagado' : (senaAcum > 0 ? `Pagos: ${fmtCur(senaAcum)}` : '')}</span>` : '';
     const actionsId = `actions-${s.id}`;
     const extraActions = tipo === 'presupuesto'
@@ -1759,7 +1752,6 @@ function openVerModal(id) {
     ['Animadores',  f.numAnimadores ?? '—'],
     ['Mozos',       f.numMozos ?? '—'],
     ['Pago ($)',    f.eventSena || '0'],
-    ['Pago total',  f.pagoTotal ? 'Sí' : 'No'],
     ['Descripción', f.eventDesc || '—'],
   ].filter(([,v]) => v && v !== '—');
   document.getElementById('verModal-title').textContent = `📋 ${s.saveName}`;
@@ -1786,7 +1778,9 @@ function openPagoModal(id) {
     <div class="pago-field"><span class="pago-field-lbl">Precio total</span><span class="pago-field-val">${fmtCur(s.total||0)}</span></div>
   </div>`;
   const senaAcum = getSenaBase(s);
-  const isPaid   = s.form?.pagoTotal || false;
+  const total    = s.total || 0;
+  const falta    = Math.max(0, total - senaAcum);
+  const isPaid   = senaAcum >= total && total > 0;
   const totalBox = document.getElementById('pagoSenaTotal');
   totalBox.className = 'pago-sena-total' + (isPaid ? ' complete' : '');
   document.getElementById('pagoSenaAmt').textContent = fmtCur(senaAcum);
@@ -1795,6 +1789,14 @@ function openPagoModal(id) {
   document.getElementById('pagoFormaPago').value = '';
   document.getElementById('pagoComentarios').value = '';
   document.getElementById('pagoAutoMsg').style.display = 'none';
+  const faltaWrap = document.getElementById('pagoFaltaWrap');
+  const faltaAmt  = document.getElementById('pagoFaltaAmt');
+  if (falta > 0 && total > 0) {
+    faltaAmt.textContent = fmtCur(falta);
+    faltaWrap.style.display = 'flex';
+  } else {
+    faltaWrap.style.display = 'none';
+  }
   openModal('pagoModal');
 }
 
@@ -1806,11 +1808,20 @@ function getSenaBase(s) {
 function onPagoImporteInput() {
   const s = getSaves().find(x => x.id === _pagoId);
   if (!s) return;
-  const importe  = parseFloat(document.getElementById('pagoImporte').value) || 0;
-  const nuevaSena = getSenaBase(s) + importe;
-  const total    = s.total || 0;
+  const importe    = parseFloat(document.getElementById('pagoImporte').value) || 0;
+  const nuevaSena  = getSenaBase(s) + importe;
+  const total      = s.total || 0;
   const willComplete = nuevaSena >= total && total > 0;
   document.getElementById('pagoAutoMsg').style.display = willComplete ? '' : 'none';
+  const faltaWrap = document.getElementById('pagoFaltaWrap');
+  const faltaAmt  = document.getElementById('pagoFaltaAmt');
+  const falta     = Math.max(0, total - nuevaSena);
+  if (falta > 0 && total > 0) {
+    faltaAmt.textContent = fmtCur(falta);
+    faltaWrap.style.display = 'flex';
+  } else {
+    faltaWrap.style.display = 'none';
+  }
 }
 
 function confirmarPago() {
@@ -1830,7 +1841,6 @@ function confirmarPago() {
   if (idx < 0) return;
   saves[idx].form = saves[idx].form || {};
   saves[idx].form.eventSena = String(nuevaSena);
-  saves[idx].form.pagoTotal = pagado;
   localStorage.setItem('salonSaves', JSON.stringify(saves));
   // 1. Registrar en pestaña Entradas del sheet
   postEntrada({ eventoId: s.id, importe, concepto, formaPago, comentarios });
@@ -1876,6 +1886,12 @@ function startCompletingReservation(id) {
   document.getElementById('bannerName').textContent = s.saveName;
   document.getElementById('reservaBanner').classList.add('show');
   switchTab('reserva');
+  // Preload the saved presupuesto total as the manual price override
+  const pfo = document.getElementById('precioFinalOverride');
+  if (pfo && s.total) {
+    pfo.value = s.total;
+    updateFinalPriceDisplay();
+  }
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -1983,7 +1999,7 @@ function buildSheetPayload(entry) {
     'Nº mozos':        parseInt(f.numMozos)      >= 0 ? parseInt(f.numMozos)      : (b.waiters    ?? ''),
     'Precio calculado': lastBudget.total || 0,  // usado por Apps Script como Precio original en INSERT
     'Total ($)':       entry.total || 0,
-    'P Total ($)':     f.pagoTotal ? (entry.total || 0) : '',
+    'P Total ($)':     (parseFloat(f.eventSena) >= (entry.total || 0) && (entry.total || 0) > 0) ? 'True' : '',
     'Pagos ($)':       parseFloat(f.eventSena) || '',
     'Descripción':     f.eventDesc   || '',
     'Notas':           f.eventOthers || '',
@@ -2021,21 +2037,24 @@ function postPagoToReserva(id, pagos, pagoTotal) {
   }).catch(() => {});
 }
 
-function postToWebhook(entry) {
+async function postToWebhook(entry) {
   const url = cfg().webhookUrl;
-  if (!url || !url.startsWith('http')) return;
+  if (!url || !url.startsWith('http')) return { ok: false, error: 'URL de webhook no configurada' };
   const payload = buildSheetPayload(entry);
   payload.sheetName = (entry.status === 'reserva') ? 'Reservas' : 'Presupuestos';
-  fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain' },
-    body: JSON.stringify(payload)
-  }).then(() => {
-    // Marcar como sincronizado
-    const saves = getSaves();
-    const idx = saves.findIndex(s => s.id === entry.id);
-    if (idx !== -1) { saves[idx].synced = true; putSaves(saves); }
-  }).catch(() => {});
+  try {
+    const res  = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload) });
+    const data = await res.json();
+    if (data.success !== false) {
+      const saves = getSaves();
+      const idx = saves.findIndex(s => s.id === entry.id);
+      if (idx !== -1) { saves[idx].synced = true; putSaves(saves); }
+      return { ok: true };
+    }
+    return { ok: false, error: data.error || 'Respuesta inesperada del servidor' };
+  } catch (e) {
+    return { ok: false, error: e.message || 'Error de conexión' };
+  }
 }
 
 // Registra una entrada de pago en la pestaña "Entradas" del sheet
