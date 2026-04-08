@@ -172,6 +172,10 @@
     /* VALIDATION TOAST */
     .val-toast { display: none; background: #fff5f5; border: 1px solid #fed7d7; border-radius: 8px; padding: 10px 14px; font-size: .83rem; color: var(--red); margin-bottom: 12px; }
     .val-toast.show { display: block; }
+    #saveToast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(20px); z-index:9999; padding:11px 20px; border-radius:10px; font-size:.88rem; font-weight:600; white-space:nowrap; box-shadow:0 4px 16px rgba(0,0,0,.18); opacity:0; pointer-events:none; transition:opacity .22s, transform .22s; }
+    #saveToast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+    #saveToast.ok  { background:#d1fae5; color:#065f46; border:1px solid #6ee7b7; }
+    #saveToast.err { background:#fee2e2; color:#991b1b; border:1px solid #fca5a5; }
 
     /* EDIT MODE BANNER */
     .edit-banner { display: none; background: #fefce8; border: 1.5px solid #fde047; border-radius: var(--radius); padding: 11px 16px; margin-bottom: 10px; align-items: center; justify-content: space-between; gap: 10px; }
@@ -358,7 +362,7 @@
     </div>
     <p id="pagoAutoMsg" style="font-size:.78rem;color:#065f46;margin-top:8px;display:none">✅ Este pago completará el total del evento.</p>
     <div class="modal-foot">
-      <button class="btn btn-primary" onclick="confirmarPago()">Confirmar pago</button>
+      <button id="pagoConfirmBtn" class="btn btn-primary" onclick="confirmarPago()">✓ Confirmar pago</button>
       <button class="btn btn-gray" onclick="closeModal('pagoModal')">Cancelar</button>
     </div>
   </div>
@@ -460,6 +464,9 @@
 
     <!-- Validation toast -->
     <div class="val-toast" id="valToast"></div>
+
+<!-- Save toast (global, fixed) -->
+<div id="saveToast"></div>
 
 
     <!-- DATOS DEL PRESUPUESTO (mandatory) -->
@@ -805,7 +812,6 @@
         </div>
 
         <div style="display:flex;gap:10px;justify-content:flex-end;align-items:center;margin-top:4px">
-          <span id="gastoStatus" style="font-size:.82rem;color:var(--green-dark);display:none"></span>
           <button id="btn-gastoLimpiar" class="btn btn-gray" onclick="limpiarGasto()">🗑️ Limpiar</button>
           <button id="btn-gastoGuardar" class="btn btn-primary" onclick="guardarGasto()">💾 Registrar gasto</button>
         </div>
@@ -1572,10 +1578,11 @@ async function saveAsPresupuesto() {
     clearForm();
     if (res.ok) {
       flashBtn(btn, '✓ Guardado en planilla', 'var(--green)');
+      showSaveToast('✓ Presupuesto guardado en planilla');
     } else {
       btn.disabled = false;
       flashBtn(btn, '✗ Error al guardar', '#dc2626');
-      showToast(['Error: ' + (res.error || 'sin respuesta del servidor')]);
+      showSaveToast('✗ Error: ' + (res.error || 'sin respuesta del servidor'), true);
     }
   } else {
     btn.disabled = false;
@@ -1634,10 +1641,11 @@ async function saveAsReserva() {
     clearForm();
     if (res.ok) {
       flashBtn(btn, successMsg, 'var(--green-dark)');
+      showSaveToast('✓ Reserva guardada en planilla');
     } else {
       btn.disabled = false;
       flashBtn(btn, '✗ Error al guardar', '#dc2626');
-      showToast(['Error: ' + (res.error || 'sin respuesta del servidor')]);
+      showSaveToast('✗ Error: ' + (res.error || 'sin respuesta del servidor'), true);
     }
   } else {
     btn.disabled = false;
@@ -1650,6 +1658,16 @@ function flashBtn(btn, label, color) {
   const orig = btn.innerHTML; const origBg = btn.style.background;
   btn.innerHTML = label; btn.style.background = color;
   setTimeout(() => { btn.innerHTML = orig; btn.style.background = origBg; }, 2200);
+}
+
+let _saveToastTimer = null;
+function showSaveToast(msg, isError) {
+  const el = document.getElementById('saveToast');
+  if (!el) return;
+  clearTimeout(_saveToastTimer);
+  el.textContent = msg;
+  el.className = 'show ' + (isError ? 'err' : 'ok');
+  _saveToastTimer = setTimeout(() => { el.className = el.className.replace('show','').trim(); }, 3000);
 }
 
 // ════════════════════════════════════════════
@@ -1876,11 +1894,11 @@ function onPagoImporteInput() {
   }
 }
 
-function confirmarPago() {
+async function confirmarPago() {
   const s = getSaves().find(x => x.id === _pagoId);
   if (!s) return;
   const importe     = parseFloat(document.getElementById('pagoImporte').value) || 0;
-  if (importe <= 0) { alert('Ingresá un importe mayor a 0.'); return; }
+  if (importe <= 0) { showSaveToast('Ingresá un importe mayor a 0.', true); return; }
   const concepto    = document.getElementById('pagoConcepto').value;
   const formaPago   = document.getElementById('pagoFormaPago').value;
   const comentarios = document.getElementById('pagoComentarios').value.trim();
@@ -1894,12 +1912,27 @@ function confirmarPago() {
   saves[idx].form = saves[idx].form || {};
   saves[idx].form.eventSena = String(nuevaSena);
   localStorage.setItem('salonSaves', JSON.stringify(saves));
-  // 1. Registrar en pestaña Entradas del sheet
-  postEntrada({ eventoId: s.id, importe, concepto, formaPago, comentarios });
-  // 2. Actualizar solo Pagos ($) y P Total ($) en la fila de Reservas del sheet
-  postPagoToReserva(s.id, nuevaSena, pagado);
+
+  // Deshabilitar botón confirmar mientras se guarda
+  const btn = document.getElementById('pagoConfirmBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
+
+  // 1. Registrar en pestaña Entradas
+  const r1 = await postEntrada({ eventoId: s.id, importe, concepto, formaPago, comentarios });
+  // 2. Actualizar Pagos ($) y P Total ($) en Reservas
+  const r2 = await postPagoToReserva(s.id, nuevaSena, pagado);
+
+  if (btn) { btn.disabled = false; btn.textContent = '✓ Confirmar pago'; }
+
+  if (r1.ok && r2.ok) {
+    showSaveToast('✓ Pago registrado en planilla');
+  } else {
+    const err = (!r1.ok ? r1.error : r2.error) || 'Error al guardar';
+    showSaveToast('✗ ' + err, true);
+  }
+
   closeModal('pagoModal');
-  renderGuardadosTab();
+  if (document.getElementById('guardadosModal').style.display !== 'none') renderGuardadosTab();
 }
 
 function renderSavesList(filter = 'presupuesto') {
@@ -1919,8 +1952,6 @@ function limpiarGasto() {
   document.getElementById('gastoExcepcional').checked = false;
   document.getElementById('gastoFormaPago').value   = '';
   document.getElementById('gastoComentarios').value = '';
-  const st = document.getElementById('gastoStatus');
-  st.style.display = 'none';
 }
 
 async function guardarGasto() {
@@ -1932,7 +1963,7 @@ async function guardarGasto() {
   if (!concepto)        { alert('Ingresá un concepto.'); return; }
 
   const url = cfg().webhookUrl;
-  if (!url || !url.startsWith('http')) { alert('Configurá el webhook en Administración.'); return; }
+  if (!url || !url.startsWith('http')) { showSaveToast('✗ Configurá el webhook en Administración.', true); return; }
 
   const btn = document.getElementById('btn-gastoGuardar');
   btn.disabled = true; btn.innerHTML = '⏳ Guardando...';
@@ -1954,19 +1985,16 @@ async function guardarGasto() {
     const res  = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload) });
     const data = await res.json();
     if (data.success !== false) {
-      const st = document.getElementById('gastoStatus');
-      st.textContent = '✓ Gasto registrado';
-      st.style.display = '';
-      setTimeout(() => { st.style.display = 'none'; }, 3000);
       limpiarGasto();
       btn.disabled = false; btn.innerHTML = '💾 Registrar gasto';
+      showSaveToast('✓ Gasto registrado en planilla');
     } else {
       btn.disabled = false; btn.innerHTML = '💾 Registrar gasto';
-      alert('Error al guardar: ' + (data.error || 'respuesta inesperada'));
+      showSaveToast('✗ Error: ' + (data.error || 'respuesta inesperada'), true);
     }
   } catch(e) {
     btn.disabled = false; btn.innerHTML = '💾 Registrar gasto';
-    alert('Error de conexión: ' + (e.message || 'sin respuesta'));
+    showSaveToast('✗ Error de conexión: ' + (e.message || 'sin respuesta'), true);
   }
 }
 
@@ -2136,20 +2164,20 @@ function buildSheetRow(entry) {
   return Object.values(p);
 }
 
-function postPagoToReserva(id, pagos, pagoTotal) {
+async function postPagoToReserva(id, pagos, pagoTotal) {
   const url = cfg().webhookUrl;
-  if (!url || !url.startsWith('http')) return;
-  fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain' },
-    body: JSON.stringify({
-      action: 'updatePagos',
-      sheetName: 'Reservas',
-      id: id,
-      pagos: pagos,
-      pagoTotal: pagoTotal
-    })
-  }).catch(() => {});
+  if (!url || !url.startsWith('http')) return { ok: false, error: 'Webhook no configurado' };
+  try {
+    const res  = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: 'updatePagos', sheetName: 'Reservas', id, pagos, pagoTotal })
+    });
+    const data = await res.json();
+    return data.success !== false ? { ok: true } : { ok: false, error: data.error || 'Error al actualizar pagos' };
+  } catch(e) {
+    return { ok: false, error: e.message || 'Error de conexión' };
+  }
 }
 
 async function postToWebhook(entry) {
@@ -2173,9 +2201,9 @@ async function postToWebhook(entry) {
 }
 
 // Registra una entrada de pago en la pestaña "Entradas" del sheet
-function postEntrada({ eventoId, importe, concepto, formaPago, comentarios }) {
+async function postEntrada({ eventoId, importe, concepto, formaPago, comentarios }) {
   const url = cfg().webhookUrl;
-  if (!url || !url.startsWith('http')) return;
+  if (!url || !url.startsWith('http')) return { ok: false, error: 'Webhook no configurado' };
   const hoy = new Date();
   const fechaStr = `${String(hoy.getDate()).padStart(2,'0')}/${String(hoy.getMonth()+1).padStart(2,'0')}/${hoy.getFullYear()}`;
   const payload = {
@@ -2190,11 +2218,13 @@ function postEntrada({ eventoId, importe, concepto, formaPago, comentarios }) {
       'Comentarios': comentarios || '',
     }
   };
-  fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain' },
-    body: JSON.stringify(payload)
-  }).catch(() => {});
+  try {
+    const res  = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload) });
+    const data = await res.json();
+    return data.success !== false ? { ok: true } : { ok: false, error: data.error || 'Error al registrar entrada' };
+  } catch(e) {
+    return { ok: false, error: e.message || 'Error de conexión' };
+  }
 }
 
 // Elimina una fila del sheet por ID (para cuando presupuesto → reserva)
