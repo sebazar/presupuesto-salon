@@ -1774,9 +1774,9 @@ function renderGuardadosTab() {
     const senaTag  = tipo === 'reserva' ? `<span style="font-size:.75rem;color:${isPaid ? '#065f46' : '#b45309'};font-weight:600">${isPaid ? '✅ Pagado' : (senaAcum > 0 ? `Pagos: ${fmtCur(senaAcum)}` : '')}</span>` : '';
     const actionsId = `actions-${s.id}`;
     const extraActions = tipo === 'presupuesto'
-      ? `<button class="sad-item" onclick="startCompletingReservation('${s.id}');closeActionsDropdown('${actionsId}')">→ Convertir en Reserva</button>`
-      : `<button class="sad-item" onclick="openVerModal('${s.id}');closeActionsDropdown('${actionsId}')">👁 Ver detalle</button>
-         <button class="sad-item" onclick="openPagoModal('${s.id}');closeActionsDropdown('${actionsId}')">💳 Registrar pago</button>`;
+      ? `<button class="sad-item" onclick="closeModal('guardadosModal');startCompletingReservation('${s.id}');closeActionsDropdown('${actionsId}')">→ Convertir en Reserva</button>`
+      : `<button class="sad-item" onclick="closeModal('guardadosModal');openVerModal('${s.id}');closeActionsDropdown('${actionsId}')">👁 Ver detalle</button>
+         <button class="sad-item" onclick="closeModal('guardadosModal');openPagoModal('${s.id}');closeActionsDropdown('${actionsId}')">💳 Registrar pago</button>`;
     return `<div class="save-item" style="padding:11px 14px">
       <div class="save-info">
         <div class="save-name">${escHtml(s.saveName)}</div>
@@ -1787,9 +1787,9 @@ function renderGuardadosTab() {
       <div class="save-actions-wrap">
         <button class="save-actions-trigger" onclick="toggleActionsDropdown('${actionsId}')">···</button>
         <div class="save-actions-dropdown" id="${actionsId}">
-          <button class="sad-item" onclick="loadBudget('${s.id}');closeActionsDropdown('${actionsId}')">✏️ Editar</button>
+          <button class="sad-item" onclick="closeModal('guardadosModal');loadBudget('${s.id}');closeActionsDropdown('${actionsId}')">✏️ Editar</button>
           ${extraActions}
-          <button class="sad-item danger" onclick="deleteBudget('${s.id}')">🗑️ Eliminar</button>
+          <button class="sad-item danger" onclick="closeModal('guardadosModal');deleteBudget('${s.id}')">🗑️ Eliminar</button>
         </div>
       </div>
     </div>`;
