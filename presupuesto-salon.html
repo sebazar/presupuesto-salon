@@ -442,7 +442,7 @@
   <button class="active" onclick="switchTab('presupuesto')">📋 Presupuestos</button>
   <button onclick="switchTab('reserva')">✅ Reservas</button>
   <button onclick="switchTab('gastos')">💸 Gastos</button>
-  <button onclick="switchTab('proveedor')">🚚 Proveedores</button>
+  <button onclick="switchTab('proveedor')">📅 Próx. Eventos</button>
 </nav>
 
 <main>
@@ -540,11 +540,11 @@
       <div style="margin:16px 0 8px;font-size:.8rem;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:.5px">Personal</div>
       <div class="grid-2">
         <div class="form-group">
-          <label class="flab">Nº animadores <span style="font-weight:400;color:var(--gray-400);text-transform:none">(auto)</span></label>
+          <label class="flab">Nº animadores <span id="animLabelNote" style="font-weight:400;color:var(--gray-400);text-transform:none">(auto)</span></label>
           <input type="number" id="numAnimadores" placeholder="—" min="0" oninput="onManualAnimInput()">
         </div>
         <div class="form-group">
-          <label class="flab">Nº mozos <span style="font-weight:400;color:var(--gray-400);text-transform:none">(auto)</span></label>
+          <label class="flab">Nº mozos <span id="mozLabelNote" style="font-weight:400;color:var(--gray-400);text-transform:none">(auto)</span></label>
           <input type="number" id="numMozos" placeholder="—" min="0" oninput="onManualMozInput()">
         </div>
       </div>
@@ -561,14 +561,6 @@
         <input type="number" id="extraHours" placeholder="0" min="0" max="8" step="1" oninput="recalc()">
       </div>
       <div class="hours-info" id="hoursInfo" style="display:none"></div>
-
-      <div class="form-group" style="margin-top:10px">
-        <label class="flab">Staff adicional</label>
-        <div class="extras-toggles">
-          <button type="button" id="btn-extraRec" class="extras-btn" onclick="addToAnimadores()">🎪 Recreador extra</button>
-          <button type="button" id="btn-extraMoz" class="extras-btn" onclick="addToMozos()">🧑‍🍳 Mozo extra</button>
-        </div>
-      </div>
 
       <div class="form-group" style="margin-top:10px">
         <label class="flab">Otro</label>
@@ -720,11 +712,19 @@
     <div class="card">
       <div class="prov-header">
         <div>
-          <h2>🚚 Próximos eventos reservados</h2>
+          <h2>📅 Próximos eventos</h2>
           <small id="prov-updated"></small>
         </div>
         <button class="prov-refresh" onclick="loadProveedorView()">↻ Actualizar</button>
       </div>
+      <!-- Filtros: solo visible para admin -->
+      <div id="prov-filtros-admin" style="display:none;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px;padding:10px 12px;background:#f5f3ff;border-radius:8px">
+        <span style="font-size:.8rem;font-weight:700;color:#6b21a8">🔍 Filtrar por:</span>
+        <input type="date" id="provFiltroDia" style="padding:5px 9px;border:1.5px solid var(--gray-200);border-radius:7px;font-size:.82rem" onchange="onProvFiltroDiaChange()" title="Día específico">
+        <input type="month" id="provFiltroMes" style="padding:5px 9px;border:1.5px solid var(--gray-200);border-radius:7px;font-size:.82rem" onchange="onProvFiltroMesChange()" title="Mes completo">
+        <button onclick="clearProvFiltros()" style="padding:5px 10px;font-size:.78rem;border:1px solid var(--gray-300);border-radius:7px;background:white;cursor:pointer;color:var(--gray-600)">✕ Limpiar</button>
+      </div>
+      <div id="prov-rango" style="font-size:.82rem;font-weight:700;color:var(--purple-dark);margin-bottom:8px;padding:2px 0"></div>
       <div id="prov-content" class="prov-loading">Cargando eventos...</div>
     </div>
   </div>
@@ -1034,30 +1034,12 @@ let loadedId        = null;   // ID del registro cargado para edición
 let animManual = false;  // override manual de numAnimadores
 let mozManual  = false;  // override manual de numMozos
 
-function addToAnimadores() {
-  const el  = document.getElementById('numAnimadores');
-  const cur = parseInt(el.value);
-  el.value  = (isNaN(cur) ? (lastBudget.actualRecs || 0) : cur) + 1;
-  animManual = true;
-  document.getElementById('btn-extraRec').classList.add('on');
-  recalc();
-}
-function addToMozos() {
-  const el  = document.getElementById('numMozos');
-  const cur = parseInt(el.value);
-  el.value  = (isNaN(cur) ? (lastBudget.waiters || 0) : cur) + 1;
-  mozManual = true;
-  document.getElementById('btn-extraMoz').classList.add('on');
-  recalc();
-}
 function onManualAnimInput() {
   animManual = true;
-  document.getElementById('btn-extraRec').classList.add('on');
   recalc();
 }
 function onManualMozInput() {
   mozManual = true;
-  document.getElementById('btn-extraMoz').classList.add('on');
   recalc();
 }
 
@@ -1354,11 +1336,33 @@ function recalc() {
     animEff, mozEff, animDelta, mozDelta, animManual, mozManual,
     otroValor, otroDesc, C };
 
+  // Auto-reset flag si el valor ingresado coincide con el calculado
+  const _animVal = parseInt(document.getElementById('numAnimadores').value);
+  const _mozVal  = parseInt(document.getElementById('numMozos').value);
+  if (animManual && _animVal === actualRecs) animManual = false;
+  if (mozManual  && _mozVal  === waiters)    mozManual  = false;
+
   // Auto-poblar animadores/mozos solo si no hay override manual
   const animEl  = document.getElementById('numAnimadores');
   const mozosEl = document.getElementById('numMozos');
   if (animEl  && !animManual) animEl.value  = numKids   > 0 ? actualRecs : '';
   if (mozosEl && !mozManual)  mozosEl.value = numAdults > 0 ? waiters    : '';
+
+  // Actualizar leyenda "(auto)" / "(N adicional/es)"
+  const _animCur = parseInt(animEl?.value);
+  const _mozCur  = parseInt(mozosEl?.value);
+  const animNote = document.getElementById('animLabelNote');
+  const mozNote  = document.getElementById('mozLabelNote');
+  if (animNote) {
+    const d = animManual && !isNaN(_animCur) ? _animCur - actualRecs : 0;
+    if (d > 0) { animNote.textContent = `(${d} adicional${d !== 1 ? 'es' : ''})`; animNote.style.color = '#d97706'; }
+    else       { animNote.textContent = '(auto)'; animNote.style.color = ''; }
+  }
+  if (mozNote) {
+    const d = mozManual && !isNaN(_mozCur) ? _mozCur - waiters : 0;
+    if (d > 0) { mozNote.textContent = `(${d} adicional${d !== 1 ? 'es' : ''})`; mozNote.style.color = '#d97706'; }
+    else       { mozNote.textContent = '(auto)'; mozNote.style.color = ''; }
+  }
 }
 
 // ════════════════════════════════════════════
@@ -1481,8 +1485,6 @@ function clearForm() {
   document.getElementById('numAnimadores').value = '';
   document.getElementById('numMozos').value = '';
   animManual = false; mozManual = false;
-  document.getElementById('btn-extraRec').classList.remove('on');
-  document.getElementById('btn-extraMoz').classList.remove('on');
   document.getElementById('startTime').value  = '';
   document.getElementById('numKids').value    = '0';
   document.getElementById('numAdults').value  = '0';
@@ -1580,8 +1582,6 @@ function restoreFormState(s) {
   // Override manual de animadores/mozos
   animManual = s.animManual || false;
   mozManual  = s.mozManual  || false;
-  document.getElementById('btn-extraRec').classList.toggle('on', animManual);
-  document.getElementById('btn-extraMoz').classList.toggle('on', mozManual);
   setDayType(s.dayType || 'weekend');
   setDiscountType(s.discountType || 'none');
   recalc();
@@ -1951,9 +1951,15 @@ async function confirmarPago() {
   const s = getSaves().find(x => x.id === _pagoId);
   if (!s) return;
   const importe     = parseFloat(document.getElementById('pagoImporte').value) || 0;
-  if (importe <= 0) { showSaveToast('Ingresá un importe mayor a 0.', true); return; }
   const concepto    = document.getElementById('pagoConcepto').value;
   const formaPago   = document.getElementById('pagoFormaPago').value;
+  if (importe <= 0)  { showSaveToast('✗ Ingresá un importe mayor a 0.', true); return; }
+  if (!concepto)     { showSaveToast('✗ Seleccioná un concepto.',        true); return; }
+  if (!formaPago)    {
+    const el = document.getElementById('pagoFormaPago');
+    if (el) { el.style.outline = '2px solid #ef4444'; setTimeout(() => el.style.outline = '', 2500); }
+    showSaveToast('✗ Seleccioná una forma de pago.', true); return;
+  }
   const comentarios = document.getElementById('pagoComentarios').value.trim();
   const nuevaSena   = getSenaBase(s) + importe;
   const total       = s.total || 0;
@@ -2018,13 +2024,25 @@ function limpiarGasto() {
   document.getElementById('gastoComentarios').value = '';
 }
 
+function _gastoFieldErr(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const prev = el.style.borderColor;
+  el.style.borderColor = '#ef4444';
+  const reset = () => { el.style.borderColor = prev; };
+  el.addEventListener('input',  reset, {once:true});
+  el.addEventListener('change', reset, {once:true});
+}
+
 async function guardarGasto() {
   const fecha      = document.getElementById('gastoFecha').value;
   const importe    = parseFloat(document.getElementById('gastoImporte').value);
-  const concepto   = document.getElementById('gastoConcepto').value.trim();
-  if (!fecha)           { alert('Ingresá una fecha.'); return; }
-  if (!importe || importe <= 0) { alert('Ingresá un importe mayor a 0.'); return; }
-  if (!concepto)        { alert('Ingresá un concepto.'); return; }
+  const proveedor  = document.getElementById('gastoProveedor').value;
+  const formaPago  = document.getElementById('gastoFormaPago').value;
+  if (!fecha)                   { _gastoFieldErr('gastoFecha');     showSaveToast('✗ Ingresá una fecha.',               true); return; }
+  if (!importe || importe <= 0) { _gastoFieldErr('gastoImporte');   showSaveToast('✗ Ingresá un importe mayor a 0.',    true); return; }
+  if (!proveedor)               { _gastoFieldErr('gastoProveedor'); showSaveToast('✗ Seleccioná un proveedor.',         true); return; }
+  if (!formaPago)               { _gastoFieldErr('gastoFormaPago'); showSaveToast('✗ Seleccioná una forma de pago.',    true); return; }
 
   const url = cfg().webhookUrl;
   if (!url || !url.startsWith('http')) { showSaveToast('✗ Configurá el webhook en Administración.', true); return; }
@@ -2573,6 +2591,9 @@ function applyRoleVisibility() {
   const showChat = ['admin','ventas'].includes(role);
   const bubble = document.getElementById('chatbot-bubble');
   if (showChat) bubble.style.display = 'flex';
+  // Filtros de proveedor: solo admin
+  const filtrosAdmin = document.getElementById('prov-filtros-admin');
+  if (filtrosAdmin) filtrosAdmin.style.display = role === 'admin' ? 'flex' : 'none';
   // Ir al primer tab visible
   switchTab(visible[0]);
 }
@@ -2666,35 +2687,52 @@ window.addEventListener('message', e => {
 // VISTA PROVEEDORES
 // ════════════════════════════════════════════
 const PROV_COLS = [
-  { key: 'Fecha',           label: 'Fecha' },
-  { key: 'Nombre evento',   label: 'Evento' },
-  { key: 'Edad',            label: 'Edad' },
-  { key: 'Hora inicio',     label: 'Inicio' },
-  { key: 'Hora fin',        label: 'Fin' },
-  { key: 'Roman',           label: 'Roman' },
-  { key: 'Nº niños',        label: 'Niños' },
-  { key: 'Nº animadores',   label: 'Animadores' },
-  { key: 'Recreador extra', label: 'Rec. extra' },
-  { key: 'Nº adultos',      label: 'Adultos' },
-  { key: 'Nº mozos',        label: 'Mozos' },
+  { key: 'Fecha',          label: 'Fecha'      },
+  { key: 'Hora inicio',    label: 'Inicio'     },
+  { key: 'Nº animadores',  label: 'Animadores' },
+  { key: 'Roman',          label: 'Roman'      },
+  { key: 'Nombre evento',  label: 'Evento'     },
+  { key: 'Edad',           label: 'Edad'       },
+  { key: 'Nº niños',       label: 'Niños'      },
+  { key: 'Nº adultos',     label: 'Adultos'    },
+  { key: 'Nº mozos',       label: 'Mozos'      },
 ];
 
 // El popup usa exactamente los mismos campos que la tabla, con emojis
 const PROV_POPUP_LABELS = {
-  'Fecha':           '📅 Fecha',
-  'Nombre evento':   '🎉 Evento',
-  'Edad':            '🎂 Edad',
-  'Hora inicio':     '🕐 Inicio',
-  'Hora fin':        '🕔 Fin',
-  'Roman':           '🎭 Roman',
-  'Nº niños':        '👶 Niños',
-  'Nº animadores':   '🎪 Animadores',
-  'Recreador extra': '🎪 Rec. extra',
-  'Nº adultos':      '👥 Adultos',
-  'Nº mozos':        '🧑‍🍳 Mozos',
+  'Fecha':         '📅 Fecha',
+  'Hora inicio':   '🕐 Inicio',
+  'Nº animadores': '🎪 Animadores',
+  'Roman':         '🎭 Roman',
+  'Nombre evento': '🎉 Evento',
+  'Edad':          '🎂 Edad',
+  'Nº niños':      '👶 Niños',
+  'Nº adultos':    '👥 Adultos',
+  'Nº mozos':      '🧑‍🍳 Mozos',
 };
 
 let _provReservas = [];
+
+// Convierte fecha de la planilla (dd/mm/yy o dd/mm/yyyy) a Date
+function provToDate(s) {
+  const p = String(s).split('/');
+  if (p.length !== 3) return new Date(0);
+  const y = p[2].length === 2 ? 2000 + parseInt(p[2]) : parseInt(p[2]);
+  return new Date(y, parseInt(p[1]) - 1, parseInt(p[0]));
+}
+// Formatea fecha a dd/mm/aa (desde string planilla o ISO YYYY-MM-DD)
+function fmtDdMmAa(s, fromISO) {
+  if (!s) return '—';
+  if (fromISO) {
+    const [y, m, d] = String(s).split('-');
+    return `${d}/${m}/${String(y).slice(-2)}`;
+  }
+  const p = String(s).split('/');
+  if (p.length !== 3) return s;
+  return `${p[0].padStart(2,'0')}/${p[1].padStart(2,'0')}/${String(p[2]).slice(-2)}`;
+}
+
+const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
 async function loadProveedorView() {
   const el = document.getElementById('prov-content');
@@ -2703,21 +2741,44 @@ async function loadProveedorView() {
     const url = cfg().webhookUrl + '?action=getData&tipo=reserva';
     const res = await fetch(url);
     const data = await res.json();
-    const toDate = s => { const p = String(s).split('/'); return p.length===3 ? new Date(p[2],p[1]-1,p[0]) : new Date(0); };
-    const hoy    = new Date(); hoy.setHours(0,0,0,0);
-    const limite = new Date(hoy); limite.setDate(limite.getDate() + 15);
+    const hoy = new Date(); hoy.setHours(0,0,0,0);
+
+    const filtroDia = document.getElementById('provFiltroDia')?.value;  // YYYY-MM-DD
+    const filtroMes = document.getElementById('provFiltroMes')?.value;  // YYYY-MM
+
+    let desde, hasta, rangoLabel;
+    if (filtroDia) {
+      const [y,m,d] = filtroDia.split('-').map(Number);
+      desde = new Date(y, m-1, d, 0, 0, 0);
+      hasta = new Date(y, m-1, d, 23, 59, 59);
+      rangoLabel = `Eventos del ${fmtDdMmAa(filtroDia, true)}`;
+    } else if (filtroMes) {
+      const [y, m] = filtroMes.split('-').map(Number);
+      desde = new Date(y, m-1, 1, 0, 0, 0);
+      hasta = new Date(y, m,   0, 23, 59, 59);
+      rangoLabel = `Eventos de ${MESES[m-1]} ${y}`;
+    } else {
+      desde = hoy;
+      hasta = new Date(hoy); hasta.setDate(hasta.getDate() + 15);
+      rangoLabel = 'Eventos de las próximas 2 semanas';
+    }
+
     _provReservas = (data.reservas || [])
-      .filter(r => { const d = toDate(r['Fecha']); return d >= hoy && d <= limite; })
-      .sort((a, b) => toDate(a['Fecha']) - toDate(b['Fecha']));
+      .filter(r => { const d = provToDate(r['Fecha']); return d >= desde && d <= hasta; })
+      .sort((a, b) => provToDate(a['Fecha']) - provToDate(b['Fecha']));
+
+    const rangoEl = document.getElementById('prov-rango');
+    if (rangoEl) rangoEl.textContent = rangoLabel;
+
     if (!_provReservas.length) {
-      el.innerHTML = '<div class="prov-empty">No hay eventos reservados próximos.</div>';
+      el.innerHTML = '<div class="prov-empty">No hay eventos en este período.</div>';
     } else {
       const heads = PROV_COLS.map(c => `<th>${c.label}</th>`).join('');
       const rows = _provReservas.map((r, idx) => {
         const cells = PROV_COLS.map((c, i) => {
-          const v = r[c.key] ?? '';
-          if (i === 0) return `<td class="prov-fecha">${v}</td>`;
-          if (i === 1) return `<td class="prov-nombre">${v}</td>`;
+          let v = r[c.key] ?? '';
+          if (c.key === 'Fecha') return `<td class="prov-fecha">${fmtDdMmAa(v)}</td>`;
+          if (c.key === 'Nombre evento') return `<td class="prov-nombre">${v}</td>`;
           return `<td>${v}</td>`;
         }).join('');
         return `<tr onclick="openProvModal(${idx})" title="Ver detalle">${cells}</tr>`;
@@ -2725,10 +2786,24 @@ async function loadProveedorView() {
       el.innerHTML = `<div class="prov-table-wrap"><table class="prov"><thead><tr>${heads}</tr></thead><tbody>${rows}</tbody></table></div>`;
     }
     const now = new Date().toLocaleTimeString('es-AR', {hour:'2-digit', minute:'2-digit'});
-    document.getElementById('prov-updated').textContent = `Actualizado a las ${now} · ${_provReservas.length} evento${_provReservas.length!==1?'s':''}`;
+    document.getElementById('prov-updated').textContent = `Actualizado ${now} · ${_provReservas.length} evento${_provReservas.length!==1?'s':''}`;
   } catch(e) {
     el.innerHTML = '<div class="prov-empty">⚠️ Error al cargar los eventos. Verificá la conexión.</div>';
   }
+}
+
+function onProvFiltroDiaChange() {
+  document.getElementById('provFiltroMes').value = '';
+  loadProveedorView();
+}
+function onProvFiltroMesChange() {
+  document.getElementById('provFiltroDia').value = '';
+  loadProveedorView();
+}
+function clearProvFiltros() {
+  document.getElementById('provFiltroDia').value = '';
+  document.getElementById('provFiltroMes').value = '';
+  loadProveedorView();
 }
 
 function openProvModal(idx) {
@@ -2736,7 +2811,7 @@ function openProvModal(idx) {
   if (!r) return;
   document.getElementById('prov-modal-title').textContent = r['Nombre evento'] || 'Sin nombre';
   document.getElementById('prov-modal-subtitle').textContent =
-    `📅 ${r['Fecha'] || '—'}  ·  🕐 ${r['Hora inicio'] || '—'} → ${r['Hora fin'] || '—'}`;
+    `📅 ${fmtDdMmAa(r['Fecha'])}  ·  🕐 ${r['Hora inicio'] || '—'}`;
   const body = document.getElementById('prov-modal-body');
   body.innerHTML = PROV_COLS.map(c => {
     const v = r[c.key];
