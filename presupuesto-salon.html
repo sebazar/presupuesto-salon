@@ -528,13 +528,26 @@
           <label class="flab">Menú <span class="req-star">*</span></label>
           <select id="adultsMenu" onchange="recalc()">
             <option value="none">Traen su comida (sin cargo)</option>
-            <option value="pizza">Pizzas con gustos</option>
+            <option value="pizza" selected>Pizzas con gustos</option>
             <option value="pizza_calzone">Pizzas y calzones</option>
             <option value="pizza_calzone_chivito">Pizzas, calzones y chivitos</option>
           </select>
         </div>
       </div>
       <div class="staff-hint" id="adultsHint" style="display:none"></div>
+
+      <!-- Animadores y Mozos — siempre visible en presupuesto y reserva -->
+      <div style="margin:16px 0 8px;font-size:.8rem;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:.5px">Personal</div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="flab">Nº animadores <span style="font-weight:400;color:var(--gray-400);text-transform:none">(auto)</span></label>
+          <input type="number" id="numAnimadores" placeholder="—" min="0" oninput="onManualAnimInput()">
+        </div>
+        <div class="form-group">
+          <label class="flab">Nº mozos <span style="font-weight:400;color:var(--gray-400);text-transform:none">(auto)</span></label>
+          <input type="number" id="numMozos" placeholder="—" min="0" oninput="onManualMozInput()">
+        </div>
+      </div>
     </div>
 
     <!-- OPCIONES (optional) -->
@@ -552,8 +565,8 @@
       <div class="form-group" style="margin-top:10px">
         <label class="flab">Staff adicional</label>
         <div class="extras-toggles">
-          <button type="button" id="btn-extraRec" class="extras-btn" onclick="toggleExtra('rec')">🎪 Recreador extra</button>
-          <button type="button" id="btn-extraMoz" class="extras-btn" onclick="toggleExtra('moz')">🧑‍🍳 Mozo extra</button>
+          <button type="button" id="btn-extraRec" class="extras-btn" onclick="addToAnimadores()">🎪 Recreador extra</button>
+          <button type="button" id="btn-extraMoz" class="extras-btn" onclick="addToMozos()">🧑‍🍳 Mozo extra</button>
         </div>
       </div>
 
@@ -620,9 +633,10 @@
           <label class="flab">Edad del cumpleañero/a</label>
           <input type="number" id="eventAge" placeholder="Ej: 7" min="1" max="99" oninput="recalc()">
         </div>
-        <div class="form-group">
-          <label class="flab">Pago ($)</label>
+        <div class="form-group" id="fg-eventSena">
+          <label class="flab">Pago ($) <span class="req-star">*</span></label>
           <input type="number" id="eventSena" placeholder="0" min="0" oninput="recalc()">
+          <div class="field-err-msg">Requerido para la reserva</div>
         </div>
       </div>
 
@@ -637,14 +651,15 @@
             <option value="Otros">Otros</option>
           </select>
         </div>
-        <div class="form-group">
-          <label class="flab">Forma de pago</label>
+        <div class="form-group" id="fg-senaFormaPago">
+          <label class="flab">Forma de pago <span class="req-star">*</span></label>
           <select id="senaFormaPago">
             <option value="">— Sin especificar —</option>
             <option value="Banco Seba">Banco Seba</option>
             <option value="Banco Vir">Banco Vir</option>
             <option value="Efectivo Fede">Efectivo Fede</option>
           </select>
+          <div class="field-err-msg">Requerida para la reserva</div>
         </div>
       </div>
       <div class="form-group">
@@ -652,25 +667,15 @@
         <input type="text" id="senaComentarios" placeholder="Opcional…">
       </div>
 
-      <div class="form-group">
-        <label class="flab">Roman</label>
+      <div class="form-group" id="fg-romanRole">
+        <label class="flab">Roman <span class="req-star">*</span></label>
         <select id="romanRole" onchange="recalc()">
           <option value="">— Sin definir —</option>
           <option value="Recreador">Recreador</option>
           <option value="Salon">Salón</option>
           <option value="No va">No va</option>
         </select>
-      </div>
-
-      <div class="grid-2">
-        <div class="form-group">
-          <label class="flab">Nº animadores <span style="font-weight:400;color:var(--gray-400);text-transform:none">(auto)</span></label>
-          <input type="number" id="numAnimadores" placeholder="—" min="0" oninput="recalc()">
-        </div>
-        <div class="form-group">
-          <label class="flab">Nº mozos <span style="font-weight:400;color:var(--gray-400);text-transform:none">(auto)</span></label>
-          <input type="number" id="numMozos" placeholder="—" min="0" oninput="recalc()">
-        </div>
+        <div class="field-err-msg">Requerido para la reserva</div>
       </div>
 
       <div class="form-group">
@@ -1026,16 +1031,33 @@ let completingId    = null;
 let completingName  = null;
 let currentTab      = 'presupuesto';
 let loadedId        = null;   // ID del registro cargado para edición
-let extraRecExtra   = false;  // toggle Recreador extra
-let extraMozExtra   = false;  // toggle Mozo extra
+let animManual = false;  // override manual de numAnimadores
+let mozManual  = false;  // override manual de numMozos
 
-function toggleExtra(type) {
-  if (type === 'rec') extraRecExtra = !extraRecExtra;
-  if (type === 'moz') extraMozExtra = !extraMozExtra;
-  document.getElementById('btn-extraRec').classList.toggle('on', extraRecExtra);
-  document.getElementById('btn-extraMoz').classList.toggle('on', extraMozExtra);
-  // actualizar campo oculto extraStaff para cálculo
-  document.getElementById('extraStaff').value = (extraRecExtra ? 1 : 0) + (extraMozExtra ? 1 : 0);
+function addToAnimadores() {
+  const el  = document.getElementById('numAnimadores');
+  const cur = parseInt(el.value);
+  el.value  = (isNaN(cur) ? (lastBudget.actualRecs || 0) : cur) + 1;
+  animManual = true;
+  document.getElementById('btn-extraRec').classList.add('on');
+  recalc();
+}
+function addToMozos() {
+  const el  = document.getElementById('numMozos');
+  const cur = parseInt(el.value);
+  el.value  = (isNaN(cur) ? (lastBudget.waiters || 0) : cur) + 1;
+  mozManual = true;
+  document.getElementById('btn-extraMoz').classList.add('on');
+  recalc();
+}
+function onManualAnimInput() {
+  animManual = true;
+  document.getElementById('btn-extraRec').classList.add('on');
+  recalc();
+}
+function onManualMozInput() {
+  mozManual = true;
+  document.getElementById('btn-extraMoz').classList.add('on');
   recalc();
 }
 
@@ -1156,6 +1178,9 @@ function validateReserva() {
   const errs = validatePresupuesto();
   if (!document.getElementById('eventName').value.trim()) { showFieldErr('eventName'); errs.push('Nombre del evento'); }
   if (!document.getElementById('startTime').value)        { showFieldErr('startTime'); errs.push('Hora de inicio'); }
+  if (!(parseFloat(document.getElementById('eventSena').value) > 0)) { showFieldErr('eventSena'); errs.push('Pago'); }
+  if (!document.getElementById('senaFormaPago').value)    { showFieldErr('senaFormaPago'); errs.push('Forma de pago'); }
+  if (!document.getElementById('romanRole').value)        { showFieldErr('romanRole'); errs.push('Roman'); }
   return errs;
 }
 
@@ -1196,8 +1221,6 @@ function recalc() {
   const extraHours = Math.max(0, getInt('extraHours'));
   const numKids    = getInt('numKids');
   const numAdults  = getInt('numAdults');
-  const extraStaff = getInt('extraStaff');
-
   const smallThr = C.adultsSmallThreshold    || 20;
   const freeThr  = C.adultsFreeMenuThreshold || 10;
 
@@ -1227,6 +1250,13 @@ function recalc() {
   const actualRecs  = numKids   > 0 ? Math.max(recsNeeded, C.recIncluded)     : 0;
   const waiters     = (numAdults >= freeThr && adultsMenuSel !== 'none')
                         ? Math.ceil(numAdults / C.adultsPerWaiter) : 0;
+
+  // Deltas por override manual de animadores/mozos
+  const animEff   = animManual ? Math.max(0, parseInt(document.getElementById('numAnimadores').value) || 0) : actualRecs;
+  const mozEff    = mozManual  ? Math.max(0, parseInt(document.getElementById('numMozos').value)       || 0) : waiters;
+  const animDelta = Math.max(0, animEff - actualRecs);
+  const mozDelta  = Math.max(0, mozEff  - waiters);
+  const extraStaff = animDelta + mozDelta;
   const totalStaff  = actualRecs + waiters + extraStaff;
 
   // Extra hours cost: salon + all staff × rate
@@ -1292,14 +1322,21 @@ function recalc() {
   if (recsCst > 0)        html += bi('🎪',`Recreadores extra (${recsExtra})`,`${recsExtra} × ${fmtCur(C.staffCost)}`,recsCst);
   if (waiters === 1) html += bi('🧑‍🍳','Mozo (incluido)','1 requerido — sin cargo',0);
   if (waiters > 1)  html += bi('🧑‍🍳',`Mozos (${waiters})`,`1 incluido + ${waiters-1} × ${fmtCur(C.staffCost)}`,waitersCst);
-  if (extraRecExtra)       html += bi('🎪','Recreador extra',`1 × ${fmtCur(C.staffCost)}`,C.staffCost);
-  if (extraMozExtra)       html += bi('🧑‍🍳','Mozo extra',`1 × ${fmtCur(C.staffCost)}`,C.staffCost);
+  if (animDelta > 0) html += bi('🎪', `Recreador${animDelta!==1?'es':''} extra (${animDelta})`, `${animDelta} × ${fmtCur(C.staffCost)}`, animDelta * C.staffCost);
+  if (mozDelta  > 0) html += bi('🧑‍🍳', `Mozo${mozDelta!==1?'s':''} extra (${mozDelta})`,         `${mozDelta}  × ${fmtCur(C.staffCost)}`, mozDelta  * C.staffCost);
   if (otroValor > 0)       html += bi('➕', otroDesc || 'Otro', '', otroValor);
 
   html += `<div class="subtotal-row"><span>Subtotal</span><span>${fmtCur(subtotal)}</span></div>`;
   if (discAmt > 0) {
     const dl = discountType==='pct' ? `Descuento ${discVal}%` : 'Descuento';
     html += bi('🏷️',dl,'',discAmt,true);
+  }
+
+  // Si el total calculado cambia y hay un precio manual, borrarlo para que sea revisado
+  const _prevTotal = lastBudget?.total;
+  if (_prevTotal !== undefined && _prevTotal !== total) {
+    const _pfo = document.getElementById('precioFinalOverride');
+    if (_pfo && _pfo.value) { _pfo.value = ''; updateFinalPriceDisplay(); }
   }
 
   document.getElementById('budgetLines').innerHTML = html;
@@ -1314,13 +1351,14 @@ function recalc() {
     numKids, kidsExtra, kidsIncl, kidsMenuSel, kidsMenuName, kidsMenuPrc, kidsUpgrade, kidsExtraCst,
     numAdults, adultMenuCst, adultMenuPrc, adultsMenuSel, adultMenuNames,
     actualRecs, recsExtra, recsCst, waiters, waitersCst, extraStaff, xStaffCst,
+    animEff, mozEff, animDelta, mozDelta, animManual, mozManual,
     otroValor, otroDesc, C };
 
-  // Auto-poblar animadores/mozos si el usuario no los está editando
-  const animEl = document.getElementById('numAnimadores');
+  // Auto-poblar animadores/mozos solo si no hay override manual
+  const animEl  = document.getElementById('numAnimadores');
   const mozosEl = document.getElementById('numMozos');
-  if (animEl && animEl !== document.activeElement) animEl.value = numKids > 0 ? actualRecs : '';
-  if (mozosEl && mozosEl !== document.activeElement) mozosEl.value = numAdults > 0 ? waiters : '';
+  if (animEl  && !animManual) animEl.value  = numKids   > 0 ? actualRecs : '';
+  if (mozosEl && !mozManual)  mozosEl.value = numAdults > 0 ? waiters    : '';
 }
 
 // ════════════════════════════════════════════
@@ -1442,17 +1480,15 @@ function clearForm() {
   document.getElementById('romanRole').value = '';
   document.getElementById('numAnimadores').value = '';
   document.getElementById('numMozos').value = '';
-  extraRecExtra = false; extraMozExtra = false;
+  animManual = false; mozManual = false;
   document.getElementById('btn-extraRec').classList.remove('on');
   document.getElementById('btn-extraMoz').classList.remove('on');
-  document.getElementById('extraStaff').value = '0';
   document.getElementById('startTime').value  = '';
   document.getElementById('numKids').value    = '0';
   document.getElementById('numAdults').value  = '0';
   document.getElementById('extraHours').value = '0';
-  document.getElementById('extraStaff').value = '0';
   document.getElementById('kidsMenu').value   = 'basic';
-  document.getElementById('adultsMenu').value = 'none';
+  document.getElementById('adultsMenu').value = 'pizza';
   document.getElementById('discValue').value  = '0';
   const pfo = document.getElementById('precioFinalOverride');
   if (pfo) { pfo.value = ''; }
@@ -1499,7 +1535,6 @@ function getFormState() {
     numKids:    document.getElementById('numKids').value,
     numAdults:  document.getElementById('numAdults').value,
     extraHours: document.getElementById('extraHours').value,
-    extraStaff: document.getElementById('extraStaff').value,
     kidsMenu:   document.getElementById('kidsMenu').value,
     adultsMenu: document.getElementById('adultsMenu').value,
     discValue:  document.getElementById('discValue').value,
@@ -1511,7 +1546,7 @@ function getFormState() {
     romanRole:        document.getElementById('romanRole').value,
     numAnimadores:    document.getElementById('numAnimadores').value,
     numMozos:         document.getElementById('numMozos').value,
-    extraRecExtra, extraMozExtra,
+    animManual, mozManual,
     otroDesc:         document.getElementById('otroDesc').value,
     otroValor:        document.getElementById('otroValor').value,
     dayType, discountType
@@ -1528,9 +1563,8 @@ function restoreFormState(s) {
   set('numKids',    s.numKids    || '0');
   set('numAdults',  s.numAdults  || '0');
   set('extraHours', s.extraHours || '0');
-  set('extraStaff', s.extraStaff || '0');
   set('kidsMenu',   s.kidsMenu   || 'basic');
-  set('adultsMenu', s.adultsMenu || 'none');
+  set('adultsMenu', s.adultsMenu || 'pizza');
   set('discValue',  s.discValue  || '0');
   set('eventAge',   s.eventAge   || '');
   set('eventSena',       s.eventSena       || '');
@@ -1543,12 +1577,11 @@ function restoreFormState(s) {
   set('romanRole', s.romanRole || '');
   set('numAnimadores', s.numAnimadores ?? '');
   set('numMozos',      s.numMozos      ?? '');
-  // Extras toggles
-  extraRecExtra = s.extraRecExtra || false;
-  extraMozExtra = s.extraMozExtra || false;
-  document.getElementById('btn-extraRec').classList.toggle('on', extraRecExtra);
-  document.getElementById('btn-extraMoz').classList.toggle('on', extraMozExtra);
-  document.getElementById('extraStaff').value = (extraRecExtra ? 1 : 0) + (extraMozExtra ? 1 : 0);
+  // Override manual de animadores/mozos
+  animManual = s.animManual || false;
+  mozManual  = s.mozManual  || false;
+  document.getElementById('btn-extraRec').classList.toggle('on', animManual);
+  document.getElementById('btn-extraMoz').classList.toggle('on', mozManual);
   setDayType(s.dayType || 'weekend');
   setDiscountType(s.discountType || 'none');
   recalc();
@@ -2169,8 +2202,10 @@ function buildSheetPayload(entry) {
     'Nº adultos':      parseInt(f.numAdults) || 0,
     'Menú adultos':    adultMenuNames[f.adultsMenu] || f.adultsMenu || '',
     'Roman':           f.romanRole   || '',
-    'Nº animadores':   parseInt(f.numAnimadores) >= 0 ? parseInt(f.numAnimadores) : (b.actualRecs ?? ''),
-    'Nº mozos':        parseInt(f.numMozos)      >= 0 ? parseInt(f.numMozos)      : (b.waiters    ?? ''),
+    'Nº animadores':     b.animManual ? (parseInt(f.numAnimadores) || 0) : (b.actualRecs ?? ''),
+    'Anim. calculados':  b.actualRecs ?? '',
+    'Nº mozos':          b.mozManual  ? (parseInt(f.numMozos)      || 0) : (b.waiters    ?? ''),
+    'Mozos calculados':  b.waiters    ?? '',
     'Precio calculado': lastBudget.total || 0,  // usado por Apps Script como Precio original en INSERT
     'Total ($)':       entry.total || 0,
     'P Total ($)':     (parseFloat(f.eventSena) >= (entry.total || 0) && (entry.total || 0) > 0) ? 'True' : '',
@@ -2179,8 +2214,6 @@ function buildSheetPayload(entry) {
     'Notas':           f.eventOthers || '',
     'Tipo de día':     dayLabel,
     'Horas extra':     Math.max(0, parseInt(f.extraHours)||0),
-    'Recreador extra': f.extraRecExtra ? 'Sí' : '',
-    'Mozo extra':      f.extraMozExtra ? 'Sí' : '',
     'Extras detalle':  f.otroDesc    || '',
     'Extras valor ($)':parseInt(f.otroValor) || '',
     'Descuento valor': f.discountType !== 'none' ? (f.discValue || 0) : '',
@@ -2302,7 +2335,6 @@ function rowToEntry(row) {
       numAdults:   String(row['Nº adultos']     || '0'),
       adultsMenu:  adultsMenuMap[row['Menú adultos']] || 'none',
       extraHours:  String(row['Horas extra']    || '0'),
-      extraStaff:  (row['Recreador extra'] === 'Sí' ? 1 : 0) + (row['Mozo extra'] === 'Sí' ? 1 : 0),
       discValue:   String(row['Descuento valor']|| '0'),
       discountType:(discTipo === 'fixed' || discTipo === 'pct') ? discTipo : 'none',
       dayType:     row['Tipo de día'] === 'Lunes–Jueves' ? 'weekday' : 'weekend',
@@ -2315,8 +2347,9 @@ function rowToEntry(row) {
       numMozos:      String(row['Nº mozos']         ?? ''),
       otroDesc:      String(row['Extras detalle']   || ''),
       otroValor:     String(row['Extras valor ($)'] || ''),
-      extraRecExtra: row['Recreador extra'] === 'Sí',
-      extraMozExtra: row['Mozo extra'] === 'Sí'
+      // animManual/mozManual: si hay valor guardado es porque fue seteado intencionalmente
+      animManual:    row['Nº animadores'] !== '' && row['Nº animadores'] != null,
+      mozManual:     row['Nº mozos']      !== '' && row['Nº mozos']      != null
     }
   };
 }
@@ -2670,10 +2703,12 @@ async function loadProveedorView() {
     const url = cfg().webhookUrl + '?action=getData&tipo=reserva';
     const res = await fetch(url);
     const data = await res.json();
-    _provReservas = (data.reservas || []).sort((a, b) => {
-      const toDate = s => { const p = String(s).split('/'); return p.length===3 ? new Date(p[2],p[1]-1,p[0]) : new Date(0); };
-      return toDate(a['Fecha']) - toDate(b['Fecha']);
-    });
+    const toDate = s => { const p = String(s).split('/'); return p.length===3 ? new Date(p[2],p[1]-1,p[0]) : new Date(0); };
+    const hoy    = new Date(); hoy.setHours(0,0,0,0);
+    const limite = new Date(hoy); limite.setDate(limite.getDate() + 15);
+    _provReservas = (data.reservas || [])
+      .filter(r => { const d = toDate(r['Fecha']); return d >= hoy && d <= limite; })
+      .sort((a, b) => toDate(a['Fecha']) - toDate(b['Fecha']));
     if (!_provReservas.length) {
       el.innerHTML = '<div class="prov-empty">No hay eventos reservados próximos.</div>';
     } else {
