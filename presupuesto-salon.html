@@ -301,6 +301,13 @@
     .prov-modal-header h3 { font-size:1.05rem; font-weight:700; line-height:1.3; }
     .prov-modal-header .prov-modal-date { font-size:.82rem; opacity:.85; margin-top:3px; }
     .prov-modal-close { background:rgba(255,255,255,.2); border:none; color:white; width:28px; height:28px; border-radius:50%; cursor:pointer; font-size:1rem; line-height:28px; text-align:center; flex-shrink:0; margin-left:12px; }
+    /* ── Recs modal ── */
+    .recs-slot-row  { display:flex; align-items:center; gap:8px; }
+    .recs-slot-num  { font-size:.78rem; font-weight:700; color:var(--gray-400); min-width:18px; text-align:right; flex-shrink:0; }
+    .recs-dd        { flex:1; padding:7px 10px; border:1.5px solid var(--gray-200); border-radius:8px; font-size:.88rem; background:white; font-family:inherit; }
+    .recs-locked    { flex:1; padding:7px 10px; border:1.5px solid var(--gray-200); border-radius:8px; font-size:.88rem; background:var(--gray-50); color:var(--gray-500); display:flex; align-items:center; gap:6px; }
+    .recs-nuevo-row { display:flex; gap:6px; align-items:center; margin:2px 0 0 26px; }
+    .recs-nuevo-input { flex:1; padding:6px 10px; border:1.5px solid var(--gray-200); border-radius:8px; font-size:.85rem; font-family:inherit; }
     .prov-modal-body { padding:16px 20px; display:flex; flex-direction:column; gap:8px; }
     .prov-field { display:flex; gap:8px; align-items:baseline; padding:6px 0; border-bottom:1px solid var(--gray-200); }
     .prov-field:last-child { border-bottom:none; }
@@ -369,6 +376,22 @@
     <div class="modal-foot">
       <button id="pagoConfirmBtn" class="btn btn-primary" onclick="confirmarPago()">✓ Confirmar pago</button>
       <button class="btn btn-gray" onclick="closeModal('pagoModal')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Asignar Recreadores -->
+<div id="recsModal" class="modal-ov">
+  <div class="modal-box" style="max-width:400px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+      <h3 style="margin:0">🎪 Recreadores</h3>
+      <button onclick="closeModal('recsModal')" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:var(--gray-400);padding:2px 6px">✕</button>
+    </div>
+    <p id="recs-modal-sub" style="font-size:.82rem;color:var(--gray-400);margin:0 0 14px"></p>
+    <div id="recs-dds-container" style="display:flex;flex-direction:column;gap:8px"></div>
+    <div class="modal-foot" style="margin-top:16px">
+      <button id="recsGuardarBtn" class="btn btn-primary" onclick="guardarRecreadores()">💾 Guardar</button>
+      <button class="btn btn-gray" onclick="closeModal('recsModal')">Cancelar</button>
     </div>
   </div>
 </div>
@@ -1200,6 +1223,17 @@ function calcEndTime() {
 // ════════════════════════════════════════════
 // RECALC
 // ════════════════════════════════════════════
+// Escala de recreadores por cantidad de niños
+// 1–22 → 2 (incluidos) · 23–32 → 3 · 33–40 → 4 · 41+ → 1 cada 10 (↑)
+function calcRecs(n) {
+  if (n <= 0)  return { recs: 0, tier: '' };
+  if (n <= 22) return { recs: 2, tier: '1–22 niños' };
+  if (n <= 32) return { recs: 3, tier: '23–32 niños' };
+  if (n <= 40) return { recs: 4, tier: '33–40 niños' };
+  return { recs: Math.ceil(n / 10), tier: `${n} niños → 1 c/10` };
+}
+const RECS_ESCALA = '1–22 → 2 · 23–32 → 3 · 33–40 → 4 · 41+ → 1 c/10';
+
 function recalc() {
   const C = cfg();
   const endTime  = calcEndTime();
@@ -1234,8 +1268,7 @@ function recalc() {
   const adultMenuCst = numAdults * adultMenuPrc;
 
   // Staff counts
-  const recsNeeded  = numKids   > 0 ? Math.ceil(numKids   / C.kidsPerRec)     : 0;
-  const actualRecs  = numKids   > 0 ? Math.max(recsNeeded, C.recIncluded)     : 0;
+  const { recs: actualRecs, tier: recsTier } = calcRecs(numKids);
   const waiters     = (numAdults >= freeThr && adultsMenuSel !== 'none')
                         ? Math.ceil(numAdults / C.adultsPerWaiter) : 0;
 
@@ -1253,7 +1286,7 @@ function recalc() {
   const extraHrTotCst = salonExtraCst + staffExtraCst;
 
   // Staff costs (event)
-  const recsExtra  = Math.max(0, recsNeeded - C.recIncluded);
+  const recsExtra  = Math.max(0, actualRecs - C.recIncluded);
   const recsCst    = recsExtra * C.staffCost;
   // El primer mozo siempre está incluido; los adicionales se cobran
   const waitersCst = Math.max(0, waiters - 1) * C.staffCost;
@@ -1264,7 +1297,14 @@ function recalc() {
   const adultsHintEl = document.getElementById('adultsHint');
   if (numKids > 0) {
     kidsHintEl.style.display = '';
-    kidsHintEl.innerHTML = `🎪 <strong>${actualRecs} recreador${actualRecs!==1?'es':''}</strong> (1 cada ${C.kidsPerRec} niños). ${C.recIncluded} incluidos${recsExtra>0?`, <strong>${recsExtra} adicional${recsExtra!==1?'es':''} con cargo (${fmtCur(recsCst)})</strong>`:'— sin cargo extra'}.`;
+    const extraStr = recsExtra > 0
+      ? `, <strong>${recsExtra} adicional${recsExtra!==1?'es':''} con cargo (${fmtCur(recsCst)})</strong>`
+      : ' — sin cargo extra';
+    kidsHintEl.innerHTML =
+      `🎪 <strong>${actualRecs} recreador${actualRecs!==1?'es':''}</strong>`
+      + ` <span style="font-weight:400;color:var(--gray-400)">(${recsTier})</span>`
+      + `. ${C.recIncluded} incluidos${extraStr}.<br>`
+      + `<span style="font-size:.75rem;color:var(--gray-400)">📏 Escala: ${RECS_ESCALA}</span>`;
   } else { kidsHintEl.style.display = 'none'; }
   if (numAdults > 0) {
     adultsHintEl.style.display = '';
@@ -2743,6 +2783,190 @@ const PROV_POPUP_LABELS = {
 
 let _provReservas = [];
 
+// ════════════════════════════════════════════
+// ASIGNACIÓN DE RECREADORES
+// ════════════════════════════════════════════
+let _recsNombres     = [];   // lista cargada desde la pestaña Recreadores
+let _recsEventoIdx   = null;
+let _recsSlots       = [];   // valores de cada slot, indexado 0..max-1
+let _recsMax         = 0;
+let _recsRomanLocked = false;
+
+async function fetchRecsNombres() {
+  const url = cfg().webhookUrl;
+  if (!url || !url.startsWith('http')) { _recsNombres = []; return; }
+  try {
+    const res  = await fetch(url + '?action=getData&tipo=recreadores');
+    const data = await res.json();
+    _recsNombres = (data.recreadores || []).map(s => String(s).trim()).filter(Boolean).sort();
+  } catch(e) { _recsNombres = []; }
+}
+
+async function openRecsModal(idx, e) {
+  if (e) e.stopPropagation();
+  _recsEventoIdx = idx;
+  const r = _provReservas[idx];
+  if (!r) return;
+
+  const total = parseInt(r['Nº animadores']) || parseInt(r['Anim. calculados']) || 2;
+  _recsMax         = total;
+  _recsRomanLocked = r['Roman'] === 'Recreador';
+
+  // Init slots vacíos
+  _recsSlots = Array(_recsMax).fill('');
+  if (_recsRomanLocked) _recsSlots[0] = 'Roman';
+
+  // Restaurar nombres ya guardados
+  const saved = (r['Recreadores asignados'] || '').split(',').map(s => s.trim()).filter(Boolean);
+  const nonRoman = saved.filter(n => n !== 'Roman');
+  const start = _recsRomanLocked ? 1 : 0;
+  nonRoman.forEach((n, i) => { if (start + i < _recsMax) _recsSlots[start + i] = n; });
+
+  // Cargar lista si todavía no se cargó
+  if (_recsNombres.length === 0) await fetchRecsNombres();
+
+  document.getElementById('recs-modal-sub').textContent =
+    `${_recsMax} recreador${_recsMax !== 1 ? 'es' : ''} · ${r['Nombre evento'] || ''} · ${fmtDdMmAa(r['Fecha'])}`;
+
+  renderRecsDDs();
+  openModal('recsModal');
+}
+
+function renderRecsDDs() {
+  const container = document.getElementById('recs-dds-container');
+  if (!container) return;
+
+  // Cuántos DD mostrar: hasta el último slot con valor + 1 extra (cap = _recsMax)
+  const lastFilled = _recsSlots.reduce((acc, v, i) => v ? i : acc, -1);
+  const minShow    = _recsRomanLocked ? Math.min(2, _recsMax) : 1;
+  const count      = Math.min(_recsMax, Math.max(minShow, lastFilled + 2));
+
+  // Conjunto de nombres ya seleccionados (para no repetir en otros DD)
+  const usados = new Set(_recsSlots.filter(v => v && v !== '__nuevo__'));
+
+  let html = '';
+  for (let i = 0; i < count; i++) {
+    const locked = i === 0 && _recsRomanLocked;
+    const val    = _recsSlots[i] || '';
+
+    if (locked) {
+      html += `<div class="recs-slot-row">
+        <span class="recs-slot-num">${i + 1}</span>
+        <div class="recs-locked">Roman <span style="font-size:.72rem;margin-left:auto">🔒</span></div>
+      </div>`;
+    } else {
+      // Opciones: nombres no usados en otros slots (o el valor actual de este slot)
+      const opts = _recsNombres
+        .filter(n => !usados.has(n) || n === val)
+        .map(n => `<option value="${n}"${val === n ? ' selected' : ''}>${n}</option>`)
+        .join('');
+
+      html += `<div class="recs-slot-row">
+        <span class="recs-slot-num">${i + 1}</span>
+        <select class="recs-dd" onchange="onRecsDDChange(${i},this.value)">
+          <option value="">— Seleccionar —</option>
+          ${opts}
+          <option value="__nuevo__"${val === '__nuevo__' ? ' selected' : ''}>➕ Nuevo recreador</option>
+        </select>
+      </div>`;
+
+      if (val === '__nuevo__') {
+        html += `<div class="recs-nuevo-row">
+          <input type="text" id="recs-nuevo-${i}" class="recs-nuevo-input" placeholder="Nombre completo"
+            onkeydown="if(event.key==='Enter')addNuevoRecreador(${i})">
+          <button class="btn btn-sm btn-outline" onclick="addNuevoRecreador(${i})" style="white-space:nowrap">+ Agregar</button>
+        </div>`;
+      }
+    }
+  }
+  container.innerHTML = html;
+}
+
+function onRecsDDChange(idx, val) {
+  _recsSlots[idx] = val;
+  // Si se vacía un slot, limpiar los siguientes
+  if (!val) {
+    for (let i = idx + 1; i < _recsSlots.length; i++) _recsSlots[i] = '';
+  }
+  renderRecsDDs();
+  // Focus al nuevo input si aparece
+  if (val === '__nuevo__') {
+    setTimeout(() => document.getElementById(`recs-nuevo-${idx}`)?.focus(), 50);
+  }
+}
+
+async function addNuevoRecreador(slotIdx) {
+  const input  = document.getElementById(`recs-nuevo-${slotIdx}`);
+  const nombre = input?.value.trim();
+  if (!nombre) { input?.focus(); return; }
+
+  // Si ya existe en la lista, solo asignarlo
+  const existe = _recsNombres.find(n => n.toLowerCase() === nombre.toLowerCase());
+  if (existe) {
+    _recsSlots[slotIdx] = existe;
+    renderRecsDDs();
+    return;
+  }
+
+  const url = cfg().webhookUrl;
+  if (!url || !url.startsWith('http')) {
+    // Sin webhook: lo agrega solo localmente
+    _recsNombres.push(nombre); _recsNombres.sort();
+    _recsSlots[slotIdx] = nombre;
+    renderRecsDDs();
+    return;
+  }
+
+  input.disabled = true;
+  try {
+    const res  = await fetch(url, { method: 'POST', headers: {'Content-Type':'text/plain'},
+      body: JSON.stringify({ action: 'addRecreador', nombre }) });
+    const data = await res.json();
+    if (data.ok !== false) {
+      if (!_recsNombres.includes(nombre)) { _recsNombres.push(nombre); _recsNombres.sort(); }
+      _recsSlots[slotIdx] = nombre;
+      renderRecsDDs();
+    } else {
+      showSaveToast('✗ ' + (data.error || 'Error al agregar'), true);
+    }
+  } catch(err) {
+    showSaveToast('✗ Error de conexión', true);
+  } finally {
+    if (input) input.disabled = false;
+  }
+}
+
+async function guardarRecreadores() {
+  const r = _provReservas[_recsEventoIdx];
+  if (!r) return;
+
+  const nombres   = _recsSlots.filter(v => v && v !== '__nuevo__');
+  const asignados = nombres.join(', ');
+
+  const url = cfg().webhookUrl;
+  if (!url || !url.startsWith('http')) { showSaveToast('✗ Configurá el webhook', true); return; }
+
+  const btn = document.getElementById('recsGuardarBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
+
+  try {
+    const res  = await fetch(url, { method: 'POST', headers: {'Content-Type':'text/plain'},
+      body: JSON.stringify({ action: 'updateRecreadores', id: r['ID'], nombres: asignados }) });
+    const data = await res.json();
+    if (btn) { btn.disabled = false; btn.textContent = '💾 Guardar'; }
+    if (data.ok !== false) {
+      _provReservas[_recsEventoIdx]['Recreadores asignados'] = asignados;
+      showSaveToast('✓ Recreadores guardados');
+      closeModal('recsModal');
+    } else {
+      showSaveToast('✗ ' + (data.error || 'Error al guardar'), true);
+    }
+  } catch(err) {
+    if (btn) { btn.disabled = false; btn.textContent = '💾 Guardar'; }
+    showSaveToast('✗ Error de conexión', true);
+  }
+}
+
 // Convierte fecha de la planilla (dd/mm/yy o dd/mm/yyyy) a Date
 function provToDate(s) {
   const p = String(s).split('/');
@@ -2808,6 +3032,10 @@ async function loadProveedorView() {
         const cells = PROV_COLS.map(c => {
           const v   = c.render ? c.render(r) : String(r[c.key] ?? '');
           const cls = c.cellClass ? ` class="${c.cellClass}"` : '';
+          // Celda Recreadores: click propio abre modal de asignación
+          if (c.key === 'Nº animadores') {
+            return `<td onclick="openRecsModal(${idx},event)" style="cursor:pointer;color:var(--purple-dark);font-weight:600;text-decoration:underline dotted" title="Asignar recreadores">${v}</td>`;
+          }
           return `<td${cls}>${v}</td>`;
         }).join('');
         return `<tr onclick="openProvModal(${idx})" title="Ver detalle">${cells}</tr>`;
@@ -2844,9 +3072,10 @@ function openProvModal(idx) {
   const body = document.getElementById('prov-modal-body');
   // Construir campos del popup: saltar Fecha (está en subtítulo), agregar Hora inicio si existe
   const popupFields = [
-    { key: 'Hora inicio',   label: '🕐 Inicio' },
+    { key: 'Hora inicio',            label: '🕐 Inicio'               },
     ...PROV_COLS.filter(c => c.key !== 'Fecha'),
-    { key: 'Hora fin',      label: '🕔 Fin'    },
+    { key: 'Recreadores asignados',  label: '🎪 Recreadores asignados' },
+    { key: 'Hora fin',               label: '🕔 Fin'                   },
   ];
   body.innerHTML = popupFields.map(c => {
     const raw = r[c.key];
