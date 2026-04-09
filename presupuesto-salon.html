@@ -244,10 +244,15 @@
     .prov-header h2 { font-size: 1rem; font-weight: 700; color: var(--gray-800); }
     .prov-header small { color: var(--gray-400); font-size: .8rem; }
     .prov-refresh { background: var(--purple); color: white; border: none; border-radius: 6px; padding: 6px 14px; font-size: .82rem; cursor: pointer; font-family: inherit; }
-    .prov-table-wrap { overflow-x: auto; border-radius: var(--radius); box-shadow: var(--shadow); }
+    .prov-table-wrap { overflow-x: auto; border-radius: var(--radius); box-shadow: var(--shadow); margin: 0 -2px; }
     table.prov { width: 100%; border-collapse: collapse; background: white; font-size: .82rem; }
-    table.prov th { background: var(--purple-dark); color: white; padding: 9px 12px; text-align: left; white-space: nowrap; font-weight: 600; }
-    table.prov td { padding: 9px 12px; border-bottom: 1px solid var(--gray-200); white-space: nowrap; }
+    table.prov th { background: var(--purple-dark); color: white; padding: 8px 10px; text-align: left; white-space: nowrap; font-weight: 600; }
+    table.prov td { padding: 8px 10px; border-bottom: 1px solid var(--gray-200); white-space: nowrap; }
+    @media (max-width: 600px) {
+      main { padding: 10px 6px 60px; }
+      .card { padding: 14px 10px; }
+      table.prov th, table.prov td { padding: 6px 7px; font-size: .76rem; }
+    }
     table.prov tr:last-child td { border-bottom: none; }
     table.prov tr:hover td { background: var(--purple-light); }
     table.prov td.prov-fecha { font-weight: 700; color: var(--purple-dark); }
@@ -711,20 +716,21 @@
   <div id="tab-proveedor" style="display:none">
     <div class="card">
       <div class="prov-header">
-        <div>
-          <h2>📅 Próximos eventos</h2>
-          <small id="prov-updated"></small>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <h2 style="margin:0">📅 Próximos eventos</h2>
+          <!-- Filtros inline: solo admin -->
+          <div id="prov-filtros-admin" style="display:none;align-items:center;gap:6px">
+            <input type="date"  id="provFiltroDia" style="padding:4px 8px;border:1.5px solid var(--gray-200);border-radius:7px;font-size:.8rem" onchange="onProvFiltroDiaChange()" title="Día">
+            <input type="month" id="provFiltroMes" style="padding:4px 8px;border:1.5px solid var(--gray-200);border-radius:7px;font-size:.8rem" onchange="onProvFiltroMesChange()" title="Mes">
+            <button onclick="clearProvFiltros()" style="padding:4px 8px;font-size:.78rem;border:1px solid var(--gray-300);border-radius:7px;background:white;cursor:pointer;color:var(--gray-500);line-height:1" title="Limpiar filtros">✕</button>
+          </div>
         </div>
-        <button class="prov-refresh" onclick="loadProveedorView()">↻ Actualizar</button>
+        <div style="display:flex;align-items:center;gap:8px">
+          <small id="prov-updated" style="color:var(--gray-400);font-size:.78rem"></small>
+          <button class="prov-refresh" onclick="loadProveedorView()">↻</button>
+        </div>
       </div>
-      <!-- Filtros: solo visible para admin -->
-      <div id="prov-filtros-admin" style="display:none;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px;padding:10px 12px;background:#f5f3ff;border-radius:8px">
-        <span style="font-size:.8rem;font-weight:700;color:#6b21a8">🔍 Filtrar por:</span>
-        <input type="date" id="provFiltroDia" style="padding:5px 9px;border:1.5px solid var(--gray-200);border-radius:7px;font-size:.82rem" onchange="onProvFiltroDiaChange()" title="Día específico">
-        <input type="month" id="provFiltroMes" style="padding:5px 9px;border:1.5px solid var(--gray-200);border-radius:7px;font-size:.82rem" onchange="onProvFiltroMesChange()" title="Mes completo">
-        <button onclick="clearProvFiltros()" style="padding:5px 10px;font-size:.78rem;border:1px solid var(--gray-300);border-radius:7px;background:white;cursor:pointer;color:var(--gray-600)">✕ Limpiar</button>
-      </div>
-      <div id="prov-rango" style="font-size:.82rem;font-weight:700;color:var(--purple-dark);margin-bottom:8px;padding:2px 0"></div>
+      <div id="prov-rango" style="font-size:.8rem;font-weight:700;color:var(--purple-dark);margin-bottom:8px;padding:2px 0"></div>
       <div id="prov-content" class="prov-loading">Cargando eventos...</div>
     </div>
   </div>
@@ -2687,28 +2693,52 @@ window.addEventListener('message', e => {
 // VISTA PROVEEDORES
 // ════════════════════════════════════════════
 const PROV_COLS = [
-  { key: 'Fecha',          label: 'Fecha'      },
-  { key: 'Hora inicio',    label: 'Inicio'     },
-  { key: 'Nº animadores',  label: 'Animadores' },
-  { key: 'Roman',          label: 'Roman'      },
-  { key: 'Nombre evento',  label: 'Evento'     },
-  { key: 'Edad',           label: 'Edad'       },
-  { key: 'Nº niños',       label: 'Niños'      },
-  { key: 'Nº adultos',     label: 'Adultos'    },
-  { key: 'Nº mozos',       label: 'Mozos'      },
+  {
+    key: 'Fecha', label: 'Fecha y hora', cellClass: 'prov-fecha',
+    render: r => {
+      const f = fmtDdMmAa(r['Fecha']);
+      const h = r['Hora inicio'] || '';
+      return h ? `${f}<br><span style="font-weight:400;font-size:.75rem;color:#7c3aed">${h}</span>` : f;
+    }
+  },
+  {
+    key: 'Nº animadores', label: 'Recreadores',
+    render: r => {
+      const calc  = parseInt(r['Anim. calculados'] ?? r['Nº animadores']) || 0;
+      const total = parseInt(r['Nº animadores']) || 0;
+      const extra = Math.max(0, total - calc);
+      const isRec = r['Roman'] === 'Recreador';
+      if (calc === 0 && extra === 0) return '—';
+      let base;
+      if (isRec) {
+        const resto = Math.max(0, calc - 1);
+        base = resto > 0 ? `R + ${resto}` : 'R';
+      } else {
+        base = String(calc);
+      }
+      return extra > 0 ? `${base} + ${extra} ext.` : base;
+    }
+  },
+  { key: 'Roman',          label: 'Roman'                         },
+  { key: 'Nombre evento',  label: 'Evento', cellClass: 'prov-nombre' },
+  { key: 'Edad',           label: 'Edad'                          },
+  { key: 'Nº niños',       label: 'Niños'                         },
+  { key: 'Nº adultos',     label: 'Adultos'                       },
+  { key: 'Nº mozos',       label: 'Mozos'                         },
 ];
 
 // El popup usa exactamente los mismos campos que la tabla, con emojis
 const PROV_POPUP_LABELS = {
   'Fecha':         '📅 Fecha',
   'Hora inicio':   '🕐 Inicio',
-  'Nº animadores': '🎪 Animadores',
+  'Nº animadores': '🎪 Recreadores',
   'Roman':         '🎭 Roman',
   'Nombre evento': '🎉 Evento',
   'Edad':          '🎂 Edad',
   'Nº niños':      '👶 Niños',
   'Nº adultos':    '👥 Adultos',
   'Nº mozos':      '🧑‍🍳 Mozos',
+  'Hora fin':      '🕔 Fin',
 };
 
 let _provReservas = [];
@@ -2775,11 +2805,10 @@ async function loadProveedorView() {
     } else {
       const heads = PROV_COLS.map(c => `<th>${c.label}</th>`).join('');
       const rows = _provReservas.map((r, idx) => {
-        const cells = PROV_COLS.map((c, i) => {
-          let v = r[c.key] ?? '';
-          if (c.key === 'Fecha') return `<td class="prov-fecha">${fmtDdMmAa(v)}</td>`;
-          if (c.key === 'Nombre evento') return `<td class="prov-nombre">${v}</td>`;
-          return `<td>${v}</td>`;
+        const cells = PROV_COLS.map(c => {
+          const v   = c.render ? c.render(r) : String(r[c.key] ?? '');
+          const cls = c.cellClass ? ` class="${c.cellClass}"` : '';
+          return `<td${cls}>${v}</td>`;
         }).join('');
         return `<tr onclick="openProvModal(${idx})" title="Ver detalle">${cells}</tr>`;
       }).join('');
@@ -2813,9 +2842,17 @@ function openProvModal(idx) {
   document.getElementById('prov-modal-subtitle').textContent =
     `📅 ${fmtDdMmAa(r['Fecha'])}  ·  🕐 ${r['Hora inicio'] || '—'}`;
   const body = document.getElementById('prov-modal-body');
-  body.innerHTML = PROV_COLS.map(c => {
-    const v = r[c.key];
-    if (v === undefined || v === null || String(v).trim() === '') return '';
+  // Construir campos del popup: saltar Fecha (está en subtítulo), agregar Hora inicio si existe
+  const popupFields = [
+    { key: 'Hora inicio',   label: '🕐 Inicio' },
+    ...PROV_COLS.filter(c => c.key !== 'Fecha'),
+    { key: 'Hora fin',      label: '🕔 Fin'    },
+  ];
+  body.innerHTML = popupFields.map(c => {
+    const raw = r[c.key];
+    // Para columnas con render, usar versión texto plano (sin HTML)
+    const v = c.render ? c.render(r).replace(/<[^>]+>/g, ' ').trim() : raw;
+    if (v === undefined || v === null || String(v).trim() === '' || String(v).trim() === '—') return '';
     const label = PROV_POPUP_LABELS[c.key] || c.label;
     return `<div class="prov-field">
       <span class="prov-field-label">${label}</span>
