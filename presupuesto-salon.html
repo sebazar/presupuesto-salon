@@ -2861,6 +2861,50 @@ function initGoogleAuth() {
 }
 
 // ── Bootstrap ────────────────────────────────
+// ── Render admin panel values ────────────────
+function renderAdminValues() {
+  const C = cfg();
+  const cur = n => '$ ' + Math.round(n).toLocaleString('es-UY');
+  const num = n => String(Math.round(n));
+  const pv  = (id, v) => { const e = document.getElementById('pv-' + id); if (e) e.textContent = v; };
+  const ei  = (id, v) => { const e = document.getElementById('ei-' + id); if (e) e.value = v; };
+
+  pv('baseWeekday',    cur(C.baseWeekday));
+  pv('baseWeekend',    cur(C.baseWeekend));
+  pv('extraHour',      cur(C.extraHour));
+  pv('kidsIncluded',   num(C.kidsIncluded) + ' niños');
+  pv('kidsBasic',      cur(C.kidsBasic));
+  pv('kidsAlt',        cur(C.kidsAlt));
+  pv('adultsIncluded', cur(C.menuPizza || 0));
+  pv('menuPizza',      cur(C.menuPizza));
+  pv('menuPizzaCalzone', cur(C.menuPizzaCalzone || C.menuPizzaCalzone));
+  pv('menuFull',       cur(C.menuFull));
+  pv('recIncluded',    num(C.recIncluded));
+  pv('kidsPerRec',     num(C.kidsPerRec));
+  pv('adultsPerWaiter',num(C.adultsPerWaiter));
+  pv('staffCost',      cur(C.staffCost));
+  pv('staffExtraHr',   cur(C.staffExtraHr));
+  pv('webhookUrl',     C.webhookUrl || '');
+
+  ei('baseWeekday',    C.baseWeekday);
+  ei('baseWeekend',    C.baseWeekend);
+  ei('extraHour',      C.extraHour);
+  ei('kidsIncluded',   C.kidsIncluded);
+  ei('kidsBasic',      C.kidsBasic);
+  ei('kidsAlt',        C.kidsAlt);
+  ei('adultsIncluded', C.menuPizza || 0);
+  ei('menuPizza',      C.menuPizza);
+  ei('menuPizzaCalzone', C.menuPizzaCalzone || 0);
+  ei('menuFull',       C.menuFull);
+  ei('recIncluded',    C.recIncluded);
+  ei('kidsPerRec',     C.kidsPerRec);
+  ei('adultsPerWaiter',C.adultsPerWaiter);
+  ei('staffCost',      C.staffCost);
+  ei('staffExtraHr',   C.staffExtraHr);
+  ei('webhookUrl',     C.webhookUrl || '');
+}
+
+
 window.addEventListener('load', async () => {
   await initConfig();
   const now = new Date(), pad = n => String(n).padStart(2,'0');
