@@ -3363,10 +3363,11 @@ window.addEventListener('load', async () => {
 // ASISTENTE INLINE — sin iframe, sin postMessage
 // ════════════════════════════════════════════
 
-// ── Parsers ─────────────────────────────────
+// ── Parsers básicos ──────────────────────────
+function iaNorm(s) { return String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''); }
+
 function iaParseDate(raw) {
-  const norm = s => String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-  const t = norm(raw);
+  const t = iaNorm(raw);
   const today = new Date(); today.setHours(0,0,0,0);
   if (/\bhoy\b/.test(t)) return today;
   if (/\bmanana\b/.test(t)) { const d=new Date(today); d.setDate(d.getDate()+1); return d; }
@@ -3380,122 +3381,190 @@ function iaParseDate(raw) {
   if (m1) { const yr=m1[3]?(m1[3].length===2?2000+parseInt(m1[3]):parseInt(m1[3])):today.getFullYear(); return new Date(yr,parseInt(m1[2])-1,parseInt(m1[1])); }
   const MONTHS={enero:0,febrero:1,marzo:2,abril:3,mayo:4,junio:5,julio:6,agosto:7,septiembre:8,octubre:9,noviembre:10,diciembre:11};
   const m2=t.match(/(\d{1,2})\s+(?:de\s+)?([a-z]+)(?:\s+(\d{4}))?/);
-  if (m2 && MONTHS[norm(m2[2])]!==undefined) { const yr=m2[3]?parseInt(m2[3]):today.getFullYear(); return new Date(yr,MONTHS[norm(m2[2])],parseInt(m2[1])); }
+  if (m2 && MONTHS[iaNorm(m2[2])]!==undefined) { const yr=m2[3]?parseInt(m2[3]):today.getFullYear(); return new Date(yr,MONTHS[iaNorm(m2[2])],parseInt(m2[1])); }
   return null;
 }
-function iaParseTime(raw) {
-  const m=raw.match(/(\d{1,2})[:\.]?(\d{2})?/);
-  if (!m) return null;
-  const h=parseInt(m[1]), mn=m[2]?parseInt(m[2]):0;
-  if (h<0||h>23||mn<0||mn>59) return null;
-  return `${String(h).padStart(2,'0')}:${String(mn).padStart(2,'0')}`;
+
+function iaDateToISO(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
+
+function iaFmtDate(d) {
+  return `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}`;
+}
+
+function iaParseTime(raw) {
+  const m=raw.match(/\b(\d{1,2})[:\.](\d{2})\b/);
+  if (m) { const h=parseInt(m[1]),mn=parseInt(m[2]); if(h>=0&&h<=23&&mn>=0&&mn<=59) return `${String(h).padStart(2,'0')}:${String(mn).padStart(2,'0')}`; }
+  const m2=raw.match(/a\s+las?\s+(\d{1,2})(?:\s*(hs?|hrs?|horas?))?\b/i);
+  if (m2) { const h=parseInt(m2[1]); if(h>=0&&h<=23) return `${String(h).padStart(2,'0')}:00`; }
+  return null;
+}
+
 function iaParseNum(raw) { const m=String(raw).match(/\d+/); return m?parseInt(m[0]):null; }
-function iaNorm(s) { return String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''); }
 
-// ── Campo helpers ────────────────────────────
+// ── Parser multi-campo ───────────────────────
+function iaParseAll(raw) {
+  const t   = iaNorm(raw);
+  const found = {};
+
+  // Niños
+  const km = t.match(/(\d+)\s*(?:ni[nñ]|chic|pib|pequ|infant)/);
+  if (km) found.numKids = parseInt(km[1]);
+
+  // Adultos — "N adultos", "N grandes", "N mayores"
+  // Evitar capturar el número de niños si están juntos
+  const am = t.match(/(\d+)\s*(?:adult|grande|mayor)/);
+  if (am) found.numAdults = parseInt(am[1]);
+
+  // Personas (si no se distingue) → solo si no hay niños ni adultos
+  if (!found.numKids && !found.numAdults) {
+    const pm = t.match(/(\d+)\s*persona/);
+    if (pm) found.numAdults = parseInt(pm[1]);
+  }
+
+  // Fecha — parsear solo si hay indicadores claros de fecha (evitar que "1 hora" matchee como día)
+  const dateRaw = raw.replace(/\d+\s*hora/gi,'');  // quitar "N horas" antes de parsear fecha
+  const d = iaParseDate(dateRaw);
+  if (d) found.eventDate = d;
+
+  // Hora de inicio (HH:MM o "a las N")
+  const startT = iaParseTime(raw);
+  if (startT) found.startTime = startT;
+
+  // Horas extra: "N hora(s) extra(s)" / "con hora extra" / "1 hora más"
+  const hem = t.match(/(\d+)\s*hora(?:s)?\s*(?:extra|adicional|m[aá]s)/);
+  if (hem) { found.extraHours = parseInt(hem[1]); }
+  else if (/\bhora\s*extra\b|\bcon\s*extra\b/.test(t)) { found.extraHours = 1; }
+
+  // Seña
+  const sm = t.match(/se[nñ]a\s*(?:de)?\s*\$?\s*(\d+)/);
+  if (sm) found.eventSena = parseInt(sm[1]);
+
+  // Nombre / evento (entre comillas o después de "para " al inicio si es texto)
+  const qm = raw.match(/["«»]([^"«»]+)["«»]/);
+  if (qm) found.eventName = qm[1].trim();
+
+  return found;
+}
+
+// ── Aplicar campos al formulario ─────────────
+function iaApplyFields(found) {
+  const applied = [];
+
+  if (found.numKids !== undefined) {
+    document.getElementById('numKids').value = found.numKids;
+    applied.push(`${found.numKids} niños`);
+  }
+  if (found.numAdults !== undefined) {
+    document.getElementById('numAdults').value = found.numAdults;
+    applied.push(`${found.numAdults} adultos`);
+  }
+  if (found.eventDate) {
+    document.getElementById('eventDate').value = iaDateToISO(found.eventDate);
+    onDateChange();
+    applied.push(`fecha ${iaFmtDate(found.eventDate)}`);
+  }
+  if (found.startTime) {
+    document.getElementById('startTime').value = found.startTime;
+    if (typeof onStartTimeChange === 'function') onStartTimeChange();
+    applied.push(`hora ${found.startTime}`);
+  }
+  if (found.extraHours !== undefined) {
+    document.getElementById('extraHours').value = found.extraHours;
+    applied.push(`${found.extraHours}h extra`);
+  }
+  if (found.eventSena !== undefined) {
+    const el = document.getElementById('eventSena');
+    if (el) { el.value = found.eventSena; applied.push(`seña $${found.eventSena}`); }
+  }
+  if (found.eventName) {
+    document.getElementById('eventName').value = found.eventName;
+    applied.push(`nombre "${found.eventName}"`);
+  }
+
+  if (applied.length) recalc();
+  return applied;
+}
+
+// ── Campos y su estado ───────────────────────
 function iaVal(id) { const e=document.getElementById(id); return e?e.value:''; }
-function iaSet(id, v) { const e=document.getElementById(id); if(e) e.value=v; }
+function iaSet(id,v) { const e=document.getElementById(id); if(e) e.value=v; }
 function iaEmpty(id) { const v=iaVal(id).trim(); return v===''||v==='0'; }
-function iaEmptyNum(id) { const v=iaVal(id).trim(); return v===''||v==='0'; }
 
-// ── Definición de campos ─────────────────────
-const IA_REQ_PRES = [
-  { id:'eventDate',
-    q: ()=>'¿Para qué fecha es el evento?',
-    hint: ()=> iaVal('eventDate') ? `Fecha actual: ${iaVal('eventDate')}` : null,
+// Campos requeridos (solo los que SIEMPRE hay que preguntar si faltan)
+const IA_REQUIRED = [
+  { id:'eventDate',  label:'fecha',
     isEmpty: ()=>iaEmpty('eventDate'),
+    q: ()=>'¿Para qué fecha es el evento?',
     parse: iaParseDate,
-    set: d=>{
-      const iso=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-      iaSet('eventDate',iso); onDateChange();
-    }
+    set: d=>{ iaSet('eventDate',iaDateToISO(d)); onDateChange(); }
   },
-  { id:'numKids',
+  { id:'numKids',  label:'niños',
+    isEmpty: ()=>iaEmpty('numKids'),
     q: ()=>'¿Cuántos niños asisten?',
-    hint: ()=> !iaEmptyNum('numKids') ? `Actual: ${iaVal('numKids')}` : null,
-    isEmpty: ()=>iaEmptyNum('numKids'),
-    parse: iaParseNum,
+    parse: raw=>{ const n=iaParseNum(raw); return n!==null?n:null; },
     set: v=>{ iaSet('numKids',v); recalc(); }
   },
-  { id:'numAdults',
-    q: ()=>'¿Cuántos adultos?',
-    hint: ()=> iaVal('numAdults')!=='' && iaVal('numAdults')!=='0' ? `Actual: ${iaVal('numAdults')}` : null,
+  { id:'numAdults', label:'adultos',
     isEmpty: ()=>iaVal('numAdults').trim()==='',
-    parse: iaParseNum,
+    q: ()=>'¿Cuántos adultos?',
+    parse: raw=>{ const n=iaParseNum(raw); return n!==null?n:null; },
     set: v=>{ iaSet('numAdults',v); recalc(); }
   },
-  { id:'kidsMenu',
+  { id:'kidsMenu', label:'menú niños',
+    isEmpty: ()=>true,   // siempre preguntar (select con default)
     q: ()=>'¿Menú para los niños?',
-    hint: ()=>null,
-    isEmpty: ()=>true,
     choices:[{label:'Básico',val:'basic'},{label:'Alternativo',val:'alt'}],
     parse: raw=>{
       const t=iaNorm(raw);
       if(/bas/.test(t)||raw==='basic') return 'basic';
-      if(/alt/.test(t)||raw==='alt') return 'alt';
+      if(/alt/.test(t)||raw==='alt')   return 'alt';
       return null;
     },
     set: v=>{ iaSet('kidsMenu',v); recalc(); }
   },
-  { id:'adultsMenu',
-    q: ()=>'¿Menú para los adultos?',
-    hint: ()=>null,
+  { id:'adultsMenu', label:'menú adultos',
     isEmpty: ()=>true,
+    q: ()=>'¿Menú para los adultos?',
     choices:[{label:'Pizza',val:'pizza'},{label:'Pizza+Calzone',val:'calzonepizza'},{label:'Completo',val:'full'}],
     parse: raw=>{
       const t=iaNorm(raw);
-      if(/complet|full/.test(t)||raw==='full') return 'full';
-      if(/calzone/.test(t)||raw==='calzonepizza') return 'calzonepizza';
-      if(/pizza/.test(t)||raw==='pizza') return 'pizza';
+      if(/complet|full/.test(t)||raw==='full')        return 'full';
+      if(/calzone/.test(t)||raw==='calzonepizza')      return 'calzonepizza';
+      if(/pizza/.test(t)||raw==='pizza')               return 'pizza';
       return null;
     },
     set: v=>{ iaSet('adultsMenu',v); recalc(); }
   },
-  { id:'eventName',
-    q: ()=>'¿Nombre del cliente o evento?',
-    hint: ()=> iaVal('eventName').trim() ? `Actual: ${iaVal('eventName')}` : null,
+  { id:'eventName', label:'nombre',
     isEmpty: ()=>iaVal('eventName').trim()==='',
+    q: ()=>'¿Nombre del cliente o evento?',
     parse: raw=>raw.trim()||null,
     set: v=>iaSet('eventName',v)
   },
 ];
 
-const IA_REQ_RSV = [
-  { id:'eventName',
-    q: ()=>'¿Nombre del evento o cliente?',
-    hint: ()=> iaVal('eventName').trim() ? `Actual: ${iaVal('eventName')}` : null,
-    isEmpty: ()=>iaVal('eventName').trim()==='',
-    parse: raw=>raw.trim()||null,
-    set: v=>iaSet('eventName',v)
-  },
-  ...IA_REQ_PRES.filter(f=>f.id!=='eventName'),
-  { id:'startTime',
-    q: ()=>'¿Hora de inicio? (ej: 18:00)',
-    hint: ()=> iaVal('startTime') ? `Actual: ${iaVal('startTime')}` : null,
+// Campos opcionales de reserva
+const IA_RSV_EXTRA = [
+  { id:'startTime', label:'hora inicio',
     isEmpty: ()=>iaEmpty('startTime'),
-    parse: iaParseTime,
+    q: ()=>'¿Hora de inicio? (ej: 18:00)',
+    parse: raw=>iaParseTime(raw)||null,
     set: v=>{ iaSet('startTime',v); if(typeof onStartTimeChange==='function') onStartTimeChange(); }
   },
 ];
 
-const IA_OPT_PRES = [
-  { id:'eventAge',    q:()=>'¿Edad del cumpleañero/a?',       parse:iaParseNum, set:v=>iaSet('eventAge',v) },
-  { id:'extraHours',  q:()=>'¿Horas extra de salón? (ej: 1)', parse:iaParseNum, set:v=>{ iaSet('extraHours',v); recalc(); } },
-  { id:'eventOthers', q:()=>'¿Extras o detalles adicionales?', parse:raw=>raw.trim(), set:v=>iaSet('eventOthers',v) },
-  { id:'eventDesc',   q:()=>'¿Nota interna o descripción?',   parse:raw=>raw.trim(), set:v=>iaSet('eventDesc',v) },
-];
-
-const IA_OPT_RSV = [
-  { id:'eventAge',      q:()=>'¿Edad del cumpleañero/a?',         parse:iaParseNum,  set:v=>iaSet('eventAge',v) },
-  { id:'eventSena',     q:()=>'¿Monto de seña? (0 si no hay)',     parse:iaParseNum,  set:v=>{ iaSet('eventSena',v); recalc(); } },
-  { id:'senaFormaPago', q:()=>'¿Forma de pago de la seña?',
+const IA_OPTS = [
+  { id:'eventAge',     q:()=>'¿Edad del cumpleañero/a?',          parse:iaParseNum,   set:v=>iaSet('eventAge',v) },
+  { id:'extraHours',   q:()=>'¿Horas extra de salón? (ej: 1)',     parse:iaParseNum,   set:v=>{ iaSet('extraHours',v); recalc(); } },
+  { id:'eventSena',    q:()=>'¿Monto de seña? (0 si no hay)',       parse:iaParseNum,   set:v=>{ iaSet('eventSena',v); recalc(); } },
+  { id:'senaFormaPago',q:()=>'¿Forma de pago de la seña?',
     choices:[{label:'Banco Seba',val:'Banco Seba'},{label:'Banco Vir',val:'Banco Vir'},{label:'Efectivo Fede',val:'Efectivo Fede'}],
-    parse:raw=>raw.trim(),
-    set:v=>iaSet('senaFormaPago',v),
+    parse:raw=>raw.trim(), set:v=>iaSet('senaFormaPago',v),
     condition:()=>parseInt(iaVal('eventSena')||'0')>0
   },
-  { id:'romanRole',     q:()=>'¿Viene Román?',
+  { id:'romanRole',    q:()=>'¿Viene Román?',
     choices:[{label:'Recreador',val:'Recreador'},{label:'En el salón',val:'Salon'},{label:'No va',val:'No va'}],
     parse:raw=>{
       const t=iaNorm(raw);
@@ -3505,21 +3574,17 @@ const IA_OPT_RSV = [
       if(['Recreador','Salon','No va'].includes(raw)) return raw;
       return null;
     },
-    set:v=>{ const e=document.getElementById('romanRole'); if(e) e.value=v; recalc(); }
+    set:v=>{ const e=document.getElementById('romanRole'); if(e){e.value=v; recalc();} }
   },
-  { id:'extraHours',    q:()=>'¿Horas extra de salón?',            parse:iaParseNum,  set:v=>{ iaSet('extraHours',v); recalc(); } },
-  { id:'senaConcepto',  q:()=>'¿Concepto de la seña? (ej: Seña)',  parse:raw=>raw.trim(), set:v=>iaSet('senaConcepto',v),
-    condition:()=>parseInt(iaVal('eventSena')||'0')>0
-  },
-  { id:'eventDesc',     q:()=>'¿Nota interna?',                    parse:raw=>raw.trim(), set:v=>iaSet('eventDesc',v) },
+  { id:'eventDesc',    q:()=>'¿Nota interna?',                     parse:raw=>raw.trim(), set:v=>iaSet('eventDesc',v) },
 ];
 
-// ── Estado del asistente ─────────────────────
-let _iaQueue   = [];
-let _iaCurrent = null;
-let _iaPhase   = 'required';  // 'required' | 'optional' | 'done'
+// ── Estado ───────────────────────────────────
+let _iaQueue    = [];
+let _iaCurrent  = null;
+let _iaPhase    = 'open';   // 'open' | 'required' | 'optional' | 'done'
 
-// ── UI helpers ───────────────────────────────
+// ── UI ───────────────────────────────────────
 function iaBotMsg(text, choices=[]) {
   const msgs = document.getElementById('ia-messages');
   const wrap = document.createElement('div');
@@ -3531,11 +3596,11 @@ function iaBotMsg(text, choices=[]) {
   if (choices.length) {
     const row = document.createElement('div');
     row.className = 'ia-qr-row';
-    choices.forEach(c => {
+    choices.forEach(ch => {
       const btn = document.createElement('button');
       btn.className = 'ia-qr-btn';
-      btn.textContent = c.label;
-      btn.onclick = () => { iaDisableQR(wrap); iaHandleChoice(c.val, c.label); };
+      btn.textContent = ch.label;
+      btn.onclick = () => { iaDisableQR(wrap); iaHandleChoice(ch.val, ch.label); };
       row.appendChild(btn);
     });
     wrap.appendChild(row);
@@ -3543,6 +3608,7 @@ function iaBotMsg(text, choices=[]) {
   msgs.appendChild(wrap);
   msgs.scrollTop = msgs.scrollHeight;
 }
+
 function iaUserMsg(text) {
   const msgs = document.getElementById('ia-messages');
   const wrap = document.createElement('div');
@@ -3554,6 +3620,7 @@ function iaUserMsg(text) {
   msgs.appendChild(wrap);
   msgs.scrollTop = msgs.scrollHeight;
 }
+
 function iaDisableQR(wrap) {
   wrap.querySelectorAll('.ia-qr-btn').forEach(b => { b.disabled=true; b.style.opacity='.4'; });
 }
@@ -3579,60 +3646,42 @@ function toggleAssistant() {
 
 function iaStart() {
   document.getElementById('ia-messages').innerHTML = '';
-  _iaPhase = 'required';
-  const tab  = iaCurrentTab();
-  const reqs = tab === 'reserva' ? IA_REQ_RSV : IA_REQ_PRES;
-
-  // Solo pregunta los vacíos (opción B)
-  _iaQueue = reqs.filter(f => f.isEmpty());
-
-  const filled = reqs.length - _iaQueue.length;
-  let intro = tab === 'reserva'
-    ? '¡Hola! Te ayudo a cargar la reserva.'
-    : '¡Hola! Te ayudo a completar el presupuesto.';
-  if (filled > 0) intro += ` Ya hay ${filled} campo${filled>1?'s':''} cargado${filled>1?'s':''}.`;
-
-  iaBotMsg(intro);
-  if (!_iaQueue.length) {
-    setTimeout(() => iaBotMsg('✅ ¡Todo ya está completo! Revisá y guardá cuando quieras.', [
-      {label:'↺ Recargar',val:'__restart__'},{label:'✕ Cerrar',val:'__close__'}
-    ]), 400);
-  } else {
-    setTimeout(iaAskNext, 500);
-  }
+  _iaPhase   = 'open';
+  _iaCurrent = null;
+  _iaQueue   = [];
+  const tab = iaCurrentTab();
+  iaBotMsg(
+    tab === 'reserva'
+      ? '¡Hola! Contame los datos de la reserva: personas, fecha, hora, nombre... lo que tengas.'
+      : '¡Hola! Contame los datos del presupuesto: cuántos niños y adultos, para qué fecha, y lo que quieras.'
+  );
 }
 
 function iaAskNext() {
-  // Filtrar conditions de opcionales
+  // Filtrar conditions
   _iaQueue = _iaQueue.filter(f => !f.condition || f.condition());
-
   if (!_iaQueue.length) {
     if (_iaPhase === 'required') {
       _iaPhase = 'optional';
-      const tab  = iaCurrentTab();
-      const opts = (tab === 'reserva' ? IA_OPT_RSV : IA_OPT_PRES).filter(f => !f.condition || f.condition());
-      iaBotMsg('✅ ¡Campos principales listos! ¿Querés agregar detalles opcionales?', [
-        {label:'Sí, continuar',val:'__opt_yes__'},
-        {label:'No, ya está',  val:'__opt_no__'},
+      iaBotMsg('✅ ¡Campos principales listos! ¿Querés agregar detalles?', [
+        {label:'Sí, continuar', val:'__opt_yes__'},
+        {label:'No, ya está',   val:'__opt_no__'},
       ]);
     } else {
       iaFinish();
     }
     return;
   }
-
   _iaCurrent = _iaQueue[0];
-  const hint = _iaCurrent.hint ? _iaCurrent.hint() : null;
-  const q    = _iaCurrent.q();
-  iaBotMsg(hint ? `${q}\n(${hint})` : q, _iaCurrent.choices || []);
+  iaBotMsg(_iaCurrent.q(), _iaCurrent.choices || []);
 }
 
 function iaFinish() {
-  _iaPhase = 'done';
+  _iaPhase   = 'done';
   _iaCurrent = null;
   iaBotMsg('✅ ¡Listo! Revisá el formulario y guardá cuando quieras.', [
-    {label:'↺ Volver a empezar',val:'__restart__'},
-    {label:'✕ Cerrar',         val:'__close__'},
+    {label:'↺ Volver a empezar', val:'__restart__'},
+    {label:'✕ Cerrar',           val:'__close__'},
   ]);
 }
 
@@ -3641,8 +3690,11 @@ function iaHandleChoice(val, label) {
   if (val === '__restart__') { iaStart(); return; }
   if (val === '__opt_yes__') {
     const tab  = iaCurrentTab();
-    _iaQueue   = (tab === 'reserva' ? IA_OPT_RSV : IA_OPT_PRES).filter(f => !f.condition || f.condition());
-    setTimeout(iaAskNext, 300);
+    const opts = [...IA_OPTS];
+    if (tab === 'reserva' && iaEmpty('startTime')) opts.unshift(IA_RSV_EXTRA[0]);
+    _iaQueue = opts.filter(f => !f.condition || f.condition());
+    _iaPhase = 'optional';
+    setTimeout(iaAskNext, 200);
     return;
   }
   if (val === '__opt_no__') { iaFinish(); return; }
@@ -3653,13 +3705,39 @@ function iaHandleChoice(val, label) {
 function iaSend() {
   const inp = document.getElementById('ia-input');
   const raw = inp.value.trim();
-  if (!raw || !_iaCurrent) return;
+  if (!raw) return;
   inp.value = '';
   iaUserMsg(raw);
   iaProcess(raw);
 }
 
 function iaProcess(raw) {
+  // ── Fase abierta: parsear todo de una ────────
+  if (_iaPhase === 'open') {
+    const found   = iaParseAll(raw);
+    const applied = iaApplyFields(found);
+
+    if (applied.length) {
+      iaBotMsg(`✓ Anotado: ${applied.join(', ')}.`);
+    }
+
+    // Armar cola con los requeridos que faltan
+    const tab  = iaCurrentTab();
+    let reqs = [...IA_REQUIRED];
+    if (tab === 'reserva') reqs = [...IA_RSV_EXTRA, ...reqs];
+    _iaQueue = reqs.filter(f => f.isEmpty());
+    _iaPhase = 'required';
+
+    if (_iaQueue.length === 0 && !applied.length) {
+      iaBotMsg('No encontré datos en ese mensaje. ¿Podés decirme cuántos niños, adultos y la fecha?');
+      _iaPhase = 'open';
+      return;
+    }
+    setTimeout(iaAskNext, applied.length ? 600 : 200);
+    return;
+  }
+
+  // ── Fase requeridos / opcionales: un campo a la vez ──
   if (!_iaCurrent) return;
   const parsed = _iaCurrent.parse(raw);
   if (parsed === null || parsed === undefined) {
@@ -3672,17 +3750,13 @@ function iaProcess(raw) {
   setTimeout(iaAskNext, 350);
 }
 
-
 // ── Voz ─────────────────────────────────────
 let _iaRecognition = null, _iaListening = false;
 
 function iaToggleVoice() {
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const SR  = window.SpeechRecognition || window.webkitSpeechRecognition;
   const btn = document.getElementById('ia-mic-btn');
-  if (!SR) {
-    iaBotMsg('Tu navegador no soporta reconocimiento de voz. Usá el 🎤 del teclado.');
-    return;
-  }
+  if (!SR) { iaBotMsg('Tu navegador no soporta reconocimiento de voz.'); return; }
   if (_iaListening) { _iaRecognition?.stop(); return; }
   _iaRecognition = new SR();
   _iaRecognition.lang = 'es';
@@ -3690,18 +3764,16 @@ function iaToggleVoice() {
   _iaRecognition.interimResults = false;
   _iaRecognition.onstart = () => {
     _iaListening = true;
-    btn?.classList.add('listening');
-    btn.textContent = '⏹';
+    if(btn){btn.classList.add('listening');btn.textContent='⏹';}
     document.getElementById('ia-input').placeholder = '🎤 Escuchando…';
   };
   _iaRecognition.onresult = e => {
     iaResetMic();
-    const t = e.results[0][0].transcript;
-    document.getElementById('ia-input').value = t;
+    document.getElementById('ia-input').value = e.results[0][0].transcript;
     iaSend();
   };
-  _iaRecognition.onerror = e => { iaResetMic(); };
-  _iaRecognition.onend = () => { iaResetMic(); };
+  _iaRecognition.onerror = () => iaResetMic();
+  _iaRecognition.onend   = () => iaResetMic();
   try { _iaRecognition.start(); } catch(e) { iaResetMic(); }
 }
 
@@ -3713,17 +3785,14 @@ function iaResetMic() {
   if (inp) inp.placeholder = 'Escribí tu respuesta…';
 }
 
-// Ocultar burbuja en tabs que no aplican
+// ── Ocultar burbuja en tabs que no aplican ───
 const _origSwitchTab = switchTab;
 function switchTab(t) {
   _origSwitchTab(t);
-  const bubble = document.getElementById('chatbot-bubble');
-  const panel  = document.getElementById('ia-panel');
-  if (!bubble) return;
-  const show = ['presupuesto','reserva'].includes(t) && bubble.style.display !== 'none';
-  // Sólo ocultar si el rol lo permite; si ya estaba oculto (rol sin acceso), no forzar
   if (!['presupuesto','reserva'].includes(t)) {
-    panel?.classList.remove('open');
+    document.getElementById('ia-panel')?.classList.remove('open');
+    const b = document.getElementById('chatbot-bubble');
+    if (b && b.innerHTML === '✕') b.innerHTML = '💬';
   }
 }
 
