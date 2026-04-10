@@ -1045,7 +1045,7 @@ const DEFAULTS = {
   staffCost: 1900,     staffExtraHr: 450,
   webhookUrl: WEBHOOK_URL_FB,
   googleClientId: '',
-  chatbotUrl: 'https://sebazar.github.io/salon-chatbot/chatbot-salon.html'
+  chatbotUrl: './chatbot-salon.html'
 };
 
 let _cfg = { ...DEFAULTS };
@@ -1055,6 +1055,7 @@ async function initConfig() {
     if (r.ok) {
       const remote = await r.json();
       if (!remote.webhookUrl) delete remote.webhookUrl;
+      delete remote.chatbotUrl; // siempre usar el chatbot local (misma carpeta)
       _cfg = { ...DEFAULTS, ...remote };
     }
   } catch(e) { console.warn('Config: usando defaults.', e); }
@@ -2873,22 +2874,20 @@ window.addEventListener('message', e => {
     animManual    = false;
     mozManual     = false;
     clearAllErrors();
-    // Limpiar forma de descuento y precio override antes de restaurar
-    document.getElementById('discValue').value            = '0';
-    document.getElementById('precioFinalOverride').value  = '';
+    // Cambiar al tab correcto ANTES de llenar (para que los campos sean visibles)
+    switchTab(f._isReserva ? 'reserva' : 'presupuesto');
+    // Limpiar descuento y precio override antes de restaurar
+    document.getElementById('discValue').value           = '0';
+    document.getElementById('precioFinalOverride').value = '';
     // Rellenar todos los campos con los datos del chatbot
     restoreFormState(f);
-    // Si viene marcado como reserva, asegurarse de que la sección de reserva esté visible
-    if (f._isReserva) {
-      // scroll suave al formulario
-      setTimeout(() => {
-        document.getElementById('fg-eventName')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }, 300);
-    } else {
-      setTimeout(() => {
-        document.getElementById('fg-eventDate')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }, 300);
-    }
+    // Scroll suave al inicio del formulario
+    setTimeout(() => {
+      const target = f._isReserva
+        ? document.getElementById('fg-eventName')
+        : document.getElementById('fg-eventDate');
+      target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 200);
     // Toast de confirmación
     showSaveToast('✓ Datos cargados desde el chatbot — revisá y guardá');
     return;
