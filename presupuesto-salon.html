@@ -81,6 +81,16 @@
     .form-group.err input, .form-group.err select, .form-group.err textarea { border-color: var(--red); }
     .field-err-msg { color: var(--red); font-size: .75rem; margin-top: 3px; display: none; }
     .form-group.err .field-err-msg { display: block; }
+    .date-conflict-warn {
+      background: #fef3c7; border: 1px solid #f59e0b; border-radius: 7px;
+      color: #78350f; font-size: .78rem; padding: 7px 11px; margin-top: 6px;
+      white-space: pre-line; line-height: 1.55;
+    }
+    .time-conflict-warn {
+      background: #fef2f2; border: 1px solid #ef4444; border-radius: 7px;
+      color: #7f1d1d; font-size: .78rem; padding: 7px 11px; margin-top: 6px;
+      white-space: pre-line; line-height: 1.55;
+    }
 
     .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
     .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
@@ -511,6 +521,7 @@
           <label class="flab">Fecha del evento <span class="req-star">*</span></label>
           <input type="date" id="eventDate" onchange="onDateChange()">
           <div class="field-err-msg">Campo obligatorio</div>
+          <div id="dateConflictWarn" class="date-conflict-warn" style="display:none"></div>
         </div>
         <div class="form-group">
           <label class="flab">Tipo de día</label>
@@ -638,8 +649,9 @@
         </div>
         <div class="form-group" id="fg-startTime">
           <label class="flab">Hora de inicio <span class="req-star">*</span></label>
-          <input type="time" id="startTime" onchange="recalc()">
+          <input type="time" id="startTime" onchange="onStartTimeChange()">
           <div class="field-err-msg">Requerida para la reserva</div>
+          <div id="timeConflictWarn" class="time-conflict-warn" style="display:none"></div>
         </div>
       </div>
 
@@ -1136,12 +1148,125 @@ function setDayType(t) {
   document.getElementById('lbl-weekend').classList.toggle('selected', t === 'weekend');
   recalc();
 }
+// ════════════════════════════════════════════
+// CONFLICT CHECK – reservas en misma fecha/horario
+// ════════════════════════════════════════════
+let _reservasConflictCache = null;
+let _reservasConflictTime  = 0;
+
+async function _fetchReservasForConflict() {
+  const now = Date.now();
+  if (_reservasConflictCache && now - _reservasConflictTime < 5 * 60 * 1000) {
+    return _reservasConflictCache;
+  }
+  try {
+    const url = cfg().webhookUrl + '?action=getData&tipo=reserva';
+    const res = await fetch(url);
+    const data = await res.json();
+    _reservasConflictCache = data.reservas || [];
+    _reservasConflictTime  = Date.now();
+    return _reservasConflictCache;
+  } catch(e) { return []; }
+}
+
+// Invalida cache cuando se guarda una reserva nueva
+function _invalidateConflictCache() {
+  _reservasConflictCache = null;
+  _reservasConflictTime  = 0;
+}
+
+function _sheetDateToISO(s) {
+  if (!s) return null;
+  const p = String(s).split('/');
+  if (p.length === 3) return `${p[2]}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}`;
+  return null;
+}
+
+function _toMins(t) {
+  if (!t) return 0;
+  const clean = String(t).replace(/\s*hs\s*$/, '').trim();
+  const [h, m] = clean.split(':').map(Number);
+  return (h || 0) * 60 + (m || 0);
+}
+
+function _overlaps(s1, e1, s2, e2) {
+  return _toMins(s1) < _toMins(e2) && _toMins(s2) < _toMins(e1);
+}
+
+function _endHHMM(startHHMM, extraHours) {
+  const [h, m] = String(startHHMM).split(':').map(Number);
+  const total  = (h || 0) * 60 + (m || 0) + (4 + (extraHours || 0)) * 60;
+  return String(Math.floor(total / 60) % 24).padStart(2, '0') + ':' + String(total % 60).padStart(2, '0');
+}
+
+async function checkDateConflict(dateISO) {
+  const el = document.getElementById('dateConflictWarn');
+  if (!el || !dateISO) return;
+  el.style.display = 'none';
+  const reservas = await _fetchReservasForConflict();
+  const same = reservas.filter(r => _sheetDateToISO(r['Fecha']) === dateISO);
+  if (same.length === 0) return;
+  const lines = same.map(r => {
+    const nm = r['Nombre evento'] || 'Evento sin nombre';
+    const hi = r['Hora inicio']   ? ` · ${r['Hora inicio']}` : '';
+    const hf = r['Hora fin']      ? ` → ${r['Hora fin']}`    : '';
+    return `• ${nm}${hi}${hf}`;
+  }).join('\n');
+  el.textContent = `⚠️ Ya hay ${same.length} reserva${same.length > 1 ? 's' : ''} este día:\n${lines}`;
+  el.style.display = '';
+}
+
+// Devuelve true si hay conflicto (y muestra el banner)
+async function checkTimeConflict(dateISO, startTime) {
+  const el = document.getElementById('timeConflictWarn');
+  if (el) el.style.display = 'none';
+  clearFieldErr('startTime');
+  if (!dateISO || !startTime) return false;
+  const extra   = Math.max(0, getInt('extraHours'));
+  const endTime = _endHHMM(startTime, extra);
+  const reservas = await _fetchReservasForConflict();
+  const same     = reservas.filter(r => _sheetDateToISO(r['Fecha']) === dateISO);
+  const conflicts = same.filter(r => {
+    const rs = r['Hora inicio'];
+    const re = r['Hora fin'] || _endHHMM(rs || '00:00', 4);
+    if (!rs) return false;
+    return _overlaps(startTime, endTime, rs, re);
+  });
+  if (conflicts.length === 0) return false;
+  if (el) {
+    const lines = conflicts.map(r => {
+      const nm = r['Nombre evento'] || 'Evento sin nombre';
+      const hi = r['Hora inicio'] || '—';
+      const hf = r['Hora fin']    ? ` → ${r['Hora fin']}` : '';
+      return `• ${nm} (${hi}${hf})`;
+    }).join('\n');
+    el.textContent = `🚫 Horario en conflicto con:\n${lines}`;
+    el.style.display = '';
+  }
+  showFieldErr('startTime');
+  return true;
+}
+
 function onDateChange() {
   const v = document.getElementById('eventDate').value;
   clearFieldErr('eventDate');
+  const dcw = document.getElementById('dateConflictWarn');
+  if (dcw) dcw.style.display = 'none';
   if (!v) return;
   const dow = new Date(v + 'T00:00:00').getDay();
   setDayType(dow === 0 || dow === 5 || dow === 6 ? 'weekend' : 'weekday');
+  checkDateConflict(v); // fire-and-forget — aviso no bloqueante
+}
+
+async function onStartTimeChange() {
+  recalc(); // actualiza hora fin y precios
+  const startTime = document.getElementById('startTime').value;
+  const dateVal   = document.getElementById('eventDate').value;
+  const tcw = document.getElementById('timeConflictWarn');
+  if (tcw) tcw.style.display = 'none';
+  clearFieldErr('startTime');
+  if (!startTime || !dateVal) return;
+  await checkTimeConflict(dateVal, startTime);
 }
 
 // ════════════════════════════════════════════
@@ -1693,13 +1818,22 @@ async function saveAsReserva() {
   const errs = validateReserva();
   if (errs.length) { showToast(errs); return; }
   clearAllErrors();
+
+  // Verificar conflicto de horario (doble chequeo antes de guardar)
+  const startTime = document.getElementById('startTime').value;
+  const dateVal   = document.getElementById('eventDate').value;
+  const hasConflict = await checkTimeConflict(dateVal, startTime);
+  if (hasConflict) {
+    showSaveToast('🚫 Hay una reserva que se pisa con este horario. Cambiá la hora de inicio.', true);
+    return;
+  }
+
   const btn    = event.currentTarget;
   const saves  = getSaves();
   const form   = getFormState();
   const total  = getEffectiveTotal();
   const savedAt = new Date().toISOString();
-  const timeVal = document.getElementById('startTime').value || '';
-  const dateVal = document.getElementById('eventDate').value;
+  const timeVal = startTime;
 
   btn.disabled = true; btn.innerHTML = '⏳ Guardando...';
 
@@ -1739,6 +1873,7 @@ async function saveAsReserva() {
     const res = await postToWebhook(entry);
     clearForm();
     if (res.ok) {
+      _invalidateConflictCache(); // forzar recarga en la próxima consulta
       flashBtn(btn, successMsg, 'var(--green-dark)');
       showSaveToast('✓ Reserva guardada en planilla');
     } else {
