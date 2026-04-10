@@ -2860,6 +2860,19 @@ function initGoogleAuth() {
   else { const t = setInterval(() => { if (window.google?.accounts?.id) { clearInterval(t); renderBtn(); } }, 100); }
 }
 
+// ── Bootstrap ────────────────────────────────
+document.addEventListener('load', async () => {
+  await initConfig();
+  const now = new Date(), pad = n => String(n).padStart(2,'0');
+  document.getElementById('eventDate').value =
+    `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
+  onDateChange();
+  recalc();
+  renderAdminValues();
+  initGoogleAuth();
+});
+
+
 // ════════════════════════════════════════════
 // ASISTENTE INLINE
 // ════════════════════════════════════════════
