@@ -2850,7 +2850,9 @@ function toggleChatbot() {
     panel.classList.add('open');
     bubble.innerHTML = '✕';
     if (!chatbotLoaded) {
-      document.getElementById('chatbot-iframe').src = cfg().chatbotUrl || DEFAULTS.chatbotUrl;
+      // Usar URL relativa al documento actual para garantizar que carga el chatbot local
+      const chatUrl = new URL('chatbot-salon.html', document.baseURI).href;
+      document.getElementById('chatbot-iframe').src = chatUrl;
       chatbotLoaded = true;
     }
   }
