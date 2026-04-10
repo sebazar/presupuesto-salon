@@ -2861,7 +2861,7 @@ function initGoogleAuth() {
 }
 
 // ── Bootstrap ────────────────────────────────
-document.addEventListener('load', async () => {
+window.addEventListener('load', async () => {
   await initConfig();
   const now = new Date(), pad = n => String(n).padStart(2,'0');
   document.getElementById('eventDate').value =
