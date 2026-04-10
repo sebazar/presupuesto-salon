@@ -1131,6 +1131,13 @@ function switchTab(t) {
   if (t === 'proveedor') loadProveedorView();
   if (t === 'gastos')    gastoSetToday();
   if (loadedId) updateEditButtons();
+
+  // Cerrar asistente si cambia a tab sin formulario
+  if (!['presupuesto','reserva'].includes(t)) {
+    document.getElementById('ia-panel')?.classList.remove('open');
+    const _iab = document.getElementById('chatbot-bubble');
+    if (_iab && _iab.innerHTML === '✕') _iab.innerHTML = '💬';
+  }
 }
 
 function openAdminFromMenu() {
@@ -3326,16 +3333,7 @@ function iaResetMic() {
   if (inp) inp.placeholder = 'Escribí tu respuesta…';
 }
 
-// ── Ocultar en tabs no aplican ────────────────
-const _origSwitchTab = switchTab;
-function switchTab(t) {
-  _origSwitchTab(t);
-  if (!['presupuesto','reserva'].includes(t)) {
-    document.getElementById('ia-panel')?.classList.remove('open');
-    const b = document.getElementById('chatbot-bubble');
-    if (b && b.innerHTML==='✕') b.innerHTML='💬';
-  }
-}
+
 
 </script>
 
