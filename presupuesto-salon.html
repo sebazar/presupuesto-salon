@@ -2854,516 +2854,10 @@ function initGoogleAuth() {
 }
 
 // ════════════════════════════════════════════
-// ASISTENTE INLINE (ver abajo)
-
-// ════════════════════════════════════════════
-// VISTA PROVEEDORES
-// ════════════════════════════════════════════
-const PROV_COLS = [
-  {
-    key: 'Fecha', label: 'Fecha y hora', cellClass: 'prov-fecha',
-    render: r => {
-      const f = fmtDdMmAa(r['Fecha']);
-      const h = r['Hora inicio'] || '';
-      return h ? `${f}<br><span style="font-weight:400;font-size:.75rem;color:#7c3aed">${h}</span>` : f;
-    }
-  },
-  {
-    key: 'Nº animadores', label: 'Recreadores',
-    render: r => {
-      const calc  = parseInt(r['Anim. calculados'] ?? r['Nº animadores']) || 0;
-      const total = parseInt(r['Nº animadores']) || 0;
-      const extra = Math.max(0, total - calc);
-      const isRec = r['Roman'] === 'Recreador';
-      if (calc === 0 && extra === 0) return '—';
-      let base;
-      if (isRec) {
-        const resto = Math.max(0, calc - 1);
-        base = resto > 0 ? `R + ${resto}` : 'R';
-      } else {
-        base = String(calc);
-      }
-      return extra > 0 ? `${base} + ${extra} ext.` : base;
-    }
-  },
-  { key: 'Roman',          label: 'Roman'                         },
-  { key: 'Nombre evento',  label: 'Evento', cellClass: 'prov-nombre' },
-  { key: 'Edad',           label: 'Edad'                          },
-  { key: 'Nº niños',       label: 'Niños'                         },
-  { key: 'Nº adultos',     label: 'Adultos'                       },
-  { key: 'Nº mozos',       label: 'Mozos'                         },
-];
-
-// El popup usa exactamente los mismos campos que la tabla, con emojis
-const PROV_POPUP_LABELS = {
-  'Fecha':         '📅 Fecha',
-  'Hora inicio':   '🕐 Inicio',
-  'Nº animadores': '🎪 Recreadores',
-  'Roman':         '🎭 Roman',
-  'Nombre evento': '🎉 Evento',
-  'Edad':          '🎂 Edad',
-  'Nº niños':      '👶 Niños',
-  'Nº adultos':    '👥 Adultos',
-  'Nº mozos':      '🧑‍🍳 Mozos',
-  'Hora fin':      '🕔 Fin',
-};
-
-let _provReservas = [];
-
-// ════════════════════════════════════════════
-// ASIGNACIÓN DE RECREADORES
-// ════════════════════════════════════════════
-let _recsNombres     = [];   // lista cargada desde la pestaña Recreadores
-let _recsEventoIdx   = null;
-let _recsSlots       = [];   // valores de cada slot, indexado 0..max-1
-let _recsMax         = 0;
-let _recsRomanLocked = false;
-
-async function fetchRecsNombres() {
-  const url = cfg().webhookUrl;
-  if (!url || !url.startsWith('http')) { _recsNombres = []; return; }
-  try {
-    const res  = await fetch(url + '?action=getData&tipo=recreadores');
-    const data = await res.json();
-    _recsNombres = (data.recreadores || []).map(s => String(s).trim()).filter(Boolean).sort();
-  } catch(e) { _recsNombres = []; }
-}
-
-async function openRecsModal(idx, e) {
-  if (e) e.stopPropagation();
-  _recsEventoIdx = idx;
-  const r = _provReservas[idx];
-  if (!r) return;
-
-  const total = parseInt(r['Nº animadores']) || parseInt(r['Anim. calculados']) || 2;
-  _recsMax         = total;
-  _recsRomanLocked = r['Roman'] === 'Recreador';
-
-  // Init slots vacíos
-  _recsSlots = Array(_recsMax).fill('');
-  if (_recsRomanLocked) _recsSlots[0] = 'Roman';
-
-  // Restaurar nombres ya guardados
-  const saved = (r['Recreadores asignados'] || '').split(',').map(s => s.trim()).filter(Boolean);
-  const nonRoman = saved.filter(n => n !== 'Roman');
-  const start = _recsRomanLocked ? 1 : 0;
-  nonRoman.forEach((n, i) => { if (start + i < _recsMax) _recsSlots[start + i] = n; });
-
-  // Cargar lista si todavía no se cargó
-  if (_recsNombres.length === 0) await fetchRecsNombres();
-
-  document.getElementById('recs-modal-sub').textContent =
-    `${_recsMax} recreador${_recsMax !== 1 ? 'es' : ''} · ${r['Nombre evento'] || ''} · ${fmtDdMmAa(r['Fecha'])}`;
-
-  renderRecsDDs();
-  openModal('recsModal');
-}
-
-function renderRecsDDs() {
-  const container = document.getElementById('recs-dds-container');
-  if (!container) return;
-
-  // Cuántos DD mostrar: hasta el último slot con valor + 1 extra (cap = _recsMax)
-  const lastFilled = _recsSlots.reduce((acc, v, i) => v ? i : acc, -1);
-  const minShow    = _recsRomanLocked ? Math.min(2, _recsMax) : 1;
-  const count      = Math.min(_recsMax, Math.max(minShow, lastFilled + 2));
-
-  // Conjunto de nombres ya seleccionados (para no repetir en otros DD)
-  const usados = new Set(_recsSlots.filter(v => v && v !== '__nuevo__'));
-
-  let html = '';
-  for (let i = 0; i < count; i++) {
-    const locked = i === 0 && _recsRomanLocked;
-    const val    = _recsSlots[i] || '';
-
-    if (locked) {
-      html += `<div class="recs-slot-row">
-        <span class="recs-slot-num">${i + 1}</span>
-        <div class="recs-locked">Roman <span style="font-size:.72rem;margin-left:auto">🔒</span></div>
-      </div>`;
-    } else {
-      // Opciones: nombres no usados en otros slots (o el valor actual de este slot)
-      const opts = _recsNombres
-        .filter(n => !usados.has(n) || n === val)
-        .map(n => `<option value="${n}"${val === n ? ' selected' : ''}>${n}</option>`)
-        .join('');
-
-      html += `<div class="recs-slot-row">
-        <span class="recs-slot-num">${i + 1}</span>
-        <select class="recs-dd" onchange="onRecsDDChange(${i},this.value)">
-          <option value="">— Seleccionar —</option>
-          ${opts}
-          <option value="__nuevo__"${val === '__nuevo__' ? ' selected' : ''}>➕ Nuevo recreador</option>
-        </select>
-      </div>`;
-
-      if (val === '__nuevo__') {
-        html += `<div class="recs-nuevo-row">
-          <input type="text" id="recs-nuevo-${i}" class="recs-nuevo-input" placeholder="Nombre completo"
-            onkeydown="if(event.key==='Enter')addNuevoRecreador(${i})">
-          <button class="btn btn-sm btn-outline" onclick="addNuevoRecreador(${i})" style="white-space:nowrap">+ Agregar</button>
-        </div>`;
-      }
-    }
-  }
-  container.innerHTML = html;
-}
-
-function onRecsDDChange(idx, val) {
-  _recsSlots[idx] = val;
-  // Si se vacía un slot, limpiar los siguientes
-  if (!val) {
-    for (let i = idx + 1; i < _recsSlots.length; i++) _recsSlots[i] = '';
-  }
-  renderRecsDDs();
-  // Focus al nuevo input si aparece
-  if (val === '__nuevo__') {
-    setTimeout(() => document.getElementById(`recs-nuevo-${idx}`)?.focus(), 50);
-  }
-}
-
-async function addNuevoRecreador(slotIdx) {
-  const input  = document.getElementById(`recs-nuevo-${slotIdx}`);
-  const nombre = input?.value.trim();
-  if (!nombre) { input?.focus(); return; }
-
-  // Si ya existe en la lista, solo asignarlo
-  const existe = _recsNombres.find(n => n.toLowerCase() === nombre.toLowerCase());
-  if (existe) {
-    _recsSlots[slotIdx] = existe;
-    renderRecsDDs();
-    return;
-  }
-
-  const url = cfg().webhookUrl;
-  if (!url || !url.startsWith('http')) {
-    // Sin webhook: lo agrega solo localmente
-    _recsNombres.push(nombre); _recsNombres.sort();
-    _recsSlots[slotIdx] = nombre;
-    renderRecsDDs();
-    return;
-  }
-
-  input.disabled = true;
-  try {
-    const res  = await fetch(url, { method: 'POST', headers: {'Content-Type':'text/plain'},
-      body: JSON.stringify({ action: 'addRecreador', nombre }) });
-    const data = await res.json();
-    if (data.ok !== false) {
-      if (!_recsNombres.includes(nombre)) { _recsNombres.push(nombre); _recsNombres.sort(); }
-      _recsSlots[slotIdx] = nombre;
-      renderRecsDDs();
-    } else {
-      showSaveToast('✗ ' + (data.error || 'Error al agregar'), true);
-    }
-  } catch(err) {
-    showSaveToast('✗ Error de conexión', true);
-  } finally {
-    if (input) input.disabled = false;
-  }
-}
-
-async function guardarRecreadores() {
-  const r = _provReservas[_recsEventoIdx];
-  if (!r) return;
-
-  const nombres   = _recsSlots.filter(v => v && v !== '__nuevo__');
-  const asignados = nombres.join(', ');
-
-  const url = cfg().webhookUrl;
-  if (!url || !url.startsWith('http')) { showSaveToast('✗ Configurá el webhook', true); return; }
-
-  const btn = document.getElementById('recsGuardarBtn');
-  if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
-
-  try {
-    const res  = await fetch(url, { method: 'POST', headers: {'Content-Type':'text/plain'},
-      body: JSON.stringify({ action: 'updateRecreadores', id: r['ID'], nombres: asignados }) });
-    const data = await res.json();
-    if (btn) { btn.disabled = false; btn.textContent = '💾 Guardar'; }
-    if (data.ok !== false) {
-      _provReservas[_recsEventoIdx]['Recreadores asignados'] = asignados;
-      showSaveToast('✓ Recreadores guardados');
-      closeModal('recsModal');
-    } else {
-      showSaveToast('✗ ' + (data.error || 'Error al guardar'), true);
-    }
-  } catch(err) {
-    if (btn) { btn.disabled = false; btn.textContent = '💾 Guardar'; }
-    showSaveToast('✗ Error de conexión', true);
-  }
-}
-
-// Convierte fecha de la planilla (dd/mm/yy o dd/mm/yyyy) a Date
-function provToDate(s) {
-  const p = String(s).split('/');
-  if (p.length !== 3) return new Date(0);
-  const y = p[2].length === 2 ? 2000 + parseInt(p[2]) : parseInt(p[2]);
-  return new Date(y, parseInt(p[1]) - 1, parseInt(p[0]));
-}
-// Formatea fecha a dd/mm/aa (desde string planilla o ISO YYYY-MM-DD)
-function fmtDdMmAa(s, fromISO) {
-  if (!s) return '—';
-  if (fromISO) {
-    const [y, m, d] = String(s).split('-');
-    return `${d}/${m}/${String(y).slice(-2)}`;
-  }
-  const p = String(s).split('/');
-  if (p.length !== 3) return s;
-  return `${p[0].padStart(2,'0')}/${p[1].padStart(2,'0')}/${String(p[2]).slice(-2)}`;
-}
-
-const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-
-async function loadProveedorView() {
-  const el = document.getElementById('prov-content');
-  el.innerHTML = '<div class="prov-loading">⏳ Cargando eventos...</div>';
-  try {
-    const url = cfg().webhookUrl + '?action=getData&tipo=reserva';
-    const res = await fetch(url);
-    const data = await res.json();
-    const hoy = new Date(); hoy.setHours(0,0,0,0);
-
-    const filtroDia = document.getElementById('provFiltroDia')?.value;  // YYYY-MM-DD
-    const filtroMes = document.getElementById('provFiltroMes')?.value;  // YYYY-MM
-
-    let desde, hasta, rangoLabel;
-    if (filtroDia) {
-      const [y,m,d] = filtroDia.split('-').map(Number);
-      desde = new Date(y, m-1, d, 0, 0, 0);
-      hasta = new Date(y, m-1, d, 23, 59, 59);
-      rangoLabel = `Eventos del ${fmtDdMmAa(filtroDia, true)}`;
-    } else if (filtroMes) {
-      const [y, m] = filtroMes.split('-').map(Number);
-      desde = new Date(y, m-1, 1, 0, 0, 0);
-      hasta = new Date(y, m,   0, 23, 59, 59);
-      rangoLabel = `Eventos de ${MESES[m-1]} ${y}`;
-    } else {
-      desde = hoy;
-      hasta = new Date(hoy); hasta.setDate(hasta.getDate() + 15);
-      rangoLabel = 'Eventos de las próximas 2 semanas';
-    }
-
-    _provReservas = (data.reservas || [])
-      .filter(r => { const d = provToDate(r['Fecha']); return d >= desde && d <= hasta; })
-      .sort((a, b) => provToDate(a['Fecha']) - provToDate(b['Fecha']));
-
-    const rangoEl = document.getElementById('prov-rango');
-    if (rangoEl) rangoEl.textContent = rangoLabel;
-
-    if (!_provReservas.length) {
-      el.innerHTML = '<div class="prov-empty">No hay eventos en este período.</div>';
-    } else {
-      const heads = PROV_COLS.map(c => `<th>${c.label}</th>`).join('');
-      const rows = _provReservas.map((r, idx) => {
-        const cells = PROV_COLS.map(c => {
-          const v   = c.render ? c.render(r) : String(r[c.key] ?? '');
-          const cls = c.cellClass ? ` class="${c.cellClass}"` : '';
-          // Celda Recreadores: click propio abre modal de asignación
-          if (c.key === 'Nº animadores') {
-            return `<td onclick="openRecsModal(${idx},event)" style="cursor:pointer;color:var(--purple-dark);font-weight:600;text-decoration:underline dotted" title="Asignar recreadores">${v}</td>`;
-          }
-          return `<td${cls}>${v}</td>`;
-        }).join('');
-        return `<tr onclick="openProvModal(${idx})" title="Ver detalle">${cells}</tr>`;
-      }).join('');
-      el.innerHTML = `<div class="prov-table-wrap"><table class="prov"><thead><tr>${heads}</tr></thead><tbody>${rows}</tbody></table></div>`;
-    }
-    const now = new Date().toLocaleTimeString('es-AR', {hour:'2-digit', minute:'2-digit'});
-    document.getElementById('prov-updated').textContent = `Actualizado ${now} · ${_provReservas.length} evento${_provReservas.length!==1?'s':''}`;
-  } catch(e) {
-    el.innerHTML = '<div class="prov-empty">⚠️ Error al cargar los eventos. Verificá la conexión.</div>';
-  }
-}
-
-function onProvFiltroDiaChange() {
-  document.getElementById('provFiltroMes').value = '';
-  loadProveedorView();
-}
-function onProvFiltroMesChange() {
-  document.getElementById('provFiltroDia').value = '';
-  loadProveedorView();
-}
-function clearProvFiltros() {
-  document.getElementById('provFiltroDia').value = '';
-  document.getElementById('provFiltroMes').value = '';
-  loadProveedorView();
-}
-
-function openProvModal(idx) {
-  const r = _provReservas[idx];
-  if (!r) return;
-  document.getElementById('prov-modal-title').textContent = r['Nombre evento'] || 'Sin nombre';
-  document.getElementById('prov-modal-subtitle').textContent =
-    `📅 ${fmtDdMmAa(r['Fecha'])}  ·  🕐 ${r['Hora inicio'] || '—'}`;
-  const body = document.getElementById('prov-modal-body');
-  // Construir campos del popup: saltar Fecha (está en subtítulo), agregar Hora inicio si existe
-  const popupFields = [
-    { key: 'Hora inicio',            label: '🕐 Inicio'               },
-    ...PROV_COLS.filter(c => c.key !== 'Fecha'),
-    { key: 'Recreadores asignados',  label: '🎪 Recreadores asignados' },
-    { key: 'Hora fin',               label: '🕔 Fin'                   },
-  ];
-  body.innerHTML = popupFields.map(c => {
-    const raw = r[c.key];
-    // Para columnas con render, usar versión texto plano (sin HTML)
-    const v = c.render ? c.render(r).replace(/<[^>]+>/g, ' ').trim() : raw;
-    if (v === undefined || v === null || String(v).trim() === '' || String(v).trim() === '—') return '';
-    const label = PROV_POPUP_LABELS[c.key] || c.label;
-    return `<div class="prov-field">
-      <span class="prov-field-label">${label}</span>
-      <span class="prov-field-value">${v}</span>
-    </div>`;
-  }).join('');
-  document.getElementById('prov-modal-overlay').classList.add('open');
-}
-
-function closeProvModal(e) {
-  if (e && e.target !== document.getElementById('prov-modal-overlay')) return;
-  document.getElementById('prov-modal-overlay').classList.remove('open');
-}
-
-function renderAdminValues() {
-  const C = cfg();
-  const set = (id, v) => { const el = document.getElementById(id); if(el) el.textContent = v; };
-  set('pv-baseWeekday',     fmtCur(C.baseWeekday));
-  set('pv-baseWeekend',     fmtCur(C.baseWeekend));
-  set('pv-extraHour',       fmtCur(C.extraHour));
-  set('pv-kidsIncluded',    C.kidsIncluded + ' niños');
-  set('pv-kidsBasic',       fmtCur(C.kidsBasic));
-  set('pv-kidsAlt',         fmtCur(C.kidsAlt));
-  set('pv-kidsUpgradeFlat', fmtCur(C.kidsUpgradeFlat || 0));
-  set('pv-menuPizzaSmall',  fmtCur(C.menuPizzaSmall || 0) + ' (1–19 adultos)');
-  set('pv-menuPizza',       fmtCur(C.menuPizza));
-  set('pv-menuPizzaCalzone',fmtCur(C.menuPizzaCalzone));
-  set('pv-menuFull',        fmtCur(C.menuFull));
-  set('pv-recIncluded',     C.recIncluded);
-  set('pv-kidsPerRec',      '1 cada ' + C.kidsPerRec + ' niños');
-  set('pv-adultsPerWaiter', '1 cada ' + C.adultsPerWaiter + ' adultos');
-  set('pv-staffCost',       fmtCur(C.staffCost));
-  set('pv-staffExtraHr',    fmtCur(C.staffExtraHr) + ' / persona / hora');
-  const wh = document.getElementById('pv-webhookUrl');
-  if (wh) wh.textContent = C.webhookUrl ? '✓ Configurado' : 'No configurado';
-}
-
-const EDIT_FIELDS = {
-  base:   ['baseWeekday','baseWeekend','extraHour'],
-  kids:   ['kidsIncluded','kidsBasic','kidsAlt','kidsUpgradeFlat'],
-  adults: ['adultsSmallThreshold','adultsFreeMenuThreshold','menuPizzaSmall','menuPizza','menuPizzaCalzone','menuFull'],
-  staff:  ['recIncluded','kidsPerRec','adultsPerWaiter','staffCost','staffExtraHr'],
-};
-function toggleEdit(s) {
-  const p = document.getElementById('edit-'+s); if(!p) return;
-  const isOpen = p.classList.contains('open');
-  document.querySelectorAll('.edit-panel').forEach(el => el.classList.remove('open'));
-  document.getElementById('webhookTestResult') && (document.getElementById('webhookTestResult').style.display='none');
-  if (!isOpen) {
-    const C = cfg();
-    (EDIT_FIELDS[s]||[]).forEach(k => { const el = document.getElementById('ei-'+k); if(el) el.value = C[k]; });
-    // Special: webhook URL
-    if (s === 'sheets') { const el = document.getElementById('ei-webhookUrl'); if(el) el.value = C.webhookUrl || ''; }
-    p.classList.add('open');
-  }
-}
-function saveEdit(s) {
-  const u = {};
-  (EDIT_FIELDS[s]||[]).forEach(k => { const el = document.getElementById('ei-'+k); if(el) u[k] = parseFloat(el.value)||0; });
-  saveCfg(u);
-  document.querySelectorAll('.edit-panel').forEach(el => el.classList.remove('open'));
-  renderAdminValues(); recalc();
-}
-function saveWebhookUrl() {
-  const url = document.getElementById('ei-webhookUrl').value.trim();
-  saveCfg({ webhookUrl: url });
-  document.querySelectorAll('.edit-panel').forEach(el => el.classList.remove('open'));
-  renderAdminValues();
-}
-
-async function saveConfigToGitHub() {
-  const statusEl = document.getElementById('githubSaveStatus');
-  statusEl.style.color = 'var(--gray-400)';
-  statusEl.textContent = 'Guardando…';
-  try {
-    const apiUrl = `https://api.github.com/repos/${GITHUB_REPO}/contents/config.json`;
-    // Obtener SHA actual
-    const getResp = await fetch(apiUrl, {
-      headers: { 'Authorization': `Bearer ${GITHUB_PAT}`, 'Accept': 'application/vnd.github+json' }
-    });
-    const { sha } = await getResp.json();
-    // Armar payload sin adminPassword (la contraseña vive en Google Sheet)
-    const { adminPassword: _pw, ...publicCfg } = cfg();
-    const content = btoa(unescape(encodeURIComponent(JSON.stringify(publicCfg, null, 2))));
-    const putResp = await fetch(apiUrl, {
-      method: 'PUT',
-      headers: { 'Authorization': `Bearer ${GITHUB_PAT}`, 'Accept': 'application/vnd.github+json', 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: 'Actualizar config desde admin', content, sha })
-    });
-    if (putResp.ok) {
-      statusEl.style.color = 'var(--green)';
-      statusEl.textContent = '✓ Guardado. Los cambios estarán disponibles en ~1 minuto.';
-    } else {
-      throw new Error(putResp.status);
-    }
-  } catch(e) {
-    statusEl.style.color = 'var(--red)';
-    statusEl.textContent = `✗ Error: ${e.message}`;
-  }
-}
-
-function testWebhook() {
-  const url = document.getElementById('ei-webhookUrl').value.trim();
-  const res = document.getElementById('webhookTestResult');
-  if (!url) { res.style.display='block'; res.style.color='var(--red)'; res.textContent='⚠️ Ingresá una URL primero.'; return; }
-  res.style.display='block'; res.style.color='var(--gray-400)'; res.textContent='Enviando prueba…';
-  const testPayload = { Fecha:'TEST', 'Nombre evento':'Prueba de conexión', 'Hora inicio':'—',
-    'Hora fin':'—', 'Duración (hs)':4, 'Tipo de día':'TEST', 'Nº niños':0, 'Menú niños':'—',
-    'Nº adultos':0, 'Menú adultos':'—', 'Horas extra':0,
-    'Total ($)':0, 'Descuento valor':'', 'Descuento tipo':'', 'Descripción':'Fila de prueba — podés eliminarla',
-    'Notas':'', 'Guardado el': new Date().toLocaleString('es-UY'),
-    sheetName: 'Presupuestos' };
-  fetch(url, { method:'POST', headers:{'Content-Type':'text/plain'}, body: JSON.stringify(testPayload) })
-    .then(() => { res.style.color='var(--green)'; res.textContent='✓ Enviado. Verificá tu Google Sheet.'; })
-    .catch(() => { res.style.color='var(--red)'; res.textContent='✗ Error de conexión. Revisá la URL.'; });
-}
-
-async function savePw() {
-  const a = document.getElementById('ei-newPw').value, b = document.getElementById('ei-confirmPw').value;
-  const err = document.getElementById('pwErr');
-  if (!a || a!==b) { err.style.display='block'; return; }
-  err.style.display = 'none';
-  try {
-    const r = await fetch(cfg().webhookUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({ action: 'updatePassword', newPassword: a })
-    });
-    const result = await r.json();
-    if (result.ok) {
-      document.querySelectorAll('.edit-panel').forEach(el => el.classList.remove('open'));
-      document.getElementById('ei-newPw').value = document.getElementById('ei-confirmPw').value = '';
-      alert('✅ Contraseña actualizada.');
-    } else { alert('❌ Error al actualizar la contraseña.'); }
-  } catch(e) { alert('❌ Error de conexión.'); }
-}
-
-// ════════════════════════════════════════════
-// INIT
-// ════════════════════════════════════════════
-window.addEventListener('load', async () => {
-  await initConfig();
-  const now = new Date(), pad = n => String(n).padStart(2,'0');
-  document.getElementById('eventDate').value = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
-  onDateChange();
-  recalc();
-  renderAdminValues();
-  initGoogleAuth();
-});
-
-// ════════════════════════════════════════════
-// ASISTENTE INLINE — sin iframe, sin postMessage
+// ASISTENTE INLINE
 // ════════════════════════════════════════════
 
-// ── Parsers básicos ──────────────────────────
+// ── Parsers ──────────────────────────────────
 function iaNorm(s) { return String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''); }
 
 function iaParseDate(raw) {
@@ -3384,66 +2878,91 @@ function iaParseDate(raw) {
   if (m2 && MONTHS[iaNorm(m2[2])]!==undefined) { const yr=m2[3]?parseInt(m2[3]):today.getFullYear(); return new Date(yr,MONTHS[iaNorm(m2[2])],parseInt(m2[1])); }
   return null;
 }
-
-function iaDateToISO(d) {
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-}
-
-function iaFmtDate(d) {
-  return `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}`;
-}
+function iaDateToISO(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+function iaFmtDate(d)   { return `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}`; }
 
 function iaParseTime(raw) {
   const m=raw.match(/\b(\d{1,2})[:\.](\d{2})\b/);
   if (m) { const h=parseInt(m[1]),mn=parseInt(m[2]); if(h>=0&&h<=23&&mn>=0&&mn<=59) return `${String(h).padStart(2,'0')}:${String(mn).padStart(2,'0')}`; }
-  const m2=raw.match(/a\s+las?\s+(\d{1,2})(?:\s*(hs?|hrs?|horas?))?\b/i);
+  const m2=raw.match(/a\s+las?\s+(\d{1,2})(?:\s*(?:hs?|hrs?))?/i);
   if (m2) { const h=parseInt(m2[1]); if(h>=0&&h<=23) return `${String(h).padStart(2,'0')}:00`; }
   return null;
 }
-
 function iaParseNum(raw) { const m=String(raw).match(/\d+/); return m?parseInt(m[0]):null; }
 
-// ── Parser multi-campo ───────────────────────
+// Lee opciones reales del select del DOM
+function iaGetSelectOpts(id) {
+  const sel = document.getElementById(id);
+  if (!sel) return [];
+  return Array.from(sel.options).map(o => ({ val: o.value, label: o.text.trim() }));
+}
+
+// Parsea menú de niños desde texto libre (contra opciones reales del DOM)
+function iaParseKidsMenu(raw) {
+  const t = iaNorm(raw);
+  if (/pancho|snack|incluid|gratu|basic/.test(t)) return 'basic';
+  if (/nugget|papa|alt/.test(t))                  return 'alt';
+  return null;
+}
+
+// Parsea menú de adultos desde texto libre
+function iaParseAdultsMenu(raw) {
+  const t = iaNorm(raw);
+  if (/chivito/.test(t))                  return 'pizza_calzone_chivito';
+  if (/calzone/.test(t))                  return 'pizza_calzone';
+  if (/traen|propi|sin\s*(?:men|cargo)|none/.test(t)) return 'none';
+  if (/pizza/.test(t))                    return 'pizza';
+  return null;
+}
+
+// ── Parser multi-campo (mensaje libre) ───────
 function iaParseAll(raw) {
-  const t   = iaNorm(raw);
+  const t = iaNorm(raw);
   const found = {};
 
   // Niños
   const km = t.match(/(\d+)\s*(?:ni[nñ]|chic|pib|pequ|infant)/);
   if (km) found.numKids = parseInt(km[1]);
 
-  // Adultos — "N adultos", "N grandes", "N mayores"
-  // Evitar capturar el número de niños si están juntos
+  // Adultos
   const am = t.match(/(\d+)\s*(?:adult|grande|mayor)/);
   if (am) found.numAdults = parseInt(am[1]);
 
-  // Personas (si no se distingue) → solo si no hay niños ni adultos
-  if (!found.numKids && !found.numAdults) {
+  // Personas sin distinción (si no hay niños/adultos)
+  if (found.numKids===undefined && found.numAdults===undefined) {
     const pm = t.match(/(\d+)\s*persona/);
     if (pm) found.numAdults = parseInt(pm[1]);
   }
 
-  // Fecha — parsear solo si hay indicadores claros de fecha (evitar que "1 hora" matchee como día)
-  const dateRaw = raw.replace(/\d+\s*hora/gi,'');  // quitar "N horas" antes de parsear fecha
+  // Fecha (quitar "N horas" para no confundir parser)
+  const dateRaw = raw.replace(/\d+\s*hora/gi,'');
   const d = iaParseDate(dateRaw);
   if (d) found.eventDate = d;
 
-  // Hora de inicio (HH:MM o "a las N")
+  // Hora de inicio
   const startT = iaParseTime(raw);
   if (startT) found.startTime = startT;
 
-  // Horas extra: "N hora(s) extra(s)" / "con hora extra" / "1 hora más"
+  // Horas extra
   const hem = t.match(/(\d+)\s*hora(?:s)?\s*(?:extra|adicional|m[aá]s)/);
-  if (hem) { found.extraHours = parseInt(hem[1]); }
-  else if (/\bhora\s*extra\b|\bcon\s*extra\b/.test(t)) { found.extraHours = 1; }
+  if (hem) found.extraHours = parseInt(hem[1]);
+  else if (/\bcon\s*hora\s*extra\b|\buna\s*hora\s*extra\b/.test(t)) found.extraHours = 1;
 
   // Seña
-  const sm = t.match(/se[nñ]a\s*(?:de)?\s*\$?\s*(\d+)/);
+  const sm = t.match(/se[nñ]a\s*(?:de|:)?\s*\$?\s*(\d+)/);
   if (sm) found.eventSena = parseInt(sm[1]);
 
-  // Nombre / evento (entre comillas o después de "para " al inicio si es texto)
+  // Nombre entre comillas
   const qm = raw.match(/["«»]([^"«»]+)["«»]/);
   if (qm) found.eventName = qm[1].trim();
+
+  // Menú niños (solo si el usuario lo menciona explícitamente)
+  const km2 = iaParseKidsMenu(raw);
+  if (km2) found.kidsMenu = km2;
+
+  // Menú adultos
+  const am2 = iaParseAdultsMenu(raw);
+  if (am2) found.adultsMenu = am2;
 
   return found;
 }
@@ -3451,7 +2970,6 @@ function iaParseAll(raw) {
 // ── Aplicar campos al formulario ─────────────
 function iaApplyFields(found) {
   const applied = [];
-
   if (found.numKids !== undefined) {
     document.getElementById('numKids').value = found.numKids;
     applied.push(`${found.numKids} niños`);
@@ -3467,7 +2985,7 @@ function iaApplyFields(found) {
   }
   if (found.startTime) {
     document.getElementById('startTime').value = found.startTime;
-    if (typeof onStartTimeChange === 'function') onStartTimeChange();
+    if (typeof onStartTimeChange==='function') onStartTimeChange();
     applied.push(`hora ${found.startTime}`);
   }
   if (found.extraHours !== undefined) {
@@ -3482,107 +3000,136 @@ function iaApplyFields(found) {
     document.getElementById('eventName').value = found.eventName;
     applied.push(`nombre "${found.eventName}"`);
   }
-
+  if (found.kidsMenu) {
+    document.getElementById('kidsMenu').value = found.kidsMenu;
+    const label = iaGetSelectOpts('kidsMenu').find(o=>o.val===found.kidsMenu)?.label || found.kidsMenu;
+    applied.push(`menú niños: ${label}`);
+  }
+  if (found.adultsMenu) {
+    document.getElementById('adultsMenu').value = found.adultsMenu;
+    const label = iaGetSelectOpts('adultsMenu').find(o=>o.val===found.adultsMenu)?.label || found.adultsMenu;
+    applied.push(`menú adultos: ${label}`);
+  }
   if (applied.length) recalc();
   return applied;
 }
 
-// ── Campos y su estado ───────────────────────
-function iaVal(id) { const e=document.getElementById(id); return e?e.value:''; }
-function iaSet(id,v) { const e=document.getElementById(id); if(e) e.value=v; }
-function iaEmpty(id) { const v=iaVal(id).trim(); return v===''||v==='0'; }
+// ── Helpers de estado ────────────────────────
+function iaVal(id)      { const e=document.getElementById(id); return e?e.value:''; }
+function iaSet(id,v)    { const e=document.getElementById(id); if(e) e.value=v; }
+function iaEmpty(id)    { const v=iaVal(id).trim(); return v===''||v==='0'; }
 
-// Campos requeridos (solo los que SIEMPRE hay que preguntar si faltan)
-const IA_REQUIRED = [
-  { id:'eventDate',  label:'fecha',
-    isEmpty: ()=>iaEmpty('eventDate'),
-    q: ()=>'¿Para qué fecha es el evento?',
-    parse: iaParseDate,
-    set: d=>{ iaSet('eventDate',iaDateToISO(d)); onDateChange(); }
+// ── Campos por tab ───────────────────────────
+
+// Presupuesto: solo fecha, niños, adultos  (menus NO por defecto)
+const IA_PRES_REQ = [
+  { id:'eventDate', isEmpty:()=>iaEmpty('eventDate'),
+    q:()=>'¿Para qué fecha es el evento?',
+    parse:iaParseDate,
+    set:d=>{ iaSet('eventDate',iaDateToISO(d)); onDateChange(); }
   },
-  { id:'numKids',  label:'niños',
-    isEmpty: ()=>iaEmpty('numKids'),
-    q: ()=>'¿Cuántos niños asisten?',
-    parse: raw=>{ const n=iaParseNum(raw); return n!==null?n:null; },
-    set: v=>{ iaSet('numKids',v); recalc(); }
+  { id:'numKids', isEmpty:()=>iaEmpty('numKids'),
+    q:()=>'¿Cuántos niños asisten?',
+    parse:raw=>{ const n=iaParseNum(raw); return n!==null?n:null; },
+    set:v=>{ iaSet('numKids',v); recalc(); }
   },
-  { id:'numAdults', label:'adultos',
-    isEmpty: ()=>iaVal('numAdults').trim()==='',
-    q: ()=>'¿Cuántos adultos?',
-    parse: raw=>{ const n=iaParseNum(raw); return n!==null?n:null; },
-    set: v=>{ iaSet('numAdults',v); recalc(); }
+  { id:'numAdults', isEmpty:()=>iaVal('numAdults').trim()==='',
+    q:()=>'¿Cuántos adultos?',
+    parse:raw=>{ const n=iaParseNum(raw); return n!==null?n:null; },
+    set:v=>{ iaSet('numAdults',v); recalc(); }
   },
-  { id:'kidsMenu', label:'menú niños',
-    isEmpty: ()=>true,   // siempre preguntar (select con default)
-    q: ()=>'¿Menú para los niños?',
-    choices:[{label:'Básico',val:'basic'},{label:'Alternativo',val:'alt'}],
+];
+
+// Reserva: nombre, hora, fecha, niños, adultos, seña  (menus NO por defecto)
+const IA_RSV_REQ = [
+  { id:'eventName', isEmpty:()=>iaVal('eventName').trim()==='',
+    q:()=>'¿Nombre del evento o cliente?',
+    parse:raw=>raw.trim()||null,
+    set:v=>iaSet('eventName',v)
+  },
+  { id:'startTime', isEmpty:()=>iaEmpty('startTime'),
+    q:()=>'¿Hora de inicio? (ej: 18:00)',
+    parse:raw=>iaParseTime(raw)||null,
+    set:v=>{ iaSet('startTime',v); if(typeof onStartTimeChange==='function') onStartTimeChange(); }
+  },
+  { id:'eventDate', isEmpty:()=>iaEmpty('eventDate'),
+    q:()=>'¿Para qué fecha es el evento?',
+    parse:iaParseDate,
+    set:d=>{ iaSet('eventDate',iaDateToISO(d)); onDateChange(); }
+  },
+  { id:'numKids', isEmpty:()=>iaEmpty('numKids'),
+    q:()=>'¿Cuántos niños?',
+    parse:raw=>{ const n=iaParseNum(raw); return n!==null?n:null; },
+    set:v=>{ iaSet('numKids',v); recalc(); }
+  },
+  { id:'numAdults', isEmpty:()=>iaVal('numAdults').trim()==='',
+    q:()=>'¿Cuántos adultos?',
+    parse:raw=>{ const n=iaParseNum(raw); return n!==null?n:null; },
+    set:v=>{ iaSet('numAdults',v); recalc(); }
+  },
+  { id:'eventSena', isEmpty:()=>iaEmpty('eventSena'),
+    q:()=>'¿Monto de la seña? (ej: 5000, o 0 si no hay)',
+    parse:raw=>{ const n=iaParseNum(raw); return n!==null?n:null; },
+    set:v=>{ iaSet('eventSena',v); recalc(); }
+  },
+];
+
+// Opcionales compartidos
+function iaGetOpts(tab) {
+  const opts = [];
+  // Menú niños (con opciones reales del DOM)
+  opts.push({
+    id:'kidsMenu',
+    q:()=>'¿Menú para los niños?',
+    choices: iaGetSelectOpts('kidsMenu'),
     parse: raw=>{
-      const t=iaNorm(raw);
-      if(/bas/.test(t)||raw==='basic') return 'basic';
-      if(/alt/.test(t)||raw==='alt')   return 'alt';
-      return null;
+      // Buscar por texto o valor
+      const opts2 = iaGetSelectOpts('kidsMenu');
+      const t = iaNorm(raw);
+      const found = opts2.find(o=> iaNorm(o.label).includes(t) || o.val===raw);
+      if (found) return found.val;
+      return iaParseKidsMenu(raw);
     },
-    set: v=>{ iaSet('kidsMenu',v); recalc(); }
-  },
-  { id:'adultsMenu', label:'menú adultos',
-    isEmpty: ()=>true,
-    q: ()=>'¿Menú para los adultos?',
-    choices:[{label:'Pizza',val:'pizza'},{label:'Pizza+Calzone',val:'calzonepizza'},{label:'Completo',val:'full'}],
+    set:v=>{ iaSet('kidsMenu',v); recalc(); }
+  });
+  // Menú adultos
+  opts.push({
+    id:'adultsMenu',
+    q:()=>'¿Menú para los adultos?',
+    choices: iaGetSelectOpts('adultsMenu'),
     parse: raw=>{
-      const t=iaNorm(raw);
-      if(/complet|full/.test(t)||raw==='full')        return 'full';
-      if(/calzone/.test(t)||raw==='calzonepizza')      return 'calzonepizza';
-      if(/pizza/.test(t)||raw==='pizza')               return 'pizza';
-      return null;
+      const opts2 = iaGetSelectOpts('adultsMenu');
+      const t = iaNorm(raw);
+      const found = opts2.find(o=> iaNorm(o.label).includes(t) || o.val===raw);
+      if (found) return found.val;
+      return iaParseAdultsMenu(raw);
     },
-    set: v=>{ iaSet('adultsMenu',v); recalc(); }
-  },
-  { id:'eventName', label:'nombre',
-    isEmpty: ()=>iaVal('eventName').trim()==='',
-    q: ()=>'¿Nombre del cliente o evento?',
-    parse: raw=>raw.trim()||null,
-    set: v=>iaSet('eventName',v)
-  },
-];
-
-// Campos opcionales de reserva
-const IA_RSV_EXTRA = [
-  { id:'startTime', label:'hora inicio',
-    isEmpty: ()=>iaEmpty('startTime'),
-    q: ()=>'¿Hora de inicio? (ej: 18:00)',
-    parse: raw=>iaParseTime(raw)||null,
-    set: v=>{ iaSet('startTime',v); if(typeof onStartTimeChange==='function') onStartTimeChange(); }
-  },
-];
-
-const IA_OPTS = [
-  { id:'eventAge',     q:()=>'¿Edad del cumpleañero/a?',          parse:iaParseNum,   set:v=>iaSet('eventAge',v) },
-  { id:'extraHours',   q:()=>'¿Horas extra de salón? (ej: 1)',     parse:iaParseNum,   set:v=>{ iaSet('extraHours',v); recalc(); } },
-  { id:'eventSena',    q:()=>'¿Monto de seña? (0 si no hay)',       parse:iaParseNum,   set:v=>{ iaSet('eventSena',v); recalc(); } },
-  { id:'senaFormaPago',q:()=>'¿Forma de pago de la seña?',
-    choices:[{label:'Banco Seba',val:'Banco Seba'},{label:'Banco Vir',val:'Banco Vir'},{label:'Efectivo Fede',val:'Efectivo Fede'}],
-    parse:raw=>raw.trim(), set:v=>iaSet('senaFormaPago',v),
-    condition:()=>parseInt(iaVal('eventSena')||'0')>0
-  },
-  { id:'romanRole',    q:()=>'¿Viene Román?',
-    choices:[{label:'Recreador',val:'Recreador'},{label:'En el salón',val:'Salon'},{label:'No va',val:'No va'}],
-    parse:raw=>{
-      const t=iaNorm(raw);
-      if(/rec/.test(t)) return 'Recreador';
-      if(/sal/.test(t)) return 'Salon';
-      if(/no/.test(t))  return 'No va';
-      if(['Recreador','Salon','No va'].includes(raw)) return raw;
-      return null;
-    },
-    set:v=>{ const e=document.getElementById('romanRole'); if(e){e.value=v; recalc();} }
-  },
-  { id:'eventDesc',    q:()=>'¿Nota interna?',                     parse:raw=>raw.trim(), set:v=>iaSet('eventDesc',v) },
-];
+    set:v=>{ iaSet('adultsMenu',v); recalc(); }
+  });
+  if (tab === 'reserva') {
+    opts.push({
+      id:'senaFormaPago', q:()=>'¿Forma de pago de la seña?',
+      choices: iaGetSelectOpts('senaFormaPago'),
+      parse:raw=>raw.trim(), set:v=>iaSet('senaFormaPago',v),
+      condition:()=>parseInt(iaVal('eventSena')||'0')>0
+    });
+    opts.push({
+      id:'romanRole', q:()=>'¿Viene Román?',
+      choices: iaGetSelectOpts('romanRole'),
+      parse:raw=>{ const t=iaNorm(raw); const o=iaGetSelectOpts('romanRole').find(op=>iaNorm(op.label).startsWith(t[0])||op.val===raw); return o?o.val:null; },
+      set:v=>{ const e=document.getElementById('romanRole'); if(e){e.value=v;recalc();} }
+    });
+  }
+  opts.push({ id:'eventAge', q:()=>'¿Edad del cumpleañero/a?', parse:iaParseNum, set:v=>iaSet('eventAge',v) });
+  opts.push({ id:'extraHours', q:()=>'¿Horas extra de salón?', parse:iaParseNum, set:v=>{ iaSet('extraHours',v); recalc(); } });
+  opts.push({ id:'eventDesc', q:()=>'¿Nota interna?', parse:raw=>raw.trim(), set:v=>iaSet('eventDesc',v) });
+  return opts;
+}
 
 // ── Estado ───────────────────────────────────
-let _iaQueue    = [];
-let _iaCurrent  = null;
-let _iaPhase    = 'open';   // 'open' | 'required' | 'optional' | 'done'
+let _iaQueue   = [];
+let _iaCurrent = null;
+let _iaPhase   = 'open';
 
 // ── UI ───────────────────────────────────────
 function iaBotMsg(text, choices=[]) {
@@ -3608,7 +3155,6 @@ function iaBotMsg(text, choices=[]) {
   msgs.appendChild(wrap);
   msgs.scrollTop = msgs.scrollHeight;
 }
-
 function iaUserMsg(text) {
   const msgs = document.getElementById('ia-messages');
   const wrap = document.createElement('div');
@@ -3620,15 +3166,13 @@ function iaUserMsg(text) {
   msgs.appendChild(wrap);
   msgs.scrollTop = msgs.scrollHeight;
 }
-
 function iaDisableQR(wrap) {
   wrap.querySelectorAll('.ia-qr-btn').forEach(b => { b.disabled=true; b.style.opacity='.4'; });
 }
 
-// ── Lógica principal ─────────────────────────
+// ── Lógica ───────────────────────────────────
 function iaCurrentTab() {
-  if (document.getElementById('tab-reserva')?.classList.contains('active')) return 'reserva';
-  return 'presupuesto';
+  return document.getElementById('tab-reserva')?.classList.contains('active') ? 'reserva' : 'presupuesto';
 }
 
 function toggleAssistant() {
@@ -3646,27 +3190,31 @@ function toggleAssistant() {
 
 function iaStart() {
   document.getElementById('ia-messages').innerHTML = '';
-  _iaPhase   = 'open';
-  _iaCurrent = null;
-  _iaQueue   = [];
+  _iaPhase = 'open'; _iaCurrent = null; _iaQueue = [];
   const tab = iaCurrentTab();
   iaBotMsg(
     tab === 'reserva'
-      ? '¡Hola! Contame los datos de la reserva: personas, fecha, hora, nombre... lo que tengas.'
-      : '¡Hola! Contame los datos del presupuesto: cuántos niños y adultos, para qué fecha, y lo que quieras.'
+      ? '¡Hola! Contame los datos de la reserva: nombre, hora, fecha, niños, adultos... lo que tengas.'
+      : '¡Hola! Contame los datos del presupuesto: cuántos niños y adultos, para qué fecha, lo que quieras.'
   );
 }
 
 function iaAskNext() {
-  // Filtrar conditions
   _iaQueue = _iaQueue.filter(f => !f.condition || f.condition());
   if (!_iaQueue.length) {
     if (_iaPhase === 'required') {
       _iaPhase = 'optional';
-      iaBotMsg('✅ ¡Campos principales listos! ¿Querés agregar detalles?', [
-        {label:'Sí, continuar', val:'__opt_yes__'},
-        {label:'No, ya está',   val:'__opt_no__'},
-      ]);
+      const tab = iaCurrentTab();
+      const menuKidsLabel = iaGetSelectOpts('kidsMenu').find(o=>o.val===iaVal('kidsMenu'))?.label || '—';
+      const menuAdultsLabel = iaGetSelectOpts('adultsMenu').find(o=>o.val===iaVal('adultsMenu'))?.label || '—';
+      iaBotMsg(
+        `✅ ¡Datos principales listos!\n\nMenú actual:\n• Niños: ${menuKidsLabel}\n• Adultos: ${menuAdultsLabel}\n\n¿Querés agregar más detalles o cambiar el menú?`,
+        [
+          {label:'Cambiar menú',   val:'__change_menu__'},
+          {label:'Más detalles',   val:'__opt_yes__'},
+          {label:'Ya está, listo', val:'__opt_no__'},
+        ]
+      );
     } else {
       iaFinish();
     }
@@ -3677,8 +3225,7 @@ function iaAskNext() {
 }
 
 function iaFinish() {
-  _iaPhase   = 'done';
-  _iaCurrent = null;
+  _iaPhase = 'done'; _iaCurrent = null;
   iaBotMsg('✅ ¡Listo! Revisá el formulario y guardá cuando quieras.', [
     {label:'↺ Volver a empezar', val:'__restart__'},
     {label:'✕ Cerrar',           val:'__close__'},
@@ -3686,14 +3233,19 @@ function iaFinish() {
 }
 
 function iaHandleChoice(val, label) {
-  if (val === '__close__')   { toggleAssistant(); return; }
-  if (val === '__restart__') { iaStart(); return; }
+  if (val === '__close__')       { toggleAssistant(); return; }
+  if (val === '__restart__')     { iaStart(); return; }
+  if (val === '__change_menu__') {
+    const tab = iaCurrentTab();
+    _iaQueue  = iaGetOpts(tab).filter(f => f.id==='kidsMenu'||f.id==='adultsMenu');
+    _iaPhase  = 'optional';
+    setTimeout(iaAskNext, 200);
+    return;
+  }
   if (val === '__opt_yes__') {
-    const tab  = iaCurrentTab();
-    const opts = [...IA_OPTS];
-    if (tab === 'reserva' && iaEmpty('startTime')) opts.unshift(IA_RSV_EXTRA[0]);
-    _iaQueue = opts.filter(f => !f.condition || f.condition());
-    _iaPhase = 'optional';
+    const tab = iaCurrentTab();
+    _iaQueue  = iaGetOpts(tab).filter(f => f.id!=='kidsMenu'&&f.id!=='adultsMenu').filter(f => !f.condition||f.condition());
+    _iaPhase  = 'optional';
     setTimeout(iaAskNext, 200);
     return;
   }
@@ -3712,23 +3264,17 @@ function iaSend() {
 }
 
 function iaProcess(raw) {
-  // ── Fase abierta: parsear todo de una ────────
   if (_iaPhase === 'open') {
     const found   = iaParseAll(raw);
     const applied = iaApplyFields(found);
+    if (applied.length) iaBotMsg(`✓ Anotado: ${applied.join(', ')}.`);
 
-    if (applied.length) {
-      iaBotMsg(`✓ Anotado: ${applied.join(', ')}.`);
-    }
-
-    // Armar cola con los requeridos que faltan
     const tab  = iaCurrentTab();
-    let reqs = [...IA_REQUIRED];
-    if (tab === 'reserva') reqs = [...IA_RSV_EXTRA, ...reqs];
+    const reqs = tab === 'reserva' ? IA_RSV_REQ : IA_PRES_REQ;
     _iaQueue = reqs.filter(f => f.isEmpty());
     _iaPhase = 'required';
 
-    if (_iaQueue.length === 0 && !applied.length) {
+    if (!_iaQueue.length && !applied.length) {
       iaBotMsg('No encontré datos en ese mensaje. ¿Podés decirme cuántos niños, adultos y la fecha?');
       _iaPhase = 'open';
       return;
@@ -3737,7 +3283,6 @@ function iaProcess(raw) {
     return;
   }
 
-  // ── Fase requeridos / opcionales: un campo a la vez ──
   if (!_iaCurrent) return;
   const parsed = _iaCurrent.parse(raw);
   if (parsed === null || parsed === undefined) {
@@ -3750,33 +3295,29 @@ function iaProcess(raw) {
   setTimeout(iaAskNext, 350);
 }
 
-// ── Voz ─────────────────────────────────────
-let _iaRecognition = null, _iaListening = false;
-
+// ── Voz ──────────────────────────────────────
+let _iaRec = null, _iaListening = false;
 function iaToggleVoice() {
   const SR  = window.SpeechRecognition || window.webkitSpeechRecognition;
   const btn = document.getElementById('ia-mic-btn');
   if (!SR) { iaBotMsg('Tu navegador no soporta reconocimiento de voz.'); return; }
-  if (_iaListening) { _iaRecognition?.stop(); return; }
-  _iaRecognition = new SR();
-  _iaRecognition.lang = 'es';
-  _iaRecognition.continuous = false;
-  _iaRecognition.interimResults = false;
-  _iaRecognition.onstart = () => {
+  if (_iaListening) { _iaRec?.stop(); return; }
+  _iaRec = new SR();
+  _iaRec.lang = 'es'; _iaRec.continuous = false; _iaRec.interimResults = false;
+  _iaRec.onstart = () => {
     _iaListening = true;
     if(btn){btn.classList.add('listening');btn.textContent='⏹';}
     document.getElementById('ia-input').placeholder = '🎤 Escuchando…';
   };
-  _iaRecognition.onresult = e => {
+  _iaRec.onresult = e => {
     iaResetMic();
     document.getElementById('ia-input').value = e.results[0][0].transcript;
     iaSend();
   };
-  _iaRecognition.onerror = () => iaResetMic();
-  _iaRecognition.onend   = () => iaResetMic();
-  try { _iaRecognition.start(); } catch(e) { iaResetMic(); }
+  _iaRec.onerror = () => iaResetMic();
+  _iaRec.onend   = () => iaResetMic();
+  try { _iaRec.start(); } catch(e) { iaResetMic(); }
 }
-
 function iaResetMic() {
   _iaListening = false;
   const btn = document.getElementById('ia-mic-btn');
@@ -3785,14 +3326,14 @@ function iaResetMic() {
   if (inp) inp.placeholder = 'Escribí tu respuesta…';
 }
 
-// ── Ocultar burbuja en tabs que no aplican ───
+// ── Ocultar en tabs no aplican ────────────────
 const _origSwitchTab = switchTab;
 function switchTab(t) {
   _origSwitchTab(t);
   if (!['presupuesto','reserva'].includes(t)) {
     document.getElementById('ia-panel')?.classList.remove('open');
     const b = document.getElementById('chatbot-bubble');
-    if (b && b.innerHTML === '✕') b.innerHTML = '💬';
+    if (b && b.innerHTML==='✕') b.innerHTML='💬';
   }
 }
 
