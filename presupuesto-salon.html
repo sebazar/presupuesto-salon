@@ -240,7 +240,7 @@
     /* ── CHATBOT BUBBLE + PANEL ── */
     .chatbot-bubble { position:fixed; bottom:24px; right:24px; width:54px; height:54px; border-radius:50%; background:var(--purple); color:white; border:none; font-size:1.5rem; cursor:pointer; box-shadow:0 4px 18px rgba(124,92,191,.55); display:none; align-items:center; justify-content:center; z-index:400; transition:.2s; }
     .chatbot-bubble:hover { transform:scale(1.08); background:var(--purple-dark); }
-    .chatbot-panel { position:fixed; top:0; right:0; width:390px; height:100dvh; background:white; box-shadow:-4px 0 24px rgba(0,0,0,.14); z-index:450; display:flex; flex-direction:column; transform:translateX(100%); transition:transform .3s cubic-bezier(.4,0,.2,1); }
+    .chatbot-panel { position:fixed; top:0; right:0; width:390px; height:100dvh; background:white; box-shadow:-4px 0 24px rgba(0,0,0,.14); z-index:450; display:flex; flex-direction:column; overflow:hidden; transform:translateX(100%); transition:transform .3s cubic-bezier(.4,0,.2,1); }
     .chatbot-panel.open { transform:translateX(0); }
     .chatbot-panel-hdr { display:flex; align-items:center; justify-content:space-between; padding:14px 16px; background:linear-gradient(135deg,var(--purple),var(--purple-dark)); color:white; flex-shrink:0; }
     .chatbot-panel-hdr span { font-weight:700; font-size:.95rem; }
@@ -260,6 +260,9 @@
     .ia-qr-btn:hover { background:var(--purple); color:#fff; }
     .ia-input-bar { background:#f0f0f0; padding:7px 10px; display:flex; gap:7px; align-items:center; border-top:1px solid #d0d0d0; flex-shrink:0; }
     .ia-input { flex:1; border:none; border-radius:22px; padding:9px 15px; font-size:.9rem; outline:none; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.1); font-family:inherit; }
+    .ia-mic-btn { width:42px; height:42px; border-radius:50%; border:none; background:#e0e0e0; color:#555; cursor:pointer; font-size:1rem; transition:.15s; flex-shrink:0; }
+    .ia-mic-btn.listening { background:#fee2e2; color:#dc2626; animation:ia-pulse 1s infinite; }
+    @keyframes ia-pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.1)} }
     .ia-send-btn { width:42px; height:42px; border-radius:50%; border:none; background:var(--purple); color:#fff; cursor:pointer; font-size:1.05rem; transition:.15s; flex-shrink:0; }
     .ia-send-btn:hover { background:var(--purple-dark); }
     @media (max-width:600px) { .chatbot-panel { width:100vw; } .chatbot-bubble { bottom:16px; right:16px; } }
@@ -3669,6 +3672,47 @@ function iaProcess(raw) {
   setTimeout(iaAskNext, 350);
 }
 
+
+// ── Voz ─────────────────────────────────────
+let _iaRecognition = null, _iaListening = false;
+
+function iaToggleVoice() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const btn = document.getElementById('ia-mic-btn');
+  if (!SR) {
+    iaBotMsg('Tu navegador no soporta reconocimiento de voz. Usá el 🎤 del teclado.');
+    return;
+  }
+  if (_iaListening) { _iaRecognition?.stop(); return; }
+  _iaRecognition = new SR();
+  _iaRecognition.lang = 'es';
+  _iaRecognition.continuous = false;
+  _iaRecognition.interimResults = false;
+  _iaRecognition.onstart = () => {
+    _iaListening = true;
+    btn?.classList.add('listening');
+    btn.textContent = '⏹';
+    document.getElementById('ia-input').placeholder = '🎤 Escuchando…';
+  };
+  _iaRecognition.onresult = e => {
+    iaResetMic();
+    const t = e.results[0][0].transcript;
+    document.getElementById('ia-input').value = t;
+    iaSend();
+  };
+  _iaRecognition.onerror = e => { iaResetMic(); };
+  _iaRecognition.onend = () => { iaResetMic(); };
+  try { _iaRecognition.start(); } catch(e) { iaResetMic(); }
+}
+
+function iaResetMic() {
+  _iaListening = false;
+  const btn = document.getElementById('ia-mic-btn');
+  if (btn) { btn.classList.remove('listening'); btn.textContent = '🎤'; }
+  const inp = document.getElementById('ia-input');
+  if (inp) inp.placeholder = 'Escribí tu respuesta…';
+}
+
 // Ocultar burbuja en tabs que no aplican
 const _origSwitchTab = switchTab;
 function switchTab(t) {
@@ -3708,6 +3752,7 @@ function switchTab(t) {
   </div>
   <div id="ia-messages" class="ia-messages"></div>
   <div class="ia-input-bar">
+    <button class="ia-mic-btn" id="ia-mic-btn" onclick="iaToggleVoice()" title="Hablar">🎤</button>
     <input id="ia-input" class="ia-input" type="text"
       placeholder="Escribí tu respuesta…" autocomplete="off"
       onkeydown="if(event.key==='Enter'){event.preventDefault();iaSend();}">
