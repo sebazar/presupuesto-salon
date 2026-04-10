@@ -2093,6 +2093,7 @@ async function guardarGasto() {
   const url = cfg().webhookUrl;
   if (!url || !url.startsWith('http')) { showSaveToast('✗ Configurá el webhook en Administración.', true); return; }
 
+  const concepto = document.getElementById('gastoConcepto').value.trim();
   const btn = document.getElementById('btn-gastoGuardar');
   btn.disabled = true; btn.innerHTML = '⏳ Guardando...';
 
