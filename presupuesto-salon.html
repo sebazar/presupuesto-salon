@@ -2863,6 +2863,8 @@ function onProvFiltroMesChange() {
   renderProvContent();
 }
 
+function _evISO(ev) { return _sheetDateToISO(ev['Fecha']) || ''; }
+
 function renderProvContent() {
   const container = document.getElementById('prov-content');
   const rangoEl   = document.getElementById('prov-rango');
@@ -2871,23 +2873,23 @@ function renderProvContent() {
   let items = _provData.slice();
 
   if (_provFiltroDia) {
-    items = items.filter(e => e.fecha === _provFiltroDia);
+    items = items.filter(e => _evISO(e) === _provFiltroDia);
     if (rangoEl) rangoEl.textContent = 'Día: ' + _provFiltroDia;
   } else if (_provFiltroMes) {
-    items = items.filter(e => e.fecha && e.fecha.startsWith(_provFiltroMes));
+    items = items.filter(e => _evISO(e).startsWith(_provFiltroMes));
     if (rangoEl) rangoEl.textContent = 'Mes: ' + _provFiltroMes;
   } else {
     const today = new Date(); today.setHours(0,0,0,0);
     const end   = new Date(today); end.setDate(end.getDate() + 30);
     items = items.filter(e => {
-      if (!e.fecha) return false;
-      const d = new Date(e.fecha + 'T00:00:00');
+      const iso = _evISO(e); if (!iso) return false;
+      const d = new Date(iso + 'T00:00:00');
       return d >= today && d <= end;
     });
     if (rangoEl) rangoEl.textContent = 'Próximos 30 días';
   }
 
-  items.sort((a, b) => (a.fecha || '') > (b.fecha || '') ? 1 : -1);
+  items.sort((a, b) => (_evISO(a) > _evISO(b) ? 1 : -1));
 
   if (!items.length) {
     container.innerHTML = '<div class="prov-loading">No hay eventos en el período seleccionado.</div>';
@@ -2896,18 +2898,20 @@ function renderProvContent() {
 
   const isAdmin = currentUser?.role === 'admin';
   container.innerHTML = items.map(ev => {
-    const fecha  = ev.fecha ? new Date(ev.fecha + 'T00:00:00').toLocaleDateString('es-UY', { weekday:'short', day:'numeric', month:'short' }) : '—';
-    const kids   = ev.numKids   != null ? `👶 ${ev.numKids} niños`   : '';
-    const adults = ev.numAdults != null ? `🧑 ${ev.numAdults} adultos` : '';
-    const hora   = ev.startTime ? `⏰ ${ev.startTime}` : '';
+    const iso    = _evISO(ev);
+    const fecha  = iso ? new Date(iso + 'T00:00:00').toLocaleDateString('es-UY', { weekday:'short', day:'numeric', month:'short' }) : (ev['Fecha'] || '—');
+    const kids   = ev['Nº niños']   ? `👶 ${ev['Nº niños']} niños`   : '';
+    const adults = ev['Nº adultos'] ? `🧑 ${ev['Nº adultos']} adultos` : '';
+    const hora   = ev['Hora inicio'] ? `⏰ ${ev['Hora inicio']}` : '';
     const recs   = ev.recreadores?.length ? `🎪 ${ev.recreadores.join(', ')}` : '';
+    const evId   = String(ev['ID'] || '');
     const editBtn = isAdmin
-      ? `<button onclick="event.stopPropagation();openRecsModal('${ev.id}')" style="background:none;border:1px solid var(--purple);color:var(--purple);border-radius:6px;padding:3px 9px;font-size:.75rem;cursor:pointer">Recs</button>`
+      ? `<button onclick="event.stopPropagation();openRecsModal('${evId}')" style="background:none;border:1px solid var(--purple);color:var(--purple);border-radius:6px;padding:3px 9px;font-size:.75rem;cursor:pointer">Recs</button>`
       : '';
-    return `<div onclick="openProvModal('${ev.id}')" style="padding:12px 14px;border:1.5px solid var(--gray-200);border-radius:10px;margin-bottom:8px;cursor:pointer;transition:.15s" onmouseover="this.style.borderColor='var(--purple)'" onmouseout="this.style.borderColor='var(--gray-200)'">
+    return `<div onclick="openProvModal('${evId}')" style="padding:12px 14px;border:1.5px solid var(--gray-200);border-radius:10px;margin-bottom:8px;cursor:pointer;transition:.15s" onmouseover="this.style.borderColor='var(--purple)'" onmouseout="this.style.borderColor='var(--gray-200)'">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
         <div>
-          <div style="font-weight:700;font-size:.95rem">${ev.eventName || 'Sin nombre'}</div>
+          <div style="font-weight:700;font-size:.95rem">${ev['Nombre evento'] || 'Sin nombre'}</div>
           <div style="font-size:.8rem;color:var(--gray-400);margin-top:2px">${fecha}${hora ? ' · ' + hora : ''}</div>
           <div style="font-size:.8rem;color:var(--gray-600);margin-top:3px">${[kids,adults].filter(Boolean).join(' · ')}</div>
           ${recs ? `<div style="font-size:.78rem;color:var(--purple);margin-top:2px">${recs}</div>` : ''}
@@ -2940,27 +2944,30 @@ async function loadProveedorView() {
 }
 
 function openProvModal(id) {
-  const ev = _provData.find(e => String(e.id) === String(id));
+  const ev = _provData.find(e => String(e['ID']) === String(id));
   if (!ev) return;
   const overlay = document.getElementById('prov-modal-overlay');
-  document.getElementById('prov-modal-title').textContent = ev.eventName || 'Evento';
-  const fecha = ev.fecha
-    ? new Date(ev.fecha + 'T00:00:00').toLocaleDateString('es-UY', { weekday:'long', day:'numeric', month:'long', year:'numeric' })
-    : '';
-  document.getElementById('prov-modal-subtitle').textContent = [fecha, ev.startTime].filter(Boolean).join(' · ');
+  document.getElementById('prov-modal-title').textContent = ev['Nombre evento'] || 'Evento';
+  const iso   = _evISO(ev);
+  const fecha = iso
+    ? new Date(iso + 'T00:00:00').toLocaleDateString('es-UY', { weekday:'long', day:'numeric', month:'long', year:'numeric' })
+    : (ev['Fecha'] || '');
+  document.getElementById('prov-modal-subtitle').textContent = [fecha, ev['Hora inicio']].filter(Boolean).join(' · ');
   const body = document.getElementById('prov-modal-body');
-  const row  = (icon, label, val) => (val != null && val !== '')
+  const row  = (icon, label, val) => (val != null && val !== '' && val != 0)
     ? `<div style="display:flex;gap:8px;align-items:flex-start"><span>${icon}</span><div><div style="font-size:.75rem;font-weight:600;color:var(--gray-400);text-transform:uppercase;letter-spacing:.4px">${label}</div><div style="font-size:.9rem;font-weight:600">${val}</div></div></div>`
     : '';
+  const extraHs = parseInt(ev['Horas extra']) || 0;
+  const sena    = parseFloat(ev['Pagos ($)'] || ev['Seña ($)'] || 0);
   body.innerHTML = [
-    row('👶', 'Niños',         ev.numKids),
-    row('🧑', 'Adultos',       ev.numAdults),
-    row('🍕', 'Menú niños',    ev.kidsMenu),
-    row('🍽️','Menú adultos',   ev.adultsMenu),
-    row('⏱️', 'Duración',      ev.extraHours ? `4 + ${ev.extraHours} hs extra` : '4 hs'),
-    row('💰', 'Seña',          ev.eventSena ? '$ ' + Number(ev.eventSena).toLocaleString('es-UY') : null),
-    row('📝', 'Notas',         ev.notes || ev.notas),
-    row('🎪', 'Recreadores',   ev.recreadores?.join(', ')),
+    row('👶', 'Niños',        ev['Nº niños']),
+    row('🧑', 'Adultos',      ev['Nº adultos']),
+    row('🍕', 'Menú niños',   ev['Menú niños']),
+    row('🍽️','Menú adultos',  ev['Menú adultos']),
+    row('⏱️', 'Duración',     extraHs ? `4 + ${extraHs} hs extra` : '4 hs'),
+    row('💰', 'Seña',         sena ? '$ ' + sena.toLocaleString('es-UY') : null),
+    row('📝', 'Notas',        ev['Notas']),
+    row('🎪', 'Recreadores',  ev.recreadores?.join(', ')),
   ].filter(Boolean).join('');
   overlay.classList.add('open');
 }
@@ -2977,13 +2984,13 @@ let _recsEventId = null;
 
 function openRecsModal(id) {
   _recsEventId = id;
-  const ev = _provData.find(e => String(e.id) === String(id));
+  const ev = _provData.find(e => String(e['ID']) === String(id));
   if (!ev) return;
   const sub = document.getElementById('recs-modal-sub');
-  if (sub) sub.textContent = (ev.eventName || '') + (ev.fecha ? ' — ' + ev.fecha : '');
+  if (sub) sub.textContent = (ev['Nombre evento'] || '') + (ev['Fecha'] ? ' — ' + ev['Fecha'] : '');
   const container = document.getElementById('recs-dds-container');
   if (!container) return;
-  const numRecs = parseInt(ev.numAnimadores) || 1;
+  const numRecs = parseInt(ev['Nº animadores']) || 1;
   const current = ev.recreadores || [];
   container.innerHTML = '';
   for (let i = 0; i < numRecs; i++) {
@@ -2996,7 +3003,7 @@ function openRecsModal(id) {
 }
 
 async function guardarRecreadores() {
-  const ev = _provData.find(e => String(e.id) === String(_recsEventId));
+  const ev = _provData.find(e => String(e['ID']) === String(_recsEventId));
   if (!ev) return;
   const inputs   = document.querySelectorAll('#recs-dds-container .rec-inp');
   ev.recreadores = Array.from(inputs).map(i => i.value.trim()).filter(Boolean);
