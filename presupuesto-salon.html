@@ -2737,6 +2737,288 @@ function doLogout() {
 }
 
 // ════════════════════════════════════════════
+// ADMIN PANEL — toggleEdit / saveEdit / savePw / webhook
+// ════════════════════════════════════════════
+function toggleEdit(section) {
+  const panel = document.getElementById('edit-' + section);
+  if (panel) panel.classList.toggle('open');
+}
+
+async function saveEdit(section) {
+  const gei = id => { const e = document.getElementById('ei-' + id); return e ? parseFloat(e.value) || 0 : 0; };
+  const updates = {};
+  if (section === 'base') {
+    updates.baseWeekday = gei('baseWeekday');
+    updates.baseWeekend = gei('baseWeekend');
+    updates.extraHour   = gei('extraHour');
+  } else if (section === 'kids') {
+    updates.kidsIncluded = gei('kidsIncluded');
+    updates.kidsBasic    = gei('kidsBasic');
+    updates.kidsAlt      = gei('kidsAlt');
+  } else if (section === 'adults') {
+    updates.menuPizza        = gei('menuPizza');
+    updates.menuPizzaCalzone = gei('menuPizzaCalzone');
+    updates.menuFull         = gei('menuFull');
+  } else if (section === 'staff') {
+    updates.recIncluded     = gei('recIncluded');
+    updates.kidsPerRec      = gei('kidsPerRec');
+    updates.adultsPerWaiter = gei('adultsPerWaiter');
+    updates.staffCost       = gei('staffCost');
+    updates.staffExtraHr    = gei('staffExtraHr');
+  }
+  saveCfg(updates);
+  recalc();
+  renderAdminValues();
+  toggleEdit(section);
+  try {
+    await fetch(cfg().webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: 'saveConfig', config: cfg() })
+    });
+  } catch(e) { console.warn('saveEdit: no se pudo persistir en servidor.', e); }
+}
+
+async function savePw() {
+  const np  = document.getElementById('ei-newPw');
+  const cp  = document.getElementById('ei-confirmPw');
+  const err = document.getElementById('pwErr');
+  if (!np.value || np.value !== cp.value) { err.style.display = 'block'; return; }
+  err.style.display = 'none';
+  try {
+    const r   = await fetch(cfg().webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: 'savePassword', password: np.value })
+    });
+    const res = await r.json();
+    if (res.ok) { np.value = ''; cp.value = ''; toggleEdit('security'); }
+    else { err.textContent = 'Error al guardar.'; err.style.display = 'block'; }
+  } catch(e) { err.textContent = 'Error de conexión.'; err.style.display = 'block'; }
+}
+
+function saveWebhookUrl() {
+  const v = (document.getElementById('ei-webhookUrl')?.value || '').trim();
+  if (!v) return;
+  saveCfg({ webhookUrl: v });
+  renderAdminValues();
+  toggleEdit('sheets');
+}
+
+async function testWebhook() {
+  const el = document.getElementById('webhookTestResult');
+  el.style.display = 'block'; el.textContent = '⏳ Probando...';
+  try {
+    const url  = cfg().webhookUrl + '?action=ping';
+    const r    = await fetch(url);
+    const data = await r.json();
+    el.textContent = data.ok ? '✅ Conexión OK' : '⚠️ Respuesta: ' + JSON.stringify(data);
+  } catch(e) { el.textContent = '❌ Error: ' + e.message; }
+}
+
+async function saveConfigToGitHub() {
+  const status = document.getElementById('githubSaveStatus');
+  if (status) { status.textContent = '⏳ Guardando...'; status.style.color = 'var(--gray-400)'; }
+  try {
+    const r   = await fetch(cfg().webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: 'saveConfigToGitHub', config: cfg() })
+    });
+    const res = await r.json();
+    if (status) {
+      status.textContent = res.ok ? '✅ Guardado' : '❌ ' + (res.error || 'Error');
+      status.style.color  = res.ok ? 'var(--green-dark)' : 'var(--red)';
+    }
+  } catch(e) {
+    if (status) { status.textContent = '❌ Error de conexión'; status.style.color = 'var(--red)'; }
+  }
+}
+
+// ════════════════════════════════════════════
+// PROVEEDORES — próximos eventos
+// ════════════════════════════════════════════
+let _provData      = [];
+let _provFiltroDia = '';
+let _provFiltroMes = '';
+
+function clearProvFiltros() {
+  _provFiltroDia = ''; _provFiltroMes = '';
+  const d = document.getElementById('provFiltroDia'); if (d) d.value = '';
+  const m = document.getElementById('provFiltroMes'); if (m) m.value = '';
+  renderProvContent();
+}
+
+function onProvFiltroDiaChange() {
+  _provFiltroDia = document.getElementById('provFiltroDia')?.value || '';
+  _provFiltroMes = '';
+  const m = document.getElementById('provFiltroMes'); if (m) m.value = '';
+  renderProvContent();
+}
+
+function onProvFiltroMesChange() {
+  _provFiltroMes = document.getElementById('provFiltroMes')?.value || '';
+  _provFiltroDia = '';
+  const d = document.getElementById('provFiltroDia'); if (d) d.value = '';
+  renderProvContent();
+}
+
+function renderProvContent() {
+  const container = document.getElementById('prov-content');
+  const rangoEl   = document.getElementById('prov-rango');
+  if (!container) return;
+
+  let items = _provData.slice();
+
+  if (_provFiltroDia) {
+    items = items.filter(e => e.fecha === _provFiltroDia);
+    if (rangoEl) rangoEl.textContent = 'Día: ' + _provFiltroDia;
+  } else if (_provFiltroMes) {
+    items = items.filter(e => e.fecha && e.fecha.startsWith(_provFiltroMes));
+    if (rangoEl) rangoEl.textContent = 'Mes: ' + _provFiltroMes;
+  } else {
+    const today = new Date(); today.setHours(0,0,0,0);
+    const end   = new Date(today); end.setDate(end.getDate() + 30);
+    items = items.filter(e => {
+      if (!e.fecha) return false;
+      const d = new Date(e.fecha + 'T00:00:00');
+      return d >= today && d <= end;
+    });
+    if (rangoEl) rangoEl.textContent = 'Próximos 30 días';
+  }
+
+  items.sort((a, b) => (a.fecha || '') > (b.fecha || '') ? 1 : -1);
+
+  if (!items.length) {
+    container.innerHTML = '<div class="prov-loading">No hay eventos en el período seleccionado.</div>';
+    return;
+  }
+
+  const isAdmin = currentUser?.role === 'admin';
+  container.innerHTML = items.map(ev => {
+    const fecha  = ev.fecha ? new Date(ev.fecha + 'T00:00:00').toLocaleDateString('es-UY', { weekday:'short', day:'numeric', month:'short' }) : '—';
+    const kids   = ev.numKids   != null ? `👶 ${ev.numKids} niños`   : '';
+    const adults = ev.numAdults != null ? `🧑 ${ev.numAdults} adultos` : '';
+    const hora   = ev.startTime ? `⏰ ${ev.startTime}` : '';
+    const recs   = ev.recreadores?.length ? `🎪 ${ev.recreadores.join(', ')}` : '';
+    const editBtn = isAdmin
+      ? `<button onclick="event.stopPropagation();openRecsModal('${ev.id}')" style="background:none;border:1px solid var(--purple);color:var(--purple);border-radius:6px;padding:3px 9px;font-size:.75rem;cursor:pointer">Recs</button>`
+      : '';
+    return `<div onclick="openProvModal('${ev.id}')" style="padding:12px 14px;border:1.5px solid var(--gray-200);border-radius:10px;margin-bottom:8px;cursor:pointer;transition:.15s" onmouseover="this.style.borderColor='var(--purple)'" onmouseout="this.style.borderColor='var(--gray-200)'">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+        <div>
+          <div style="font-weight:700;font-size:.95rem">${ev.eventName || 'Sin nombre'}</div>
+          <div style="font-size:.8rem;color:var(--gray-400);margin-top:2px">${fecha}${hora ? ' · ' + hora : ''}</div>
+          <div style="font-size:.8rem;color:var(--gray-600);margin-top:3px">${[kids,adults].filter(Boolean).join(' · ')}</div>
+          ${recs ? `<div style="font-size:.78rem;color:var(--purple);margin-top:2px">${recs}</div>` : ''}
+        </div>
+        <div>${editBtn}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function loadProveedorView() {
+  const container = document.getElementById('prov-content');
+  const updEl     = document.getElementById('prov-updated');
+  if (!container) return;
+  container.className   = 'prov-loading';
+  container.textContent = 'Cargando eventos...';
+  try {
+    const url  = cfg().webhookUrl + '?action=getData&tipo=reserva';
+    const r    = await fetch(url);
+    const data = await r.json();
+    _provData = data.reservas || [];
+    if (updEl) updEl.textContent = 'Actualizado ' + new Date().toLocaleTimeString('es-UY', { hour:'2-digit', minute:'2-digit' });
+    container.className = '';
+  } catch(e) {
+    container.className = '';
+    container.innerHTML = '<div class="prov-loading" style="color:var(--red)">Error al cargar eventos.</div>';
+    return;
+  }
+  renderProvContent();
+}
+
+function openProvModal(id) {
+  const ev = _provData.find(e => String(e.id) === String(id));
+  if (!ev) return;
+  const overlay = document.getElementById('prov-modal-overlay');
+  document.getElementById('prov-modal-title').textContent = ev.eventName || 'Evento';
+  const fecha = ev.fecha
+    ? new Date(ev.fecha + 'T00:00:00').toLocaleDateString('es-UY', { weekday:'long', day:'numeric', month:'long', year:'numeric' })
+    : '';
+  document.getElementById('prov-modal-subtitle').textContent = [fecha, ev.startTime].filter(Boolean).join(' · ');
+  const body = document.getElementById('prov-modal-body');
+  const row  = (icon, label, val) => (val != null && val !== '')
+    ? `<div style="display:flex;gap:8px;align-items:flex-start"><span>${icon}</span><div><div style="font-size:.75rem;font-weight:600;color:var(--gray-400);text-transform:uppercase;letter-spacing:.4px">${label}</div><div style="font-size:.9rem;font-weight:600">${val}</div></div></div>`
+    : '';
+  body.innerHTML = [
+    row('👶', 'Niños',         ev.numKids),
+    row('🧑', 'Adultos',       ev.numAdults),
+    row('🍕', 'Menú niños',    ev.kidsMenu),
+    row('🍽️','Menú adultos',   ev.adultsMenu),
+    row('⏱️', 'Duración',      ev.extraHours ? `4 + ${ev.extraHours} hs extra` : '4 hs'),
+    row('💰', 'Seña',          ev.eventSena ? '$ ' + Number(ev.eventSena).toLocaleString('es-UY') : null),
+    row('📝', 'Notas',         ev.notes || ev.notas),
+    row('🎪', 'Recreadores',   ev.recreadores?.join(', ')),
+  ].filter(Boolean).join('');
+  overlay.classList.add('open');
+}
+
+function closeProvModal(e) {
+  if (e && e.target !== document.getElementById('prov-modal-overlay')) return;
+  document.getElementById('prov-modal-overlay').classList.remove('open');
+}
+
+// ════════════════════════════════════════════
+// MODAL RECREADORES
+// ════════════════════════════════════════════
+let _recsEventId = null;
+
+function openRecsModal(id) {
+  _recsEventId = id;
+  const ev = _provData.find(e => String(e.id) === String(id));
+  if (!ev) return;
+  const sub = document.getElementById('recs-modal-sub');
+  if (sub) sub.textContent = (ev.eventName || '') + (ev.fecha ? ' — ' + ev.fecha : '');
+  const container = document.getElementById('recs-dds-container');
+  if (!container) return;
+  const numRecs = parseInt(ev.numAnimadores) || 1;
+  const current = ev.recreadores || [];
+  container.innerHTML = '';
+  for (let i = 0; i < numRecs; i++) {
+    const div = document.createElement('div');
+    div.innerHTML = `<label style="font-size:.78rem;font-weight:600;color:var(--gray-600);margin-bottom:3px;display:block">Recreador ${i + 1}</label>
+      <input type="text" class="rec-inp" data-idx="${i}" value="${current[i] || ''}" placeholder="Nombre" style="width:100%;padding:8px 11px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:.9rem">`;
+    container.appendChild(div);
+  }
+  openModal('recsModal');
+}
+
+async function guardarRecreadores() {
+  const ev = _provData.find(e => String(e.id) === String(_recsEventId));
+  if (!ev) return;
+  const inputs   = document.querySelectorAll('#recs-dds-container .rec-inp');
+  ev.recreadores = Array.from(inputs).map(i => i.value.trim()).filter(Boolean);
+  try {
+    await fetch(cfg().webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: 'saveRecreadores', id: _recsEventId, recreadores: ev.recreadores })
+    });
+  } catch(e) { console.warn('guardarRecreadores error', e); }
+  closeModal('recsModal');
+  renderProvContent();
+}
+
+// ════════════════════════════════════════════
+// CHATBOT COMPAT
+// ════════════════════════════════════════════
+function closeChatbot() {
+  document.getElementById('ia-panel')?.classList.remove('open');
+}
+
+// ════════════════════════════════════════════
 // GOOGLE AUTH + ROLES
 // ════════════════════════════════════════════
 let currentUser = null; // { email, name, picture, role }
