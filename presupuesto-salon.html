@@ -3013,12 +3013,10 @@ function openProvModal(id) {
 
   const extraHs     = parseInt(ev['Horas extra'])        || 0;
   const duracion    = parseInt(ev['Duración (hs)'])      || (4 + extraHs);
-  const numAnim     = parseInt(ev['Nº animadores'])      || 0;
-  const animCalc    = parseInt(ev['Anim. calculados'])   || 0;
-  const animExtra   = Math.max(0, numAnim - animCalc);
-  const numMozos    = parseInt(ev['Nº mozos'])           || 0;
-  const mozosCalc   = parseInt(ev['Mozos calculados'])   || 0;
-  const mozosExtra  = Math.max(0, numMozos - mozosCalc);
+  const numAnim    = parseInt(ev['Nº animadores'])  || 0;
+  const animExtra  = parseInt(ev['Recreador extra']) || 0;
+  const numMozos   = parseInt(ev['Nº mozos'])        || 0;
+  const mozosExtra = parseInt(ev['Mozo extra'])      || 0;
   const horasLabel  = extraHs ? `${duracion} hs (${extraHs} extra)` : `${duracion} hs`;
 
   body.innerHTML = [
