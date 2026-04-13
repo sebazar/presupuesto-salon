@@ -3051,9 +3051,46 @@ function closeProvModal(e) {
 // ════════════════════════════════════════════
 // MODAL RECREADORES
 // ════════════════════════════════════════════
-let _recsEventId = null;
+let _recsEventId  = null;
+let _recsList     = [];   // cache de la lista de recreadores del sheet
 
-function openRecsModal(id) {
+async function _loadRecsList() {
+  try {
+    const r    = await fetch(cfg().webhookUrl + '?action=getData&tipo=recreadores');
+    const data = await r.json();
+    _recsList  = data.recreadores || [];
+  } catch(e) { console.warn('_loadRecsList error', e); }
+}
+
+function _buildRecSelect(idx, currentVal) {
+  const selId  = `rec-sel-${idx}`;
+  const inpId  = `rec-new-${idx}`;
+  const opts   = _recsList.map(n =>
+    `<option value="${n}" ${n === currentVal ? 'selected' : ''}>${n}</option>`
+  ).join('');
+  return `
+    <div style="margin-bottom:10px">
+      <label style="font-size:.78rem;font-weight:600;color:var(--gray-600);margin-bottom:4px;display:block">Recreador ${idx + 1}</label>
+      <select id="${selId}" data-idx="${idx}" onchange="onRecSelChange(${idx})"
+        style="width:100%;padding:8px 11px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:.9rem;background:white">
+        <option value="">— Sin asignar —</option>
+        ${opts}
+        <option value="__nuevo__">＋ Nuevo recreador...</option>
+      </select>
+      <input id="${inpId}" type="text" placeholder="Nombre del nuevo recreador"
+        style="display:none;width:100%;margin-top:6px;padding:8px 11px;border:1.5px solid var(--purple);border-radius:8px;font-size:.9rem">
+    </div>`;
+}
+
+function onRecSelChange(idx) {
+  const sel = document.getElementById(`rec-sel-${idx}`);
+  const inp = document.getElementById(`rec-new-${idx}`);
+  if (!sel || !inp) return;
+  inp.style.display = sel.value === '__nuevo__' ? 'block' : 'none';
+  if (sel.value === '__nuevo__') inp.focus();
+}
+
+async function openRecsModal(id) {
   _recsEventId = id;
   const ev = _provData.find(e => String(e['ID']) === String(id));
   if (!ev) return;
@@ -3061,31 +3098,62 @@ function openRecsModal(id) {
   if (sub) sub.textContent = (ev['Nombre evento'] || '') + (ev['Fecha'] ? ' — ' + ev['Fecha'] : '');
   const container = document.getElementById('recs-dds-container');
   if (!container) return;
+  container.innerHTML = '<div style="color:var(--gray-400);font-size:.85rem;padding:8px">Cargando...</div>';
+  openModal('recsModal');
+
+  await _loadRecsList();
+
   const numRecs = parseInt(ev['Nº animadores']) || 1;
   const current = _parseRecsAsignados(ev);
   container.innerHTML = '';
   for (let i = 0; i < numRecs; i++) {
-    const div = document.createElement('div');
-    div.innerHTML = `<label style="font-size:.78rem;font-weight:600;color:var(--gray-600);margin-bottom:3px;display:block">Recreador ${i + 1}</label>
-      <input type="text" class="rec-inp" data-idx="${i}" value="${current[i] || ''}" placeholder="Nombre" style="width:100%;padding:8px 11px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:.9rem">`;
-    container.appendChild(div);
+    container.insertAdjacentHTML('beforeend', _buildRecSelect(i, current[i] || ''));
   }
-  openModal('recsModal');
 }
 
 async function guardarRecreadores() {
   const ev = _provData.find(e => String(e['ID']) === String(_recsEventId));
   if (!ev) return;
-  const inputs  = document.querySelectorAll('#recs-dds-container .rec-inp');
-  const nombres = Array.from(inputs).map(i => i.value.trim()).filter(Boolean);
+
+  const btn = document.getElementById('recsGuardarBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
+
+  // Recolectar valores — si eligió "nuevo" usar el input de texto
+  const numRecs = parseInt(ev['Nº animadores']) || 1;
+  const nombres = [];
+  for (let i = 0; i < numRecs; i++) {
+    const sel = document.getElementById(`rec-sel-${i}`);
+    const inp = document.getElementById(`rec-new-${i}`);
+    if (!sel) continue;
+    if (sel.value === '__nuevo__') {
+      const nuevoNombre = inp?.value.trim() || '';
+      if (nuevoNombre) {
+        // Agregar al sheet si no existe
+        try {
+          await fetch(cfg().webhookUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain' },
+            body: JSON.stringify({ action: 'addRecreador', nombre: nuevoNombre })
+          });
+          if (!_recsList.includes(nuevoNombre)) _recsList.push(nuevoNombre);
+        } catch(e) { console.warn('addRecreador error', e); }
+        nombres.push(nuevoNombre);
+      }
+    } else if (sel.value) {
+      nombres.push(sel.value);
+    }
+  }
+
   ev['Recreadores asignados'] = nombres.join(', ');
   try {
     await fetch(cfg().webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({ action: 'saveRecreadores', id: _recsEventId, recreadores: nombres })
+      body: JSON.stringify({ action: 'updateRecreadores', id: _recsEventId, nombres: nombres.join(', ') })
     });
   } catch(e) { console.warn('guardarRecreadores error', e); }
+
+  if (btn) { btn.disabled = false; btn.textContent = '💾 Guardar'; }
   closeModal('recsModal');
   renderProvContent();
 }
