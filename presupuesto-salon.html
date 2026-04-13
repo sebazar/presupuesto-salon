@@ -2951,7 +2951,7 @@ function renderProvContent() {
     return `<div onclick="openProvModal('${evId}')" style="padding:11px 13px;border:1.5px solid var(--gray-200);border-radius:10px;margin-bottom:8px;cursor:pointer;transition:.15s" onmouseover="this.style.borderColor='var(--purple)'" onmouseout="this.style.borderColor='var(--gray-200)'">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:4px">
         <div style="flex:1;min-width:0">
-          <div style="font-weight:700;font-size:.92rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">🎉 ${ev['Nombre evento'] || 'Sin nombre'}</div>
+          <div style="font-weight:700;font-size:.92rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">🎉 ${ev['Nombre evento'] || 'Sin nombre'}${String(ev['Edad']??'').trim().replace(/^0$/,'') ? ' – ' + String(ev['Edad']).trim() + ' años' : ''}</div>
           <div style="font-size:.8rem;color:var(--gray-400);margin-top:2px">📅 ${fechaFmt}${horaStr ? ' · ⏰ ' + horaStr : ''}</div>
           <div style="font-size:.8rem;color:var(--gray-600);margin-top:2px">👶 ${ev['Nº niños'] || 0}${menuKids ? ' · 🌭 ' + menuKids : ''} &nbsp; 👥 ${ev['Nº adultos'] || 0}${menuAdults ? ' · 🍕 ' + menuAdults : ''}</div>
           <div style="font-size:.8rem;color:var(--purple);margin-top:2px">🎪 ${recs.join(', ')}</div>
@@ -2988,7 +2988,8 @@ function openProvModal(id) {
   if (!ev) return;
 
   // ── Encabezado ──────────────────────────────
-  const edad    = (ev['Edad'] || '').toString().trim();
+  const edadRaw = ev['Edad'] ?? ev['Edad '] ?? '';
+  const edad    = String(edadRaw).trim().replace(/^0$/, '');
   const nombre  = (ev['Nombre evento'] || 'Evento') + (edad ? ` – ${edad} años` : '');
   document.getElementById('prov-modal-title').textContent = nombre;
 
