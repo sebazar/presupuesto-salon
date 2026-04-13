@@ -2874,16 +2874,19 @@ function _abrevMenu(s) {
   return s.replace(' y snacks','').replace(' con gustos','').replace(' con papas fritas','').trim();
 }
 
+// Parsea 'Recreadores asignados' (CSV del sheet) en array, ignorando vacíos.
+function _parseRecsAsignados(ev) {
+  const raw = (ev['Recreadores asignados'] || '').toString().trim();
+  return raw ? raw.split(',').map(s => s.trim()).filter(Boolean) : [];
+}
+
 // Arma la lista de recreadores mostrando nombres asignados o placeholders.
 // Roman ocupa el slot 1 si su rol es 'Recreador'.
 function _buildRecsList(ev) {
-  const numKids  = parseInt(ev['Nº niños'])    || 0;
-  const numRecs  = parseInt(ev['Nº animadores']) || calcRecs(numKids).recs || 1;
-  const roman    = (ev['Roman'] || '').trim();
-  const romanIsRec = roman === 'Recreador';
-
-  // ev.recreadores: array de nombres asignados manualmente (excluye a Roman)
-  const assigned = Array.isArray(ev.recreadores) ? ev.recreadores : [];
+  const numKids    = parseInt(ev['Nº niños'])      || 0;
+  const numRecs    = parseInt(ev['Nº animadores']) || calcRecs(numKids).recs || 1;
+  const romanIsRec = (ev['Roman'] || '').trim() === 'Recreador';
+  const assigned   = _parseRecsAsignados(ev);
 
   const names = [];
   let assignedIdx = 0;
@@ -3028,12 +3031,13 @@ function openProvModal(id) {
     row('⏱️', 'Horas',          horasLabel),
     row('🧑', 'Roman',          ev['Roman']),
     row('🎪', 'N° Animadores',  numAnim || null),
-    row('➕', 'Recreador extra', animExtra > 0 ? animExtra : 'No'),
+    row('➕', 'Recreador extra', ev['Recreador extra'] ? 'Sí' : 'No'),
     row('🍷', 'N° Mozos',       numMozos || null),
-    mozosExtra > 0 ? row('➕', 'Mozo extra', mozosExtra) : '',
-    row('✨', 'Detalle extra',   ev['Extras detalle']),
-    row('📝', 'Descripción',    ev['Descripción']),
-    currentUser?.role === 'admin' ? row('🗒️', 'Notas',  ev['Notas']) : '',
+    ev['Mozo extra'] ? row('➕', 'Mozo extra', 'Sí') : '',
+    row('🎪', 'Recreadores',    ev['Recreadores asignados']),
+    row('✨', 'Detalle extra',  ev['Extras detalle']),
+    row('📝', 'Descripción',   ev['Descripción']),
+    currentUser?.role === 'admin' ? row('🗒️', 'Notas', ev['Notas']) : '',
   ].filter(Boolean).join('');
 
   document.getElementById('prov-modal-overlay').classList.add('open');
@@ -3058,7 +3062,7 @@ function openRecsModal(id) {
   const container = document.getElementById('recs-dds-container');
   if (!container) return;
   const numRecs = parseInt(ev['Nº animadores']) || 1;
-  const current = ev.recreadores || [];
+  const current = _parseRecsAsignados(ev);
   container.innerHTML = '';
   for (let i = 0; i < numRecs; i++) {
     const div = document.createElement('div');
@@ -3072,13 +3076,14 @@ function openRecsModal(id) {
 async function guardarRecreadores() {
   const ev = _provData.find(e => String(e['ID']) === String(_recsEventId));
   if (!ev) return;
-  const inputs   = document.querySelectorAll('#recs-dds-container .rec-inp');
-  ev.recreadores = Array.from(inputs).map(i => i.value.trim()).filter(Boolean);
+  const inputs  = document.querySelectorAll('#recs-dds-container .rec-inp');
+  const nombres = Array.from(inputs).map(i => i.value.trim()).filter(Boolean);
+  ev['Recreadores asignados'] = nombres.join(', ');
   try {
     await fetch(cfg().webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({ action: 'saveRecreadores', id: _recsEventId, recreadores: ev.recreadores })
+      body: JSON.stringify({ action: 'saveRecreadores', id: _recsEventId, recreadores: nombres })
     });
   } catch(e) { console.warn('guardarRecreadores error', e); }
   closeModal('recsModal');
