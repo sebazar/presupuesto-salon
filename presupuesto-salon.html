@@ -3033,6 +3033,7 @@ function openProvModal(id) {
     mozosExtra > 0 ? row('➕', 'Mozo extra', mozosExtra) : '',
     row('✨', 'Detalle extra',   ev['Extras detalle']),
     row('📝', 'Descripción',    ev['Descripción']),
+    currentUser?.role === 'admin' ? row('🗒️', 'Notas',  ev['Notas']) : '',
   ].filter(Boolean).join('');
 
   document.getElementById('prov-modal-overlay').classList.add('open');
