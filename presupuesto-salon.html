@@ -1841,6 +1841,8 @@ async function saveAsPresupuesto() {
 }
 
 async function saveAsReserva() {
+  const btn = (event && event.currentTarget) || document.getElementById('btn-saveReserva');
+
   const errs = validateReserva();
   if (errs.length) { showToast(errs); return; }
   clearAllErrors();
@@ -1853,8 +1855,6 @@ async function saveAsReserva() {
     showSaveToast('🚫 Hay una reserva que se pisa con este horario. Cambiá la hora de inicio.', true);
     return;
   }
-
-  const btn    = event.currentTarget;
   const saves  = getSaves();
   const form   = getFormState();
   const total  = getEffectiveTotal();
