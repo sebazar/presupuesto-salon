@@ -3029,9 +3029,9 @@ function openProvModal(id) {
     row('⏱️', 'Horas',          horasLabel),
     row('🧑', 'Roman',          ev['Roman']),
     row('🎪', 'N° Animadores',  numAnim || null),
-    animExtra ? row('➕', 'Animador extra', animExtra) : '',
+    row('➕', 'Recreador extra', animExtra > 0 ? animExtra : 'No'),
     row('🍷', 'N° Mozos',       numMozos || null),
-    mozosExtra ? row('➕', 'Mozo extra', mozosExtra) : '',
+    row('➕', 'Mozo extra',     mozosExtra > 0 ? mozosExtra : 'No'),
     row('✨', 'Detalle extra',   ev['Extras detalle']),
     row('📝', 'Descripción',    ev['Descripción']),
   ].filter(Boolean).join('');
