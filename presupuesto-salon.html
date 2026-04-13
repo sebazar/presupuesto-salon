@@ -3103,11 +3103,24 @@ async function openRecsModal(id) {
 
   await _loadRecsList();
 
-  const numRecs = parseInt(ev['Nº animadores']) || 1;
-  const current = _parseRecsAsignados(ev);
+  const numRecs    = parseInt(ev['Nº animadores']) || 1;
+  const romanIsRec = (ev['Roman'] || '').trim() === 'Recreador';
+  const current    = _parseRecsAsignados(ev);
   container.innerHTML = '';
   for (let i = 0; i < numRecs; i++) {
-    container.insertAdjacentHTML('beforeend', _buildRecSelect(i, current[i] || ''));
+    if (i === 0 && romanIsRec) {
+      container.insertAdjacentHTML('beforeend', `
+        <div style="margin-bottom:10px">
+          <label style="font-size:.78rem;font-weight:600;color:var(--gray-600);margin-bottom:4px;display:block">Recreador 1</label>
+          <div style="padding:8px 11px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:.9rem;background:var(--gray-50);color:var(--gray-600)">
+            🧑 Roman <span style="font-size:.75rem;color:var(--gray-400)">(fijo)</span>
+          </div>
+        </div>`);
+    } else {
+      // El índice en el array de asignados desplaza 1 si Roman ocupa slot 0
+      const assignedIdx = romanIsRec ? i - 1 : i;
+      container.insertAdjacentHTML('beforeend', _buildRecSelect(i, current[assignedIdx] || ''));
+    }
   }
 }
 
@@ -3119,9 +3132,12 @@ async function guardarRecreadores() {
   if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
 
   // Recolectar valores — si eligió "nuevo" usar el input de texto
-  const numRecs = parseInt(ev['Nº animadores']) || 1;
+  const numRecs    = parseInt(ev['Nº animadores']) || 1;
+  const romanIsRec = (ev['Roman'] || '').trim() === 'Recreador';
   const nombres = [];
   for (let i = 0; i < numRecs; i++) {
+    // Slot 0 con Roman fijo: no tiene select, se agrega automáticamente
+    if (i === 0 && romanIsRec) { nombres.push('Roman'); continue; }
     const sel = document.getElementById(`rec-sel-${i}`);
     const inp = document.getElementById(`rec-new-${i}`);
     if (!sel) continue;
