@@ -2865,6 +2865,15 @@ function onProvFiltroMesChange() {
 
 function _evISO(ev) { return _sheetDateToISO(ev['Fecha']) || ''; }
 
+// Mapeos de display (acepta tanto la clave interna como el label ya guardado)
+const _KIDS_MENU_LABEL   = { basic:'Panchos y snacks', alt:'Nuggets con papas fritas' };
+const _ADULTS_MENU_LABEL = { none:'Traen su comida', pizza:'Pizzas', pizza_calzone:'Pizzas y calzones', pizza_calzone_chivito:'Pizzas, calzones y chivitos' };
+function _menuKidsFull(v)   { return _KIDS_MENU_LABEL[v]   || v || ''; }
+function _menuAdultsFull(v) { return _ADULTS_MENU_LABEL[v] || v || ''; }
+function _abrevMenu(s) {
+  return s.replace(' y snacks','').replace(' con gustos','').replace(' con papas fritas','').trim();
+}
+
 // Arma la lista de recreadores mostrando nombres asignados o placeholders.
 // Roman ocupa el slot 1 si su rol es 'Recreador'.
 function _buildRecsList(ev) {
@@ -2936,9 +2945,8 @@ function renderProvContent() {
       ? `<button onclick="event.stopPropagation();openRecsModal('${evId}')" style="background:none;border:1px solid var(--purple);color:var(--purple);border-radius:6px;padding:3px 9px;font-size:.75rem;cursor:pointer;flex-shrink:0;margin-left:8px">Recs</button>`
       : '';
 
-    const _abrevMenu = s => s.replace(' y snacks','').replace(' con gustos','').replace('con papas fritas','').trim();
-    const menuKids   = _abrevMenu(ev['Menú niños']   || '');
-    const menuAdults = _abrevMenu(ev['Menú adultos'] || '');
+    const menuKids   = _abrevMenu(_menuKidsFull(ev['Menú niños']   || ''));
+    const menuAdults = _abrevMenu(_menuAdultsFull(ev['Menú adultos'] || ''));
 
     return `<div onclick="openProvModal('${evId}')" style="padding:11px 13px;border:1.5px solid var(--gray-200);border-radius:10px;margin-bottom:8px;cursor:pointer;transition:.15s" onmouseover="this.style.borderColor='var(--purple)'" onmouseout="this.style.borderColor='var(--gray-200)'">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:4px">
@@ -2978,30 +2986,57 @@ async function loadProveedorView() {
 function openProvModal(id) {
   const ev = _provData.find(e => String(e['ID']) === String(id));
   if (!ev) return;
-  const overlay = document.getElementById('prov-modal-overlay');
-  document.getElementById('prov-modal-title').textContent = ev['Nombre evento'] || 'Evento';
-  const iso   = _evISO(ev);
-  const fecha = iso
+
+  // ── Encabezado ──────────────────────────────
+  const edad    = (ev['Edad'] || '').toString().trim();
+  const nombre  = (ev['Nombre evento'] || 'Evento') + (edad ? ` – ${edad} años` : '');
+  document.getElementById('prov-modal-title').textContent = nombre;
+
+  const iso      = _evISO(ev);
+  const fechaLng = iso
     ? new Date(iso + 'T00:00:00').toLocaleDateString('es-UY', { weekday:'long', day:'numeric', month:'long', year:'numeric' })
     : (ev['Fecha'] || '');
-  document.getElementById('prov-modal-subtitle').textContent = [fecha, ev['Hora inicio']].filter(Boolean).join(' · ');
+  const horaIni  = ev['Hora inicio'] || '';
+  const horaFin  = ev['Hora fin']    || '';
+  const horaStr  = horaIni ? (horaFin ? `${horaIni} – ${horaFin}` : horaIni) : '';
+  document.getElementById('prov-modal-subtitle').textContent = [fechaLng, horaStr].filter(Boolean).join(' · ');
+
+  // ── Body ────────────────────────────────────
   const body = document.getElementById('prov-modal-body');
-  const row  = (icon, label, val) => (val != null && val !== '' && val != 0)
-    ? `<div style="display:flex;gap:8px;align-items:flex-start"><span>${icon}</span><div><div style="font-size:.75rem;font-weight:600;color:var(--gray-400);text-transform:uppercase;letter-spacing:.4px">${label}</div><div style="font-size:.9rem;font-weight:600">${val}</div></div></div>`
+  const row  = (icon, label, val) => (val != null && val !== '' && String(val) !== '0')
+    ? `<div style="display:flex;gap:10px;align-items:baseline;padding:5px 0;border-bottom:1px solid var(--gray-100)">
+         <span style="width:20px;text-align:center;flex-shrink:0">${icon}</span>
+         <div style="font-size:.75rem;font-weight:600;color:var(--gray-400);text-transform:uppercase;letter-spacing:.4px;min-width:110px;flex-shrink:0">${label}</div>
+         <div style="font-size:.9rem;font-weight:600;color:var(--gray-800)">${val}</div>
+       </div>`
     : '';
-  const extraHs = parseInt(ev['Horas extra']) || 0;
-  const sena    = parseFloat(ev['Pagos ($)'] || ev['Seña ($)'] || 0);
+
+  const extraHs     = parseInt(ev['Horas extra'])        || 0;
+  const duracion    = parseInt(ev['Duración (hs)'])      || (4 + extraHs);
+  const numAnim     = parseInt(ev['Nº animadores'])      || 0;
+  const animCalc    = parseInt(ev['Anim. calculados'])   || 0;
+  const animExtra   = Math.max(0, numAnim - animCalc);
+  const numMozos    = parseInt(ev['Nº mozos'])           || 0;
+  const mozosCalc   = parseInt(ev['Mozos calculados'])   || 0;
+  const mozosExtra  = Math.max(0, numMozos - mozosCalc);
+  const horasLabel  = extraHs ? `${duracion} hs (${extraHs} extra)` : `${duracion} hs`;
+
   body.innerHTML = [
-    row('👶', 'Niños',        ev['Nº niños']),
-    row('🧑', 'Adultos',      ev['Nº adultos']),
-    row('🍕', 'Menú niños',   ev['Menú niños']),
-    row('🍽️','Menú adultos',  ev['Menú adultos']),
-    row('⏱️', 'Duración',     extraHs ? `4 + ${extraHs} hs extra` : '4 hs'),
-    row('💰', 'Seña',         sena ? '$ ' + sena.toLocaleString('es-UY') : null),
-    row('📝', 'Notas',        ev['Notas']),
-    row('🎪', 'Recreadores',  ev.recreadores?.join(', ')),
+    row('👶', 'Niños',          ev['Nº niños']),
+    row('🌭', 'Menú niños',     _menuKidsFull(ev['Menú niños'] || '')),
+    row('👥', 'Adultos',        ev['Nº adultos']),
+    row('🍕', 'Menú adultos',   _menuAdultsFull(ev['Menú adultos'] || '')),
+    row('⏱️', 'Horas',          horasLabel),
+    row('🧑', 'Roman',          ev['Roman']),
+    row('🎪', 'N° Animadores',  numAnim || null),
+    animExtra ? row('➕', 'Animador extra', animExtra) : '',
+    row('🍷', 'N° Mozos',       numMozos || null),
+    mozosExtra ? row('➕', 'Mozo extra', mozosExtra) : '',
+    row('✨', 'Detalle extra',   ev['Extras detalle']),
+    row('📝', 'Descripción',    ev['Descripción']),
   ].filter(Boolean).join('');
-  overlay.classList.add('open');
+
+  document.getElementById('prov-modal-overlay').classList.add('open');
 }
 
 function closeProvModal(e) {
