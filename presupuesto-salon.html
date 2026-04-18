@@ -1969,7 +1969,7 @@ function clearGuardadosFilters() {
 }
 
 function syncFromSheetGuardados() {
-  syncFromSheet(); // re-use existing sync, then re-render
+  syncFromSheet(); // lee los filtros del modal (guardadosMesFilter / guardadosFechaFilter)
 }
 
 function renderGuardadosTab() {
@@ -2612,15 +2612,22 @@ async function syncFromSheet() {
     }
     if (unsynced.length > 0) putSaves(saves);
 
-    // 2. Construir URL con tipo y fecha opcional
-    const dateFilterEl = document.getElementById('syncDateFilter');
-    const dateFilter   = dateFilterEl ? dateFilterEl.value : '';
+    // 2. Construir URL leyendo filtros del modal de guardados
+    const mesFilterEl   = document.getElementById('guardadosMesFilter');
+    const fechaFilterEl = document.getElementById('guardadosFechaFilter');
+    const mesFilter     = mesFilterEl   ? (mesFilterEl.value   || '') : '';
+    const fechaFilter   = fechaFilterEl ? (fechaFilterEl.value || '') : '';
+
     let getUrl = `${url}?action=getData&tipo=${tipo}`;
-    if (dateFilter) {
-      // Convertir YYYY-MM-DD → DD/MM/YYYY para el sheet
-      const [y, m, d] = dateFilter.split('-');
+    if (fechaFilter) {
+      // Filtro por fecha exacta: convertir YYYY-MM-DD → DD/MM/YYYY
+      const [y, m, d] = fechaFilter.split('-');
       getUrl += '&fecha=' + encodeURIComponent(`${d}/${m}/${y}`);
+    } else if (mesFilter) {
+      // Filtro por mes: pasar YYYY-MM directamente
+      getUrl += '&mes=' + encodeURIComponent(mesFilter);
     }
+    // Sin filtro → Apps Script devuelve fechas >= hoy (comportamiento default)
 
     // 3. Bajar registros del sheet
     const res  = await fetch(getUrl);
@@ -2630,19 +2637,27 @@ async function syncFromSheet() {
     const sheetEntries = (data[sheetKey] || []).map(r => rowToEntry(Object.assign({ _status: tipo }, r)));
 
     // 4. Armar el conjunto local a conservar:
-    //    - Todos los registros del OTRO tipo (no tocamos reservas si sinceamos presupuestos, y viceversa)
-    //    - Registros con fecha PASADA del tipo actual (el sheet solo devuelve futuros o el filtro de fecha)
-    //    - Si hay filtro de fecha: también conservar futuros del tipo actual de OTRAS fechas
+    //    - Registros del OTRO tipo → siempre conservar
+    //    - Sin filtro activo → conservar solo los pasados del tipo actual (el sheet ya trae los futuros)
+    //    - Con filtro de fecha → conservar todo excepto esa fecha exacta (el sheet la reemplaza)
+    //    - Con filtro de mes → conservar todo excepto las fechas de ese mes (el sheet las reemplaza)
     saves = getSaves();
     const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
 
     const keepSaves = saves.filter(s => {
-      if (s.status !== tipo) return true;          // otro tipo → conservar siempre
+      if (s.status !== tipo) return true;   // otro tipo → conservar siempre
       if (!s.form?.eventDate) return false;
-      const evDate = new Date(s.form.eventDate + 'T00:00:00');
-      if (evDate < hoy) return true;               // pasados → conservar
-      if (dateFilter && s.form.eventDate !== dateFilter) return true; // otras fechas futuras si hay filtro
-      return false;
+      const evDate  = new Date(s.form.eventDate + 'T00:00:00');
+      if (fechaFilter) {
+        // Conservar todo excepto la fecha filtrada (el sheet la reemplaza)
+        return s.form.eventDate !== fechaFilter;
+      } else if (mesFilter) {
+        // Conservar todo excepto las fechas del mes filtrado
+        return !s.form.eventDate.startsWith(mesFilter);
+      } else {
+        // Sin filtro: conservar solo pasados (el sheet trae futuros)
+        return evDate < hoy;
+      }
     });
 
     // 5. Combinar y deduplicar (sheet tiene precedencia)
