@@ -524,7 +524,7 @@
     <!-- Barra superior: Guardados + Limpiar -->
 
     <div style="display:flex;gap:8px;margin-bottom:10px">
-      <button class="btn btn-outline btn-xs" style="flex:1" onclick="openGuardadosModal(currentTab==='reserva'?'reserva':'presupuesto')">📂 Guardados</button>
+      <button class="btn btn-outline btn-xs" style="flex:1" onclick="openGuardadosModal(currentTab==='reserva'?'reserva':'presupuesto')" id="btn-buscar-guardados">🔍 <span id="lbl-buscar-guardados">Buscar Presupuestos</span></button>
       <button class="btn btn-gray btn-xs" style="flex:1" onclick="confirmClear()">🗑️ Limpiar</button>
     </div>
 
@@ -817,6 +817,21 @@
 
   <!-- ══════════════ TAB GASTOS ══════════════ -->
   <div id="tab-gastos" style="display:none">
+
+    <!-- Sub-tabs de Gastos -->
+    <div style="display:flex;gap:0;margin-bottom:12px;border-bottom:2px solid var(--gray-200)">
+      <button id="gastosTab-registrar" onclick="switchGastosTab('registrar')"
+        style="padding:8px 16px;font-size:.85rem;font-weight:600;border:none;background:none;cursor:pointer;border-bottom:2px solid var(--purple);color:var(--purple);margin-bottom:-2px">
+        💸 Registrar gasto
+      </button>
+      <button id="gastosTab-servicios" onclick="switchGastosTab('servicios')"
+        style="padding:8px 16px;font-size:.85rem;font-weight:600;border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;color:var(--gray-400);margin-bottom:-2px">
+        🔁 Servicios e Impuestos
+      </button>
+    </div>
+
+    <!-- Sub-tab: Registrar gasto -->
+    <div id="gastosPanel-registrar">
     <div class="card">
       <div class="card-header"><h2>💸 Registrar gasto</h2></div>
       <div style="display:flex;flex-direction:column;gap:14px;padding:4px 0">
@@ -898,6 +913,22 @@
 
       </div>
     </div>
+    </div><!-- /gastosPanel-registrar -->
+
+    <!-- Sub-tab: Servicios e Impuestos -->
+    <div id="gastosPanel-servicios" style="display:none">
+      <div class="card">
+        <div class="card-header" style="display:flex;justify-content:space-between;align-items:center">
+          <h2>🔁 Servicios e Impuestos</h2>
+          <button class="btn btn-sm btn-outline" onclick="cargarServicios()">↻ Actualizar</button>
+        </div>
+        <div id="serviciosMes" style="font-size:.8rem;color:var(--gray-400);margin-bottom:8px"></div>
+        <div id="serviciosList" style="display:flex;flex-direction:column;gap:8px;min-height:80px">
+          <div style="color:var(--gray-400);font-size:.875rem;text-align:center;padding:24px">Cargando...</div>
+        </div>
+      </div>
+    </div><!-- /gastosPanel-servicios -->
+
   </div>
 
   <!-- ══════════════ TAB ADMINISTRACIÓN ══════════════ -->
@@ -1129,8 +1160,12 @@ function switchTab(t) {
 
   if (t === 'admin')     renderAdminValues();
   if (t === 'proveedor') loadProveedorView();
-  if (t === 'gastos')    gastoSetToday();
+  if (t === 'gastos') { gastoSetToday(); switchGastosTab(_currentGastosTab); }
   if (loadedId) updateEditButtons();
+
+  // Actualizar label del botón Buscar
+  const lblBuscar = document.getElementById('lbl-buscar-guardados');
+  if (lblBuscar) lblBuscar.textContent = (t === 'reserva') ? 'Buscar Reservas' : 'Buscar Presupuestos';
 
   // Cerrar asistente si cambia a tab sin formulario
   if (!['presupuesto','reserva'].includes(t)) {
@@ -2207,11 +2242,117 @@ function renderSavesList(filter = 'presupuesto') {
 }
 
 // ════════════════════════════════════════════
-// TAB GASTOS
+// TAB GASTOS — sub-tabs
 // ════════════════════════════════════════════
+let _currentGastosTab = 'registrar';
+
+function switchGastosTab(tab) {
+  _currentGastosTab = tab;
+  const tabs = ['registrar', 'servicios'];
+  tabs.forEach(t => {
+    const btn   = document.getElementById(`gastosTab-${t}`);
+    const panel = document.getElementById(`gastosPanel-${t}`);
+    const active = t === tab;
+    if (btn) {
+      btn.style.borderBottomColor = active ? 'var(--purple)' : 'transparent';
+      btn.style.color             = active ? 'var(--purple)' : 'var(--gray-400)';
+    }
+    if (panel) panel.style.display = active ? '' : 'none';
+  });
+  if (tab === 'servicios') cargarServicios();
+}
+
 function gastoSetToday() {
   const el = document.getElementById('gastoFecha');
   if (el && !el.value) el.value = new Date().toISOString().slice(0, 10);
+}
+
+// ─── Servicios e Impuestos ───────────────────────────────────────────────────
+
+let _serviciosPendienteConcepto = null; // concepto del servicio que origina el pago
+
+async function cargarServicios() {
+  const url = cfg().webhookUrl;
+  const listEl = document.getElementById('serviciosList');
+  const mesEl  = document.getElementById('serviciosMes');
+  if (!listEl) return;
+
+  if (!url || !url.startsWith('http')) {
+    listEl.innerHTML = `<div style="color:var(--red);font-size:.875rem;padding:12px">Configurá el webhook en Administración.</div>`;
+    return;
+  }
+
+  listEl.innerHTML = `<div style="color:var(--gray-400);font-size:.875rem;text-align:center;padding:24px">Cargando...</div>`;
+
+  const ahora    = new Date();
+  const mesLabel = ahora.toLocaleString('es-AR', { month: 'long', year: 'numeric' });
+  const mesAnio  = `${String(ahora.getMonth()+1).padStart(2,'0')}/${ahora.getFullYear()}`; // MM/YYYY
+  if (mesEl) mesEl.textContent = `Mes actual: ${mesLabel}`;
+
+  try {
+    const res  = await fetch(`${url}?action=getServicios`);
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || 'Error al cargar servicios');
+    const servicios = data.servicios || [];
+
+    if (!servicios.length) {
+      listEl.innerHTML = `<div style="color:var(--gray-400);font-size:.875rem;text-align:center;padding:24px">No hay servicios configurados.</div>`;
+      return;
+    }
+
+    listEl.innerHTML = servicios.map((s, i) => {
+      const pagadoEsteMes = String(s['Pago']).toLowerCase() === 'true' && String(s['Mes'] || '').trim() === mesAnio;
+      const concepto = escHtml(s['Concepto'] || '—');
+      return `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;background:${pagadoEsteMes ? '#f0fdf4' : '#fff'};border:1px solid ${pagadoEsteMes ? '#bbf7d0' : 'var(--gray-200)'}">
+        <div style="flex:1;font-size:.9rem;font-weight:600;color:var(--gray-800)">${concepto}</div>
+        <div style="font-size:1.1rem" title="${pagadoEsteMes ? 'Pagado' : 'Pendiente'}">${pagadoEsteMes ? '✅' : '⬜'}</div>
+        ${!pagadoEsteMes
+          ? `<button class="btn btn-sm btn-primary" style="font-size:.78rem;padding:4px 12px" onclick="pagarServicio(${i})">Pagar</button>`
+          : `<span style="font-size:.75rem;color:#16a34a;font-weight:600">Pagado</span>`
+        }
+      </div>`;
+    }).join('');
+
+    // Guardar lista en memoria para el handler de pago
+    window._serviciosData = servicios;
+
+  } catch(e) {
+    listEl.innerHTML = `<div style="color:var(--red);font-size:.875rem;padding:12px">✗ ${e.message}</div>`;
+  }
+}
+
+function pagarServicio(idx) {
+  const s = (window._serviciosData || [])[idx];
+  if (!s) return;
+
+  // Guardar referencia para marcar como pagado al guardar el gasto
+  _serviciosPendienteConcepto = String(s['Concepto'] || '').trim();
+
+  // Pre-completar form de registrar gasto
+  const gastoConceptoEl  = document.getElementById('gastoConcepto');
+  const gastoProveedorEl = document.getElementById('gastoProveedor');
+  const gastoFijoEl      = document.getElementById('gastoFijo');
+  const gastoFormaPagoEl = document.getElementById('gastoFormaPago');
+
+  if (gastoConceptoEl)  gastoConceptoEl.value   = s['Concepto']     || '';
+  if (gastoFijoEl)      gastoFijoEl.checked      = String(s['Gasto Fijo']).toLowerCase() === 'true' || String(s['Gasto Fijo']) === '1';
+
+  // Proveedor: intentar seleccionar opción existente, si no existe se deja en blanco
+  if (gastoProveedorEl) {
+    const opciones = Array.from(gastoProveedorEl.options).map(o => o.value.toLowerCase());
+    const provMatch = opciones.findIndex(o => o === String(s['Proveedor'] || '').trim().toLowerCase());
+    gastoProveedorEl.value = provMatch >= 0 ? gastoProveedorEl.options[provMatch].value : '';
+  }
+
+  // Forma de pago: ídem
+  if (gastoFormaPagoEl) {
+    const fpOpciones = Array.from(gastoFormaPagoEl.options).map(o => o.value.toLowerCase());
+    const fpMatch = fpOpciones.findIndex(o => o === String(s['Forma de pago'] || '').trim().toLowerCase());
+    gastoFormaPagoEl.value = fpMatch >= 0 ? gastoFormaPagoEl.options[fpMatch].value : '';
+  }
+
+  // Navegar al sub-tab de registrar gasto
+  switchGastosTab('registrar');
 }
 
 function onGastoProveedorChange() {
@@ -2275,9 +2416,26 @@ async function guardarGasto() {
     const res  = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload) });
     const data = await res.json();
     if (data.success !== false) {
-      limpiarGasto();
-      btn.disabled = false; btn.innerHTML = '💾 Registrar gasto';
-      showSaveToast('✓ Gasto registrado en planilla');
+      // Si el gasto vino desde "Servicios e Impuestos", marcar como pagado en el sheet
+      if (_serviciosPendienteConcepto) {
+        const ahora  = new Date();
+        const mesAnio = `${String(ahora.getMonth()+1).padStart(2,'0')}/${ahora.getFullYear()}`;
+        fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain' },
+          body: JSON.stringify({ action: 'pagarServicio', concepto: _serviciosPendienteConcepto, mesAnio })
+        }).catch(() => {});
+        _serviciosPendienteConcepto = null;
+        // Volver al sub-tab de servicios y refrescar
+        limpiarGasto();
+        btn.disabled = false; btn.innerHTML = '💾 Registrar gasto';
+        showSaveToast('✓ Gasto registrado y servicio marcado como pagado');
+        switchGastosTab('servicios');
+      } else {
+        limpiarGasto();
+        btn.disabled = false; btn.innerHTML = '💾 Registrar gasto';
+        showSaveToast('✓ Gasto registrado en planilla');
+      }
     } else {
       btn.disabled = false; btn.innerHTML = '💾 Registrar gasto';
       showSaveToast('✗ Error: ' + (data.error || 'respuesta inesperada'), true);
