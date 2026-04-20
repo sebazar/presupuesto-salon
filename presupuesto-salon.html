@@ -3474,7 +3474,7 @@ function logout() {
   closeChatbot();
 }
 
-function initGoogleAuth() {
+async function initGoogleAuth() {
   const clientId = cfg().googleClientId;
   if (!clientId) {
     // Sin Client ID: modo desarrollo, acceso libre como admin
