@@ -498,7 +498,7 @@
   <button class="active" onclick="switchTab('presupuesto')">📋 Presupuestos</button>
   <button onclick="switchTab('reserva')">✅ Reservas</button>
   <button onclick="switchTab('gastos')">💸 Gastos</button>
-  <button onclick="switchTab('proveedor')">📅 Próx. Eventos</button>
+  <button onclick="switchTab('proveedor')">🔍 Buscar evento</button>
 </nav>
 
 <main>
@@ -765,26 +765,28 @@
   </div><!-- /form-area -->
 
 
-  <!-- ══════════════ TAB PROVEEDORES ══════════════ -->
+  <!-- ══════════════ TAB BUSCAR EVENTO ══════════════ -->
   <div id="tab-proveedor" style="display:none">
     <div class="card">
       <div class="prov-header">
-        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-          <h2 style="margin:0">📅 Próximos eventos</h2>
-          <!-- Filtros inline: solo admin -->
-          <div id="prov-filtros-admin" style="display:none;align-items:center;gap:6px">
-            <input type="date"  id="provFiltroDia" style="padding:4px 8px;border:1.5px solid var(--gray-200);border-radius:7px;font-size:.8rem" onchange="onProvFiltroDiaChange()" title="Día">
-            <input type="month" id="provFiltroMes" style="padding:4px 8px;border:1.5px solid var(--gray-200);border-radius:7px;font-size:.8rem" onchange="onProvFiltroMesChange()" title="Mes">
-            <button onclick="clearProvFiltros()" style="padding:4px 8px;font-size:.78rem;border:1px solid var(--gray-300);border-radius:7px;background:white;cursor:pointer;color:var(--gray-500);line-height:1" title="Limpiar filtros">✕</button>
-          </div>
-        </div>
+        <h2 style="margin:0">🔍 Buscar evento</h2>
         <div style="display:flex;align-items:center;gap:8px">
           <small id="prov-updated" style="color:var(--gray-400);font-size:.78rem"></small>
-          <button class="prov-refresh" onclick="loadProveedorView()">↻</button>
         </div>
       </div>
+      <!-- Filtros de búsqueda -->
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
+        <input type="month" id="provFiltroMes" placeholder="Mes"
+          style="padding:6px 10px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:.85rem;flex:1;min-width:130px"
+          onchange="onProvFiltroMesChange()" title="Filtrar por mes">
+        <input type="date" id="provFiltroDia"
+          style="padding:6px 10px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:.85rem;flex:1;min-width:130px"
+          onchange="onProvFiltroDiaChange()" title="Filtrar por día exacto">
+        <button class="btn btn-primary" style="padding:7px 18px;font-size:.85rem;flex-shrink:0" onclick="buscarEventos()">Buscar</button>
+        <button onclick="clearProvFiltros()" style="padding:6px 10px;font-size:.78rem;border:1px solid var(--gray-300);border-radius:8px;background:white;cursor:pointer;color:var(--gray-500)" title="Limpiar">✕</button>
+      </div>
       <div id="prov-rango" style="font-size:.8rem;font-weight:700;color:var(--purple-dark);margin-bottom:8px;padding:2px 0"></div>
-      <div id="prov-content" class="prov-loading">Cargando eventos...</div>
+      <div id="prov-content" style="color:var(--gray-400);font-size:.875rem;text-align:center;padding:32px">Seleccioná un mes o un día y presioná Buscar.</div>
     </div>
   </div>
 
@@ -1158,9 +1160,9 @@ function switchTab(t) {
   document.getElementById('btn-savePresupuesto-bot').style.display = isP ? '' : 'none';
   document.getElementById('btn-saveReserva').style.display          = isR ? '' : 'none';
 
-  if (t === 'admin')     renderAdminValues();
-  if (t === 'proveedor') loadProveedorView();
+  if (t === 'admin')  renderAdminValues();
   if (t === 'gastos') { gastoSetToday(); switchGastosTab(_currentGastosTab); }
+  // 'proveedor' (Buscar evento) no carga nada por defecto — requiere acción del usuario
   if (loadedId) updateEditButtons();
 
   // Actualizar label del botón Buscar
@@ -3019,21 +3021,27 @@ function clearProvFiltros() {
   _provFiltroDia = ''; _provFiltroMes = '';
   const d = document.getElementById('provFiltroDia'); if (d) d.value = '';
   const m = document.getElementById('provFiltroMes'); if (m) m.value = '';
-  renderProvContent();
+  _provData = [];
+  const container = document.getElementById('prov-content');
+  const rangoEl   = document.getElementById('prov-rango');
+  if (container) container.innerHTML = '<div style="color:var(--gray-400);font-size:.875rem;text-align:center;padding:32px">Seleccioná un mes o un día y presioná Buscar.</div>';
+  if (rangoEl)   rangoEl.textContent = '';
 }
 
 function onProvFiltroDiaChange() {
   _provFiltroDia = document.getElementById('provFiltroDia')?.value || '';
-  _provFiltroMes = '';
-  const m = document.getElementById('provFiltroMes'); if (m) m.value = '';
-  renderProvContent();
+  if (_provFiltroDia) {
+    _provFiltroMes = '';
+    const m = document.getElementById('provFiltroMes'); if (m) m.value = '';
+  }
 }
 
 function onProvFiltroMesChange() {
   _provFiltroMes = document.getElementById('provFiltroMes')?.value || '';
-  _provFiltroDia = '';
-  const d = document.getElementById('provFiltroDia'); if (d) d.value = '';
-  renderProvContent();
+  if (_provFiltroMes) {
+    _provFiltroDia = '';
+    const d = document.getElementById('provFiltroDia'); if (d) d.value = '';
+  }
 }
 
 function _evISO(ev) { return _sheetDateToISO(ev['Fecha']) || ''; }
@@ -3074,6 +3082,18 @@ function _buildRecsList(ev) {
   return names;
 }
 
+async function buscarEventos() {
+  const dia = document.getElementById('provFiltroDia')?.value || '';
+  const mes = document.getElementById('provFiltroMes')?.value || '';
+  if (!dia && !mes) {
+    showSaveToast('✗ Seleccioná un mes o un día para buscar.', true);
+    return;
+  }
+  _provFiltroDia = dia;
+  _provFiltroMes = mes;
+  await loadProveedorView();
+}
+
 function renderProvContent() {
   const container = document.getElementById('prov-content');
   const rangoEl   = document.getElementById('prov-rango');
@@ -3083,29 +3103,24 @@ function renderProvContent() {
 
   if (_provFiltroDia) {
     items = items.filter(e => _evISO(e) === _provFiltroDia);
-    if (rangoEl) rangoEl.textContent = 'Día: ' + _provFiltroDia;
+    const d = new Date(_provFiltroDia + 'T00:00:00');
+    const label = d.toLocaleDateString('es-UY', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+    if (rangoEl) rangoEl.textContent = label;
   } else if (_provFiltroMes) {
     items = items.filter(e => _evISO(e).startsWith(_provFiltroMes));
-    if (rangoEl) rangoEl.textContent = 'Mes: ' + _provFiltroMes;
-  } else {
-    const today = new Date(); today.setHours(0,0,0,0);
-    const end   = new Date(today); end.setDate(end.getDate() + 15);
-    items = items.filter(e => {
-      const iso = _evISO(e); if (!iso) return false;
-      const d = new Date(iso + 'T00:00:00');
-      return d >= today && d <= end;
-    });
-    if (rangoEl) rangoEl.textContent = 'Próximos 15 días';
+    const [y, m] = _provFiltroMes.split('-');
+    const mesLabel = new Date(parseInt(y), parseInt(m)-1, 1).toLocaleString('es-UY', { month:'long', year:'numeric' });
+    if (rangoEl) rangoEl.textContent = `${mesLabel} — ${items.length} evento${items.length !== 1 ? 's' : ''}`;
   }
 
   items.sort((a, b) => (_evISO(a) > _evISO(b) ? 1 : -1));
 
   if (!items.length) {
-    container.innerHTML = '<div class="prov-loading">No hay eventos en los próximos 15 días.</div>';
+    container.innerHTML = '<div class="prov-loading">No hay eventos para el período seleccionado.</div>';
     return;
   }
 
-  const showRecs = ['admin','proveedor'].includes(currentUser?.role);
+  const showRecs = ['admin','ventas'].includes(currentUser?.role);
   container.innerHTML = items.map(ev => {
     const iso      = _evISO(ev);
     const fechaFmt = iso
@@ -3143,9 +3158,18 @@ async function loadProveedorView() {
   const updEl     = document.getElementById('prov-updated');
   if (!container) return;
   container.className   = 'prov-loading';
-  container.textContent = 'Cargando eventos...';
+  container.textContent = 'Buscando eventos...';
+
+  // Construir URL con filtro activo
+  let url = cfg().webhookUrl + '?action=getData&tipo=reserva';
+  if (_provFiltroDia) {
+    const [y, m, d] = _provFiltroDia.split('-');
+    url += '&fecha=' + encodeURIComponent(`${d}/${m}/${y}`);
+  } else if (_provFiltroMes) {
+    url += '&mes=' + encodeURIComponent(_provFiltroMes);
+  }
+
   try {
-    const url  = cfg().webhookUrl + '?action=getData&tipo=reserva';
     const r    = await fetch(url);
     const data = await r.json();
     _provData = data.reservas || [];
@@ -3358,11 +3382,11 @@ function closeChatbot() {
 let currentUser = null; // { email, name, picture, role }
 
 const ROLE_TABS = {
-  admin:     ['presupuesto','reserva','gastos','proveedor'],
-  ventas:    ['presupuesto','reserva','gastos','proveedor'],
-  proveedor: ['proveedor'],
+  admin:  ['presupuesto','reserva','gastos','proveedor'],
+  ventas: ['presupuesto','reserva','gastos','proveedor'],
 };
-const ALL_TABS = ['presupuesto','reserva','gastos','proveedor'];
+const ALL_TABS     = ['presupuesto','reserva','gastos','proveedor'];
+const ALLOWED_ROLES = ['admin','ventas'];
 
 function parseJwt(token) {
   try { return JSON.parse(atob(token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))); }
@@ -3377,7 +3401,10 @@ async function handleGoogleLogin(response) {
     const url = `${cfg().webhookUrl}?action=getRole&email=${encodeURIComponent(email)}`;
     const r   = await fetch(url);
     const data = await r.json();
-    if (!data.ok) { showLoginError('Tu cuenta no tiene acceso. Contactá al administrador.'); return; }
+    if (!data.ok || !ALLOWED_ROLES.includes(data.role)) {
+      showLoginError('Esta página es solo para administradores. Si sos proveedor, usá proximos-eventos.html');
+      return;
+    }
     currentUser = { email, name: payload.name || email, picture: payload.picture || '', role: data.role };
     onLoginSuccess();
   } catch(e) { showLoginError('Error al verificar acceso. Intentá de nuevo.'); }
@@ -3457,15 +3484,35 @@ function initGoogleAuth() {
     onLoginSuccess();
     return;
   }
-  // Intentar restaurar sesión guardada
+  // Intentar restaurar sesión guardada (revalidando rol contra el servidor)
   try {
     const saved = localStorage.getItem('salon_user');
     if (saved) {
-      currentUser = JSON.parse(saved);
-      onLoginSuccess();
-      return;  // sesión restaurada, no mostramos el botón de login
+      const savedUser = JSON.parse(saved);
+      const rv    = await fetch(`${cfg().webhookUrl}?action=getRole&email=${encodeURIComponent(savedUser.email)}`);
+      const rvData = await rv.json();
+      if (rvData.ok && ALLOWED_ROLES.includes(rvData.role)) {
+        currentUser = { ...savedUser, role: rvData.role };
+        onLoginSuccess();
+        return;
+      }
+      // Rol inválido o sin acceso → limpiar sesión
+      localStorage.removeItem('salon_user');
     }
-  } catch(e) {}
+  } catch(e) {
+    // Si falla la red, usar sesión guardada solo si el rol era permitido
+    try {
+      const saved = localStorage.getItem('salon_user');
+      if (saved) {
+        const savedUser = JSON.parse(saved);
+        if (ALLOWED_ROLES.includes(savedUser.role)) {
+          currentUser = savedUser;
+          onLoginSuccess();
+          return;
+        }
+      }
+    } catch(e2) {}
+  }
   // Sin sesión guardada → mostrar botón de Google
   const renderBtn = () => {
     google.accounts.id.initialize({ client_id: clientId, callback: handleGoogleLogin, auto_select: false });
