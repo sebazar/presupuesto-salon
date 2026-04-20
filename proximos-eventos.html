@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Próximos Eventos — Salón de Fiestas</title>
+  <script src="https://accounts.google.com/gsi/client" async></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --purple: #7c5cbf; --purple-dark: #5a3fa0; --purple-light: #f0ebff;
+      --green: #25d366; --green-dark: #1a9e4d;
+      --red: #e53e3e;
+      --gray-50: #f9fafb; --gray-100: #f0f4f8; --gray-200: #e2e8f0;
+      --gray-400: #a0aec0; --gray-600: #4a5568; --gray-800: #2d3748;
+      --radius: 10px; --shadow: 0 2px 10px rgba(0,0,0,0.07);
+    }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--gray-100); color: var(--gray-800); min-height: 100vh; }
+
+    header { background: linear-gradient(135deg, var(--purple), var(--purple-dark)); color: white; padding: 20px 20px 16px; text-align: center; position: relative; }
+    header h1 { font-size: 1.5rem; font-weight: 700; }
+    header p  { opacity: .8; font-size: .85rem; margin-top: 3px; }
+
+    main { max-width: 780px; margin: 0 auto; padding: 16px 14px 60px; }
+
+    /* CARD */
+    .card { background: white; border-radius: var(--radius); box-shadow: var(--shadow); padding: 18px 16px; margin-bottom: 14px; }
+    .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 8px; }
+    .card-header h2 { font-size: 1rem; font-weight: 700; color: var(--gray-800); }
+
+    /* BTN */
+    .btn { display:inline-flex; align-items:center; justify-content:center; gap:6px; padding:9px 18px; border-radius:8px; font-size:.88rem; font-weight:600; cursor:pointer; border:none; font-family:inherit; transition:.15s; }
+    .btn-sm { padding:5px 12px; font-size:.8rem; }
+    .btn-outline { background:white; border:1.5px solid var(--purple); color:var(--purple); }
+    .btn-outline:hover { background:var(--purple-light); }
+
+    /* PROV */
+    .prov-refresh { background: var(--purple); color: white; border: none; border-radius: 6px; padding: 6px 14px; font-size: .82rem; cursor: pointer; font-family: inherit; }
+    .prov-loading { text-align: center; padding: 30px; color: var(--gray-400); font-size: .88rem; }
+
+    /* MODAL OVERLAY */
+    .modal-ov { display:none; position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:999; align-items:center; justify-content:center; padding:20px; }
+    .modal-ov.open { display:flex; }
+    .modal-box { background:white; border-radius:var(--radius); padding:22px; width:100%; max-width:520px; max-height:90vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,.3); }
+    .modal-box h3 { font-size:1rem; font-weight:700; margin-bottom:12px; color:var(--gray-800); }
+    .modal-foot { display:flex; gap:8px; margin-top:12px; flex-wrap:wrap; align-items:center; }
+    .btn-primary { background:var(--purple); color:white; }
+    .btn-primary:hover { background:var(--purple-dark); }
+    .btn-gray { background:var(--gray-100); color:var(--gray-600); border:1px solid var(--gray-200); }
+    .btn-gray:hover { background:var(--gray-200); }
+
+    /* EVENTO MODAL */
+    .prov-modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:1000; align-items:center; justify-content:center; padding:16px; }
+    .prov-modal-overlay.open { display:flex; }
+    .prov-modal { background:white; border-radius:14px; max-width:480px; width:100%; max-height:85vh; overflow-y:auto; box-shadow:0 8px 32px rgba(0,0,0,.25); }
+    .prov-modal-header { background:linear-gradient(135deg,var(--purple),var(--purple-dark)); color:white; padding:16px 20px; border-radius:14px 14px 0 0; display:flex; justify-content:space-between; align-items:flex-start; }
+    .prov-modal-header h3 { font-size:1.05rem; font-weight:700; line-height:1.3; }
+    .prov-modal-header .prov-modal-date { font-size:.82rem; opacity:.85; margin-top:3px; }
+    .prov-modal-close { background:rgba(255,255,255,.2); border:none; color:white; width:28px; height:28px; border-radius:50%; cursor:pointer; font-size:1rem; line-height:28px; text-align:center; flex-shrink:0; margin-left:12px; }
+    .prov-modal-body { padding:16px 20px; display:flex; flex-direction:column; gap:8px; }
+
+    /* LOGIN */
+    .login-overlay { position:fixed; inset:0; background:linear-gradient(135deg,var(--purple),var(--purple-dark)); display:flex; align-items:center; justify-content:center; z-index:9999; }
+    .login-box { background:white; border-radius:18px; padding:40px 32px; text-align:center; max-width:340px; width:90%; box-shadow:0 20px 60px rgba(0,0,0,.3); }
+    .login-box h2 { font-size:1.6rem; color:var(--purple-dark); margin-bottom:6px; }
+    .login-box .login-sub { color:var(--gray-400); font-size:.88rem; margin-bottom:28px; }
+    .login-error { color:var(--red); font-size:.82rem; margin-top:14px; padding:8px 12px; background:#fff5f5; border-radius:8px; display:none; }
+    .access-denied { color:var(--red); font-size:.9rem; margin-top:14px; padding:12px; background:#fff5f5; border-radius:8px; display:none; text-align:center; }
+
+    /* USER AVATAR */
+    header { position:relative; }
+    .user-avatar { position:absolute; top:50%; right:16px; transform:translateY(-50%); width:38px; height:38px; border-radius:50%; background:rgba(255,255,255,.25); border:2px solid rgba(255,255,255,.6); color:white; font-weight:700; font-size:.85rem; display:none; align-items:center; justify-content:center; cursor:pointer; overflow:hidden; transition:.2s; flex-shrink:0; }
+    .user-avatar:hover { background:rgba(255,255,255,.4); }
+    .user-avatar img { width:100%; height:100%; object-fit:cover; }
+    .user-menu { position:fixed; top:72px; right:14px; background:white; border-radius:12px; box-shadow:0 6px 24px rgba(0,0,0,.15); padding:16px; min-width:220px; z-index:600; display:none; border:1px solid var(--gray-200); }
+    .user-menu.open { display:block; }
+    .user-menu-name { font-weight:700; font-size:.95rem; color:var(--gray-800); }
+    .user-menu-email { font-size:.78rem; color:var(--gray-400); margin-top:2px; word-break:break-all; }
+    .role-badge { display:inline-block; margin-top:8px; padding:3px 10px; border-radius:20px; font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.4px; }
+    .role-admin    { background:var(--purple-light); color:var(--purple-dark); }
+    .role-ventas   { background:#e6f4ea; color:#276749; }
+    .role-proveedor{ background:#fff3e0; color:#c05e00; }
+    .user-menu hr  { border:none; border-top:1px solid var(--gray-200); margin:12px 0; }
+    .user-menu-logout { width:100%; padding:9px; border-radius:8px; border:none; background:var(--gray-100); color:var(--gray-600); font-size:.85rem; cursor:pointer; font-family:inherit; font-weight:600; }
+    .user-menu-logout:hover { background:var(--gray-200); }
+  </style>
+</head>
+<body>
+
+<!-- LOGIN OVERLAY -->
+<div id="login-overlay" class="login-overlay">
+  <div class="login-box">
+    <h2>🎉 Salón de Fiestas</h2>
+    <p class="login-sub">Iniciá sesión con tu cuenta de Google para continuar</p>
+    <div id="google-login-btn"></div>
+    <p id="login-error" class="login-error"></p>
+    <div id="access-denied-msg" class="access-denied">No tenés permiso para ver esta página.</div>
+  </div>
+</div>
+
+<header>
+  <h1>🎉 Salón de Fiestas</h1>
+  <p>Próximos eventos</p>
+  <div id="user-avatar" class="user-avatar" onclick="toggleUserMenu()"></div>
+</header>
+
+<div id="user-menu" class="user-menu">
+  <div class="user-menu-name" id="um-name"></div>
+  <div class="user-menu-email" id="um-email"></div>
+  <span class="role-badge" id="um-role"></span>
+  <hr>
+  <button class="user-menu-logout" onclick="logout()">↩ Cerrar sesión</button>
+</div>
+
+<main>
+  <div class="card">
+    <div class="card-header">
+      <h2>📅 Próximos 15 días</h2>
+      <div style="display:flex;align-items:center;gap:8px">
+        <small id="prov-updated" style="color:var(--gray-400);font-size:.78rem"></small>
+        <button class="prov-refresh" onclick="loadEventos()">↻</button>
+      </div>
+    </div>
+    <div id="prov-rango" style="font-size:.8rem;font-weight:700;color:var(--purple-dark);margin-bottom:8px;padding:2px 0"></div>
+    <div id="prov-content" class="prov-loading">Cargando eventos...</div>
+  </div>
+</main>
+
+<!-- MODAL: Detalle evento -->
+<div id="prov-modal-overlay" class="prov-modal-overlay" onclick="closeProvModal(event)">
+  <div class="prov-modal" onclick="event.stopPropagation()">
+    <div class="prov-modal-header">
+      <div>
+        <h3 id="prov-modal-title">Evento</h3>
+        <div class="prov-modal-date" id="prov-modal-subtitle"></div>
+      </div>
+      <button class="prov-modal-close" onclick="closeProvModal()">✕</button>
+    </div>
+    <div class="prov-modal-body" id="prov-modal-body"></div>
+  </div>
+</div>
+
+<!-- MODAL: Recreadores -->
+<div id="recsModal" class="modal-ov">
+  <div class="modal-box" style="max-width:400px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+      <h3 style="margin:0">🎪 Recreadores</h3>
+      <button onclick="closeModal('recsModal')" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:var(--gray-400);padding:2px 6px">✕</button>
+    </div>
+    <p id="recs-modal-sub" style="font-size:.82rem;color:var(--gray-400);margin:0 0 14px"></p>
+    <div id="recs-dds-container" style="display:flex;flex-direction:column;gap:8px"></div>
+    <div class="modal-foot" style="margin-top:16px">
+      <button id="recsGuardarBtn" class="btn btn-primary" onclick="guardarRecreadores()">💾 Guardar</button>
+      <button class="btn btn-gray" onclick="closeModal('recsModal')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Config ────────────────────────────────────────────────────────────────────
+const WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbxwn2hPDk6ZiBN5qrJ7rNjHIWi3UkmZkcvJDLtbQwjAWyIpbPLuoqWGrnu2xz0_wDjQhQ/exec';
+const CONFIG_URL  = 'https://sebazar.github.io/salon-chatbot/config.json';
+
+let _webhookUrl = WEBHOOK_URL;
+let _googleClientId = '';
+
+async function initConfig() {
+  try {
+    const r = await fetch(CONFIG_URL + '?_=' + Date.now());
+    if (r.ok) {
+      const c = await r.json();
+      if (c.webhookUrl)     _webhookUrl = c.webhookUrl;
+      if (c.googleClientId) _googleClientId = c.googleClientId;
+    }
+  } catch(e) {}
+}
+
+// ── Utils ─────────────────────────────────────────────────────────────────────
+const openModal  = id => document.getElementById(id).classList.add('open');
+const closeModal = id => document.getElementById(id).classList.remove('open');
+const escHtml    = s  => (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+function _sheetDateToISO(s) {
+  if (!s) return null;
+  const p = String(s).split('/');
+  if (p.length === 3) return `${p[2]}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}`;
+  return null;
+}
+function _evISO(ev) { return _sheetDateToISO(ev['Fecha']) || ''; }
+
+const _KIDS_MENU_LABEL   = { basic:'Panchos y snacks', alt:'Nuggets con papas fritas' };
+const _ADULTS_MENU_LABEL = { none:'Traen su comida', pizza:'Pizzas', pizza_calzone:'Pizzas y calzones', pizza_calzone_chivito:'Pizzas, calzones y chivitos' };
+function _menuKidsFull(v)   { return _KIDS_MENU_LABEL[v]   || v || ''; }
+function _menuAdultsFull(v) { return _ADULTS_MENU_LABEL[v] || v || ''; }
+function _abrevMenu(s) {
+  return s.replace(' y snacks','').replace(' con gustos','').replace(' con papas fritas','').trim();
+}
+
+function _parseRecsAsignados(ev) {
+  const raw = (ev['Recreadores asignados'] || '').toString().trim();
+  return raw ? raw.split(',').map(s => s.trim()).filter(Boolean) : [];
+}
+
+function _buildRecsList(ev) {
+  const numKids    = parseInt(ev['Nº niños'])      || 0;
+  const numRecs    = parseInt(ev['Nº animadores']) || 1;
+  const romanIsRec = (ev['Roman'] || '').trim() === 'Recreador';
+  const assigned   = _parseRecsAsignados(ev);
+  const names = [];
+  let assignedIdx = romanIsRec ? 1 : 0;
+  for (let i = 0; i < numRecs; i++) {
+    if (i === 0 && romanIsRec) { names.push('Roman'); }
+    else { names.push(assigned[assignedIdx] || `Recreador ${i + 1}`); assignedIdx++; }
+  }
+  return names;
+}
+
+// ── Datos ─────────────────────────────────────────────────────────────────────
+let _provData = [];
+
+async function loadEventos() {
+  const container = document.getElementById('prov-content');
+  const updEl     = document.getElementById('prov-updated');
+  const rangoEl   = document.getElementById('prov-rango');
+  if (!container) return;
+  container.className   = 'prov-loading';
+  container.textContent = 'Cargando eventos...';
+  try {
+    const r    = await fetch(_webhookUrl + '?action=getData&tipo=reserva');
+    const data = await r.json();
+    _provData = data.reservas || [];
+    if (updEl) updEl.textContent = 'Actualizado ' + new Date().toLocaleTimeString('es-UY', { hour:'2-digit', minute:'2-digit' });
+    container.className = '';
+  } catch(e) {
+    container.className = '';
+    container.innerHTML = '<div class="prov-loading" style="color:var(--red)">Error al cargar eventos.</div>';
+    return;
+  }
+
+  // Filtrar próximos 15 días
+  const today = new Date(); today.setHours(0,0,0,0);
+  const end   = new Date(today); end.setDate(end.getDate() + 15);
+  let items = _provData.filter(e => {
+    const iso = _evISO(e); if (!iso) return false;
+    const d = new Date(iso + 'T00:00:00');
+    return d >= today && d <= end;
+  });
+  items.sort((a, b) => (_evISO(a) > _evISO(b) ? 1 : -1));
+  if (rangoEl) rangoEl.textContent = 'Próximos 15 días';
+
+  if (!items.length) {
+    container.innerHTML = '<div class="prov-loading">No hay eventos en los próximos 15 días.</div>';
+    return;
+  }
+
+  const showRecs = ['admin','ventas','proveedor'].includes(currentUser?.role);
+  container.innerHTML = items.map(ev => {
+    const iso      = _evISO(ev);
+    const fechaFmt = iso
+      ? new Date(iso + 'T00:00:00').toLocaleDateString('es-UY', { weekday:'short', day:'numeric', month:'short' })
+      : (ev['Fecha'] || '—');
+    const horaIni = ev['Hora inicio'] || '';
+    const horaFin = ev['Hora fin']    || '';
+    const horaStr = horaIni ? (horaFin ? `${horaIni} – ${horaFin}` : horaIni) : '';
+    const recs    = _buildRecsList(ev);
+    const evId    = String(ev['ID'] || '');
+    const editBtn = showRecs
+      ? `<button onclick="event.stopPropagation();openRecsModal('${evId}')" style="background:none;border:1px solid var(--purple);color:var(--purple);border-radius:6px;padding:3px 9px;font-size:.75rem;cursor:pointer;flex-shrink:0;margin-left:8px">Recs</button>`
+      : '';
+    const menuKids   = _abrevMenu(_menuKidsFull(ev['Menú niños']   || ''));
+    const menuAdults = _abrevMenu(_menuAdultsFull(ev['Menú adultos'] || ''));
+
+    return `<div onclick="openProvModal('${evId}')" style="padding:11px 13px;border:1.5px solid var(--gray-200);border-radius:10px;margin-bottom:8px;cursor:pointer;transition:.15s" onmouseover="this.style.borderColor='var(--purple)'" onmouseout="this.style.borderColor='var(--gray-200)'">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:4px">
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:700;font-size:.92rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">🎉 ${escHtml(ev['Nombre evento'] || 'Sin nombre')}${String(ev['Edad']??'').trim().replace(/^0$/,'') ? ' – ' + String(ev['Edad']).trim() + ' años' : ''}</div>
+          <div style="font-size:.8rem;color:var(--gray-400);margin-top:2px">📅 ${fechaFmt}${horaStr ? ' · ⏰ ' + horaStr : ''}</div>
+          <div style="font-size:.8rem;color:var(--gray-600);margin-top:2px">👶 ${ev['Nº niños'] || 0}${menuKids ? ' · 🌭 ' + menuKids : ''} &nbsp; 👥 ${ev['Nº adultos'] || 0}${menuAdults ? ' · 🍕 ' + menuAdults : ''}</div>
+          <div style="font-size:.8rem;color:var(--purple);margin-top:2px">🎪 ${recs.join(', ')}</div>
+        </div>
+        <div style="flex-shrink:0">${editBtn}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── Modal detalle evento ──────────────────────────────────────────────────────
+function openProvModal(id) {
+  const ev = _provData.find(e => String(e['ID']) === String(id));
+  if (!ev) return;
+  const edadRaw = ev['Edad'] ?? '';
+  const edad    = String(edadRaw).trim().replace(/^0$/, '');
+  document.getElementById('prov-modal-title').textContent = (ev['Nombre evento'] || 'Evento') + (edad ? ` – ${edad} años` : '');
+  const iso      = _evISO(ev);
+  const fechaLng = iso
+    ? new Date(iso + 'T00:00:00').toLocaleDateString('es-UY', { weekday:'long', day:'numeric', month:'long', year:'numeric' })
+    : (ev['Fecha'] || '');
+  const horaIni = ev['Hora inicio'] || '';
+  const horaFin = ev['Hora fin']    || '';
+  const horaStr = horaIni ? (horaFin ? `${horaIni} – ${horaFin}` : horaIni) : '';
+  document.getElementById('prov-modal-subtitle').textContent = [fechaLng, horaStr].filter(Boolean).join(' · ');
+
+  const body = document.getElementById('prov-modal-body');
+  const row  = (icon, label, val) => (val != null && val !== '' && String(val) !== '0')
+    ? `<div style="display:flex;gap:10px;align-items:baseline;padding:5px 0;border-bottom:1px solid var(--gray-100)">
+         <span style="width:20px;text-align:center;flex-shrink:0">${icon}</span>
+         <div style="font-size:.75rem;font-weight:600;color:var(--gray-400);text-transform:uppercase;letter-spacing:.4px;min-width:110px;flex-shrink:0">${label}</div>
+         <div style="font-size:.9rem;font-weight:600;color:var(--gray-800)">${val}</div>
+       </div>`
+    : '';
+
+  const extraHs  = parseInt(ev['Horas extra'])   || 0;
+  const duracion = parseInt(ev['Duración (hs)']) || (4 + extraHs);
+  const numAnim  = parseInt(ev['Nº animadores']) || 0;
+  const numMozos = parseInt(ev['Nº mozos'])      || 0;
+  const horasLabel = extraHs ? `${duracion} hs (${extraHs} extra)` : `${duracion} hs`;
+
+  body.innerHTML = [
+    row('👶', 'Niños',          ev['Nº niños']),
+    row('🌭', 'Menú niños',     _menuKidsFull(ev['Menú niños'] || '')),
+    row('👥', 'Adultos',        ev['Nº adultos']),
+    row('🍕', 'Menú adultos',   _menuAdultsFull(ev['Menú adultos'] || '')),
+    row('⏱️', 'Horas',          horasLabel),
+    row('🧑', 'Roman',          ev['Roman']),
+    row('🎪', 'N° Animadores',  numAnim || null),
+    row('➕', 'Recreador extra', ev['Recreador extra'] ? 'Sí' : null),
+    row('🍷', 'N° Mozos',       numMozos || null),
+    ev['Mozo extra'] ? row('➕', 'Mozo extra', 'Sí') : '',
+    row('🎪', 'Recreadores',    ev['Recreadores asignados']),
+    row('✨', 'Detalle extra',  ev['Extras detalle']),
+    row('📝', 'Descripción',   ev['Descripción']),
+  ].filter(Boolean).join('');
+
+  document.getElementById('prov-modal-overlay').classList.add('open');
+}
+
+function closeProvModal(e) {
+  if (e && e.target !== document.getElementById('prov-modal-overlay')) return;
+  document.getElementById('prov-modal-overlay').classList.remove('open');
+}
+
+// ── Modal Recreadores ─────────────────────────────────────────────────────────
+let _recsEventId = null;
+let _recsList    = [];
+
+async function _loadRecsList() {
+  try {
+    const r    = await fetch(_webhookUrl + '?action=getData&tipo=recreadores');
+    const data = await r.json();
+    _recsList  = data.recreadores || [];
+  } catch(e) {}
+}
+
+function _buildRecSelect(idx, currentVal) {
+  const selId = `rec-sel-${idx}`;
+  const inpId = `rec-new-${idx}`;
+  const opts  = _recsList.map(n =>
+    `<option value="${escHtml(n)}" ${n === currentVal ? 'selected' : ''}>${escHtml(n)}</option>`
+  ).join('');
+  return `
+    <div style="margin-bottom:10px">
+      <label style="font-size:.78rem;font-weight:600;color:var(--gray-600);margin-bottom:4px;display:block">Recreador ${idx + 1}</label>
+      <select id="${selId}" data-idx="${idx}" onchange="onRecSelChange(${idx})"
+        style="width:100%;padding:8px 11px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:.9rem;background:white">
+        <option value="">— Sin asignar —</option>
+        ${opts}
+        <option value="__nuevo__">＋ Nuevo recreador...</option>
+      </select>
+      <input id="${inpId}" type="text" placeholder="Nombre del nuevo recreador"
+        style="display:none;width:100%;margin-top:6px;padding:8px 11px;border:1.5px solid var(--purple);border-radius:8px;font-size:.9rem">
+    </div>`;
+}
+
+function onRecSelChange(idx) {
+  const sel = document.getElementById(`rec-sel-${idx}`);
+  const inp = document.getElementById(`rec-new-${idx}`);
+  if (!sel || !inp) return;
+  inp.style.display = sel.value === '__nuevo__' ? 'block' : 'none';
+  if (sel.value === '__nuevo__') inp.focus();
+}
+
+async function openRecsModal(id) {
+  _recsEventId = id;
+  const ev = _provData.find(e => String(e['ID']) === String(id));
+  if (!ev) return;
+  const sub = document.getElementById('recs-modal-sub');
+  if (sub) sub.textContent = (ev['Nombre evento'] || '') + (ev['Fecha'] ? ' — ' + ev['Fecha'] : '');
+  const container = document.getElementById('recs-dds-container');
+  if (!container) return;
+  container.innerHTML = '<div style="color:var(--gray-400);font-size:.85rem;padding:8px">Cargando...</div>';
+  openModal('recsModal');
+  await _loadRecsList();
+  const numRecs    = parseInt(ev['Nº animadores']) || 1;
+  const romanIsRec = (ev['Roman'] || '').trim() === 'Recreador';
+  const current    = _parseRecsAsignados(ev);
+  container.innerHTML = '';
+  for (let i = 0; i < numRecs; i++) {
+    if (i === 0 && romanIsRec) {
+      container.insertAdjacentHTML('beforeend', `
+        <div style="margin-bottom:10px">
+          <label style="font-size:.78rem;font-weight:600;color:var(--gray-600);margin-bottom:4px;display:block">Recreador 1</label>
+          <div style="padding:8px 11px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:.9rem;background:var(--gray-50);color:var(--gray-600)">
+            🧑 Roman <span style="font-size:.75rem;color:var(--gray-400)">(fijo)</span>
+          </div>
+        </div>`);
+    } else {
+      container.insertAdjacentHTML('beforeend', _buildRecSelect(i, current[i] || ''));
+    }
+  }
+}
+
+async function guardarRecreadores() {
+  const ev = _provData.find(e => String(e['ID']) === String(_recsEventId));
+  if (!ev) return;
+  const btn = document.getElementById('recsGuardarBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
+  const numRecs    = parseInt(ev['Nº animadores']) || 1;
+  const romanIsRec = (ev['Roman'] || '').trim() === 'Recreador';
+  const nombres = [];
+  for (let i = 0; i < numRecs; i++) {
+    if (i === 0 && romanIsRec) { nombres.push('Roman'); continue; }
+    const sel = document.getElementById(`rec-sel-${i}`);
+    const inp = document.getElementById(`rec-new-${i}`);
+    if (!sel) continue;
+    if (sel.value === '__nuevo__') {
+      const nuevoNombre = inp?.value.trim() || '';
+      if (nuevoNombre) {
+        try {
+          await fetch(_webhookUrl, { method:'POST', headers:{'Content-Type':'text/plain'}, body: JSON.stringify({ action:'addRecreador', nombre: nuevoNombre }) });
+          if (!_recsList.includes(nuevoNombre)) _recsList.push(nuevoNombre);
+        } catch(e) {}
+        nombres.push(nuevoNombre);
+      }
+    } else if (sel.value) {
+      nombres.push(sel.value);
+    }
+  }
+  ev['Recreadores asignados'] = nombres.join(', ');
+  try {
+    await fetch(_webhookUrl, { method:'POST', headers:{'Content-Type':'text/plain'}, body: JSON.stringify({ action:'updateRecreadores', id: _recsEventId, nombres: nombres.join(', ') }) });
+  } catch(e) {}
+  if (btn) { btn.disabled = false; btn.textContent = '💾 Guardar'; }
+  closeModal('recsModal');
+  loadEventos();
+}
+
+// ── Auth ──────────────────────────────────────────────────────────────────────
+let currentUser = null;
+const ALLOWED_ROLES = ['admin', 'ventas', 'proveedor'];
+
+function parseJwt(token) {
+  try { return JSON.parse(atob(token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))); }
+  catch(e) { return null; }
+}
+
+async function handleGoogleLogin(response) {
+  const payload = parseJwt(response.credential);
+  if (!payload) { showLoginError('Error al leer credenciales.'); return; }
+  const email = (payload.email || '').toLowerCase();
+  try {
+    const r    = await fetch(`${_webhookUrl}?action=getRole&email=${encodeURIComponent(email)}`);
+    const data = await r.json();
+    if (!data.ok) { showLoginError('Tu cuenta no tiene acceso. Contactá al administrador.'); return; }
+    if (!ALLOWED_ROLES.includes(data.role)) {
+      document.getElementById('access-denied-msg').style.display = 'block';
+      return;
+    }
+    currentUser = { email, name: payload.name || email, picture: payload.picture || '', role: data.role };
+    onLoginSuccess();
+  } catch(e) { showLoginError('Error al verificar acceso. Intentá de nuevo.'); }
+}
+
+function onLoginSuccess() {
+  try { localStorage.setItem('salon_proximos_user', JSON.stringify(currentUser)); } catch(e) {}
+  document.getElementById('login-overlay').style.display = 'none';
+  const av = document.getElementById('user-avatar');
+  av.style.display = 'flex';
+  if (currentUser.picture) {
+    av.innerHTML = `<img src="${currentUser.picture}" alt="">`;
+  } else {
+    av.textContent = currentUser.name.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
+  }
+  document.getElementById('um-name').textContent  = currentUser.name;
+  document.getElementById('um-email').textContent = currentUser.email;
+  const rb = document.getElementById('um-role');
+  rb.textContent = currentUser.role;
+  rb.className   = `role-badge role-${currentUser.role}`;
+  loadEventos();
+}
+
+function showLoginError(msg) {
+  const el = document.getElementById('login-error');
+  el.textContent = msg; el.style.display = 'block';
+}
+
+function toggleUserMenu() {
+  document.getElementById('user-menu').classList.toggle('open');
+}
+document.addEventListener('click', e => {
+  const av = document.getElementById('user-avatar');
+  const um = document.getElementById('user-menu');
+  if (av && um && !av.contains(e.target) && !um.contains(e.target)) um.classList.remove('open');
+});
+
+function logout() {
+  currentUser = null;
+  try { localStorage.removeItem('salon_proximos_user'); } catch(e) {}
+  document.getElementById('user-avatar').style.display = 'none';
+  document.getElementById('user-menu').classList.remove('open');
+  document.getElementById('login-overlay').style.display = 'flex';
+  document.getElementById('login-error').style.display = 'none';
+  document.getElementById('access-denied-msg').style.display = 'none';
+  if (window.google?.accounts?.id) google.accounts.id.disableAutoSelect();
+}
+
+async function initGoogleAuth() {
+  // Restaurar sesión guardada con revalidación
+  try {
+    const saved = localStorage.getItem('salon_proximos_user');
+    if (saved) {
+      const savedUser = JSON.parse(saved);
+      // Revalidar rol contra el servidor
+      const r    = await fetch(`${_webhookUrl}?action=getRole&email=${encodeURIComponent(savedUser.email)}`);
+      const data = await r.json();
+      if (data.ok && ALLOWED_ROLES.includes(data.role)) {
+        currentUser = { ...savedUser, role: data.role };
+        onLoginSuccess();
+        return;
+      }
+      // Rol inválido o sin acceso → limpiar y mostrar login
+      localStorage.removeItem('salon_proximos_user');
+    }
+  } catch(e) {}
+
+  const clientId = _googleClientId;
+  if (!clientId) {
+    // Modo dev sin Client ID
+    currentUser = { email: 'dev@local', name: 'Dev', picture: '', role: 'proveedor' };
+    onLoginSuccess();
+    return;
+  }
+  const renderBtn = () => {
+    google.accounts.id.initialize({ client_id: clientId, callback: handleGoogleLogin, auto_select: false });
+    google.accounts.id.renderButton(document.getElementById('google-login-btn'),
+      { theme: 'outline', size: 'large', text: 'signin_with', locale: 'es', width: 260 });
+  };
+  if (window.google?.accounts?.id) renderBtn();
+  else { const t = setInterval(() => { if (window.google?.accounts?.id) { clearInterval(t); renderBtn(); } }, 100); }
+}
+
+// ── Bootstrap ─────────────────────────────────────────────────────────────────
+(async () => {
+  await initConfig();
+  await initGoogleAuth();
+})();
+</script>
+</body>
+</html>
