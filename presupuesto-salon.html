@@ -1971,7 +1971,7 @@ function flashBtn(btn, label, color) {
   if (!btn) return;
   const orig = btn.innerHTML; const origBg = btn.style.background;
   btn.innerHTML = label; btn.style.background = color;
-  setTimeout(() => { btn.innerHTML = orig; btn.style.background = origBg; }, 2200);
+  setTimeout(() => { btn.innerHTML = orig; btn.style.background = origBg; btn.disabled = false; }, 2200);
 }
 
 let _saveToastTimer = null;
