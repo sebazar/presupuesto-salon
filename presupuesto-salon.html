@@ -1762,7 +1762,7 @@ function generateSaveName(dateVal, timeVal, excludeId = null, eventName = '') {
   const d  = dateVal ? new Date(dateVal + 'T00:00:00') : new Date();
   const M  = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
   const datePart = `${d.getDate()} ${M[d.getMonth()]} ${d.getFullYear()}${timeVal ? ' · ' + timeVal : ''}`;
-  let base = eventName ? `${eventName} — ${datePart}` : datePart;
+  let base = eventName ? eventName : datePart;
   const existing = getSaves().filter(s => s.id !== excludeId).map(s => s.saveName);
   if (!existing.includes(base)) return base;
   for (let i = 2; i < 100; i++) { const c = `${base} (${i})`; if (!existing.includes(c)) return c; }
@@ -1855,8 +1855,8 @@ async function saveAsPresupuesto() {
   if (loadedId) {
     const idx = saves.findIndex(s => s.id === loadedId);
     if (idx !== -1) {
-      const newName = generateSaveName(document.getElementById('eventDate').value, document.getElementById('startTime').value || '', loadedId, form.eventName || '');
-      saves[idx] = { ...saves[idx], saveName: newName, total, savedAt, form, synced: false };
+      // Preservar saveName original (viene del sync con el nombre del evento)
+      saves[idx] = { ...saves[idx], total, savedAt, form, synced: false };
       putSaves(saves);
       entry = saves[idx];
     }
@@ -1924,7 +1924,6 @@ async function saveAsReserva() {
   } else if (loadedId) {
     const idx = saves.findIndex(s => s.id === loadedId);
     if (idx !== -1) {
-      const newName = generateSaveName(dateVal, timeVal, loadedId, mergedForm.eventName || '');
       // Preservar campos de pago del entry original — no se editan en modo edición
       const origForm = saves[idx].form || {};
       const mergedForm = {
@@ -1934,7 +1933,8 @@ async function saveAsReserva() {
         senaFormaPago:   origForm.senaFormaPago   ?? form.senaFormaPago,
         senaComentarios: origForm.senaComentarios ?? form.senaComentarios,
       };
-      saves[idx] = { ...saves[idx], saveName: newName, total, savedAt, form: mergedForm, synced: false };
+      // Preservar saveName original (viene del sync con el nombre del evento)
+      saves[idx] = { ...saves[idx], total, savedAt, form: mergedForm, synced: false };
       putSaves(saves);
       entry = saves[idx];
       successMsg = '✓ Reserva actualizada';
