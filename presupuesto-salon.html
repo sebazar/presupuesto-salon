@@ -1758,11 +1758,11 @@ function doClear() {
 const getSaves = () => { try { return JSON.parse(localStorage.getItem('salonSaves') || '[]'); } catch { return []; } };
 const putSaves = arr => localStorage.setItem('salonSaves', JSON.stringify(arr));
 
-function generateSaveName(dateVal, timeVal, excludeId = null) {
+function generateSaveName(dateVal, timeVal, excludeId = null, eventName = '') {
   const d  = dateVal ? new Date(dateVal + 'T00:00:00') : new Date();
   const M  = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
-  let base = `${d.getDate()} ${M[d.getMonth()]} ${d.getFullYear()}`;
-  if (timeVal) base += ` · ${timeVal}`;
+  const datePart = `${d.getDate()} ${M[d.getMonth()]} ${d.getFullYear()}${timeVal ? ' · ' + timeVal : ''}`;
+  let base = eventName ? `${eventName} — ${datePart}` : datePart;
   const existing = getSaves().filter(s => s.id !== excludeId).map(s => s.saveName);
   if (!existing.includes(base)) return base;
   for (let i = 2; i < 100; i++) { const c = `${base} (${i})`; if (!existing.includes(c)) return c; }
@@ -1855,14 +1855,14 @@ async function saveAsPresupuesto() {
   if (loadedId) {
     const idx = saves.findIndex(s => s.id === loadedId);
     if (idx !== -1) {
-      const newName = generateSaveName(document.getElementById('eventDate').value, document.getElementById('startTime').value || '', loadedId);
+      const newName = generateSaveName(document.getElementById('eventDate').value, document.getElementById('startTime').value || '', loadedId, form.eventName || '');
       saves[idx] = { ...saves[idx], saveName: newName, total, savedAt, form, synced: false };
       putSaves(saves);
       entry = saves[idx];
     }
   } else {
     const id   = Date.now().toString();
-    const name = generateSaveName(document.getElementById('eventDate').value, document.getElementById('startTime').value || '');
+    const name = generateSaveName(document.getElementById('eventDate').value, document.getElementById('startTime').value || '', null, form.eventName || '');
     entry = { id, saveName: name, status: 'presupuesto', total, savedAt, form };
     saves.unshift(entry);
     putSaves(saves);
@@ -1924,7 +1924,7 @@ async function saveAsReserva() {
   } else if (loadedId) {
     const idx = saves.findIndex(s => s.id === loadedId);
     if (idx !== -1) {
-      const newName = generateSaveName(dateVal, timeVal, loadedId);
+      const newName = generateSaveName(dateVal, timeVal, loadedId, mergedForm.eventName || '');
       // Preservar campos de pago del entry original — no se editan en modo edición
       const origForm = saves[idx].form || {};
       const mergedForm = {
@@ -1941,7 +1941,7 @@ async function saveAsReserva() {
     }
   } else {
     const id   = Date.now().toString();
-    const name = generateSaveName(dateVal, timeVal);
+    const name = generateSaveName(dateVal, timeVal, null, form.eventName || '');
     entry = { id, saveName: name, status: 'reserva', total, savedAt, form };
     saves.unshift(entry);
     putSaves(saves);
@@ -1950,7 +1950,7 @@ async function saveAsReserva() {
   }
 
   if (entry) {
-    const res = await postToWebhook(entry);
+    const res = await postToWebhook(entry, { isEdit: !!loadedId });
     clearForm();
     if (res.ok) {
       _invalidateConflictCache(); // forzar recarga en la próxima consulta
@@ -2595,7 +2595,7 @@ const escHtml = s => (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(
 // ════════════════════════════════════════════
 // GOOGLE SHEETS WEBHOOK
 // ════════════════════════════════════════════
-function buildSheetPayload(entry) {
+function buildSheetPayload(entry, { preservePago = false } = {}) {
   const f = entry.form || {};
   const b = lastBudget;
   const adultMenuNames = { none:'Traen su comida', pizza:'Pizzas con gustos', pizza_calzone:'Pizzas y calzones', pizza_calzone_chivito:'Pizzas, calzones y chivitos' };
@@ -2629,8 +2629,8 @@ function buildSheetPayload(entry) {
     'Mozo Calc':       b.waiters    ?? '',
     'Precio calculado': lastBudget.total || 0,  // usado por Apps Script como Precio original en INSERT
     'Total ($)':       entry.total || 0,
-    'P Total ($)':     (parseFloat(f.eventSena) >= (entry.total || 0) && (entry.total || 0) > 0) ? 'True' : '',
-    'Pagos ($)':       parseFloat(f.eventSena) || '',
+    'P Total ($)':     preservePago ? undefined : ((parseFloat(f.eventSena) >= (entry.total || 0) && (entry.total || 0) > 0) ? 'True' : ''),
+    'Pagos ($)':       preservePago ? undefined : (parseFloat(f.eventSena) || ''),
     'Descripción':     f.eventDesc   || '',
     'Notas':           f.eventOthers || '',
     'Tipo de día':     dayLabel,
@@ -2665,10 +2665,12 @@ async function postPagoToReserva(id, pagos, pagoTotal) {
   }
 }
 
-async function postToWebhook(entry) {
+async function postToWebhook(entry, { isEdit = false } = {}) {
   const url = cfg().webhookUrl;
   if (!url || !url.startsWith('http')) return { ok: false, error: 'URL de webhook no configurada' };
-  const payload = buildSheetPayload(entry);
+  const raw = buildSheetPayload(entry, { preservePago: isEdit });
+  // Eliminar claves con valor undefined (campos que no se deben sobreescribir)
+  const payload = Object.fromEntries(Object.entries(raw).filter(([, v]) => v !== undefined));
   payload.sheetName = (entry.status === 'reserva') ? 'Reservas' : 'Presupuestos';
   try {
     const res  = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload) });
