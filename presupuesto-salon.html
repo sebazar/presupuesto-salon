@@ -1971,7 +1971,7 @@ function flashBtn(btn, label, color) {
   if (!btn) return;
   const orig = btn.innerHTML; const origBg = btn.style.background;
   btn.innerHTML = label; btn.style.background = color;
-  setTimeout(() => { btn.innerHTML = orig; btn.style.background = origBg; btn.disabled = false; }, 2200);
+  setTimeout(() => { btn.innerHTML = orig; btn.style.background = origBg; }, 2200);
 }
 
 let _saveToastTimer = null;
@@ -2571,6 +2571,7 @@ function resetSaveButtons() {
   PRESUPUESTO_BTN_IDS.forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
+    el.disabled = false;
     el.innerHTML = '💾 Guardar presupuesto';
     el.classList.remove('btn-amber');
     el.classList.add('btn-primary');
@@ -2578,6 +2579,7 @@ function resetSaveButtons() {
   RESERVA_BTN_IDS.forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
+    el.disabled = false;
     el.innerHTML = '✅ Guardar Reserva';
     el.classList.remove('btn-amber');
     el.classList.add('btn-reserva');
