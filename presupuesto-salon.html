@@ -214,6 +214,7 @@
     /* ── LOGIN OVERLAY ── */
     .login-overlay { position:fixed; inset:0; background:linear-gradient(135deg,var(--purple),var(--purple-dark)); display:flex; align-items:center; justify-content:center; z-index:9999; }
     .login-box { background:white; border-radius:18px; padding:40px 32px; text-align:center; max-width:340px; width:90%; box-shadow:0 20px 60px rgba(0,0,0,.3); }
+    @keyframes spin { to { transform: rotate(360deg); } }
     .login-box h2 { font-size:1.6rem; color:var(--purple-dark); margin-bottom:6px; }
     .login-box .login-sub { color:var(--gray-400); font-size:.88rem; margin-bottom:28px; }
     .login-error { color:var(--red); font-size:.82rem; margin-top:14px; padding:8px 12px; background:#fff5f5; border-radius:8px; display:none; }
@@ -475,8 +476,12 @@
 <div id="login-overlay" class="login-overlay">
   <div class="login-box">
     <h2>🎉 Salón de Fiestas</h2>
-    <p class="login-sub">Iniciá sesión con tu cuenta de Google para continuar</p>
-    <div id="google-login-btn"></div>
+    <div id="login-checking" style="padding:18px 0 10px;color:var(--gray-400);font-size:.9rem;display:flex;flex-direction:column;align-items:center;gap:12px">
+      <div style="width:32px;height:32px;border:3px solid var(--gray-200);border-top-color:var(--purple);border-radius:50%;animation:spin .8s linear infinite"></div>
+      <span id="login-checking-msg">Verificando sesión…</span>
+    </div>
+    <p class="login-sub" id="login-sub" style="display:none">Iniciá sesión con tu cuenta de Google para continuar</p>
+    <div id="google-login-btn" style="display:none"></div>
     <p id="login-error" class="login-error"></p>
   </div>
 </div>
@@ -3470,6 +3475,20 @@ function applyRoleVisibility() {
   switchTab(visible[0]);
 }
 
+function _showLoginBtn() {
+  const clientId = cfg().googleClientId;
+  document.getElementById('login-checking').style.display = 'none';
+  document.getElementById('login-sub').style.display = '';
+  document.getElementById('google-login-btn').style.display = '';
+  const renderBtn = () => {
+    google.accounts.id.initialize({ client_id: clientId, callback: handleGoogleLogin, auto_select: false });
+    google.accounts.id.renderButton(document.getElementById('google-login-btn'),
+      { theme: 'outline', size: 'large', text: 'signin_with', locale: 'es', width: 260 });
+  };
+  if (window.google?.accounts?.id) renderBtn();
+  else { const t = setInterval(() => { if (window.google?.accounts?.id) { clearInterval(t); renderBtn(); } }, 100); }
+}
+
 function showLoginError(msg) {
   const el = document.getElementById('login-error');
   el.textContent = msg; el.style.display = 'block';
@@ -3535,13 +3554,7 @@ async function initGoogleAuth() {
     } catch(e2) {}
   }
   // Sin sesión guardada → mostrar botón de Google
-  const renderBtn = () => {
-    google.accounts.id.initialize({ client_id: clientId, callback: handleGoogleLogin, auto_select: false });
-    google.accounts.id.renderButton(document.getElementById('google-login-btn'),
-      { theme: 'outline', size: 'large', text: 'signin_with', locale: 'es', width: 260 });
-  };
-  if (window.google?.accounts?.id) renderBtn();
-  else { const t = setInterval(() => { if (window.google?.accounts?.id) { clearInterval(t); renderBtn(); } }, 100); }
+  _showLoginBtn();
 }
 
 // ── Bootstrap ────────────────────────────────
