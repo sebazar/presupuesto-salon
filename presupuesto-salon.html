@@ -1377,8 +1377,11 @@ function validateReserva() {
   const errs = validatePresupuesto();
   if (!document.getElementById('eventName').value.trim()) { showFieldErr('eventName'); errs.push('Nombre del evento'); }
   if (!document.getElementById('startTime').value)        { showFieldErr('startTime'); errs.push('Hora de inicio'); }
-  if (!(parseFloat(document.getElementById('eventSena').value) > 0)) { showFieldErr('eventSena'); errs.push('Pago'); }
-  if (!document.getElementById('senaFormaPago').value)    { showFieldErr('senaFormaPago'); errs.push('Forma de pago'); }
+  // En modo edición no se validan ni generan nuevos pagos
+  if (!loadedId) {
+    if (!(parseFloat(document.getElementById('eventSena').value) > 0)) { showFieldErr('eventSena'); errs.push('Pago'); }
+    if (!document.getElementById('senaFormaPago').value)    { showFieldErr('senaFormaPago'); errs.push('Forma de pago'); }
+  }
   if (!document.getElementById('romanRole').value)        { showFieldErr('romanRole'); errs.push('Roman'); }
   return errs;
 }
@@ -2506,6 +2509,15 @@ function setEditMode(id) {
   const idEl = document.getElementById('editModeId');
   if (idEl) idEl.textContent = id;
   updateEditButtons();
+  // Ocultar campos de pago — en edición no se genera un nuevo pago
+  ['fg-eventSena','fg-senaFormaPago'].forEach(fgId => {
+    const el = document.getElementById(fgId);
+    if (el) el.style.display = 'none';
+  });
+  ['senaConcepto','senaComentarios'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.closest('.form-group') && (el.closest('.form-group').style.display = 'none');
+  });
 }
 
 function clearEditMode() {
@@ -2513,6 +2525,15 @@ function clearEditMode() {
   const banner = document.getElementById('editModeBanner');
   if (banner) banner.classList.remove('show');
   resetSaveButtons();
+  // Restaurar campos de pago
+  ['fg-eventSena','fg-senaFormaPago'].forEach(fgId => {
+    const el = document.getElementById(fgId);
+    if (el) el.style.display = '';
+  });
+  ['senaConcepto','senaComentarios'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el && el.closest('.form-group')) el.closest('.form-group').style.display = '';
+  });
 }
 
 function updateEditButtons() {
