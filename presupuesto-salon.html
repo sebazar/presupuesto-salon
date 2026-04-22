@@ -1925,7 +1925,16 @@ async function saveAsReserva() {
     const idx = saves.findIndex(s => s.id === loadedId);
     if (idx !== -1) {
       const newName = generateSaveName(dateVal, timeVal, loadedId);
-      saves[idx] = { ...saves[idx], saveName: newName, total, savedAt, form, synced: false };
+      // Preservar campos de pago del entry original — no se editan en modo edición
+      const origForm = saves[idx].form || {};
+      const mergedForm = {
+        ...form,
+        eventSena:       origForm.eventSena       ?? form.eventSena,
+        senaConcepto:    origForm.senaConcepto    ?? form.senaConcepto,
+        senaFormaPago:   origForm.senaFormaPago   ?? form.senaFormaPago,
+        senaComentarios: origForm.senaComentarios ?? form.senaComentarios,
+      };
+      saves[idx] = { ...saves[idx], saveName: newName, total, savedAt, form: mergedForm, synced: false };
       putSaves(saves);
       entry = saves[idx];
       successMsg = '✓ Reserva actualizada';
