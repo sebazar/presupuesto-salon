@@ -3490,6 +3490,7 @@ function _showLoginBtn() {
 }
 
 function showLoginError(msg) {
+  _showLoginBtn();
   const el = document.getElementById('login-error');
   el.textContent = msg; el.style.display = 'block';
 }
