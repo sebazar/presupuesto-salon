@@ -1272,7 +1272,7 @@ async function checkDateConflict(dateISO) {
   if (!el || !dateISO) return;
   el.style.display = 'none';
   const reservas = await _fetchReservasForConflict();
-  const same = reservas.filter(r => _sheetDateToISO(r['Fecha']) === dateISO && r['ID'] !== loadedId);
+  const same = reservas.filter(r => _sheetDateToISO(r['Fecha']) === dateISO && String(r['ID']).trim() !== String(loadedId || '').trim());
   if (same.length === 0) return;
   const lines = same.map(r => {
     const nm = r['Nombre evento'] || 'Evento sin nombre';
@@ -1293,7 +1293,7 @@ async function checkTimeConflict(dateISO, startTime) {
   const extra   = Math.max(0, getInt('extraHours'));
   const endTime = _endHHMM(startTime, extra);
   const reservas = await _fetchReservasForConflict();
-  const same     = reservas.filter(r => _sheetDateToISO(r['Fecha']) === dateISO && r['ID'] !== loadedId);
+  const same     = reservas.filter(r => _sheetDateToISO(r['Fecha']) === dateISO && String(r['ID']).trim() !== String(loadedId || '').trim());
   const conflicts = same.filter(r => {
     const rs = r['Hora inicio'];
     const re = r['Hora fin'] || _endHHMM(rs || '00:00', 4);
