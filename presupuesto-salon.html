@@ -1129,6 +1129,7 @@ let completingId    = null;
 let completingName  = null;
 let currentTab      = 'presupuesto';
 let loadedId        = null;   // ID del registro cargado para edición
+let loadedPrevTotal = null;   // Precio manual previo al entrar en modo edición
 let animManual = false;  // override manual de numAnimadores
 let mozManual  = false;  // override manual de numMozos
 
@@ -1843,6 +1844,12 @@ async function saveAsPresupuesto() {
   const errs = validatePresupuesto();
   if (errs.length) { showToast(errs); return; }
   clearAllErrors();
+  // Si había precio manual y se dejó vacío, confirmar que se usará el calculado
+  const pfoVal = parseFloat(document.getElementById('precioFinalOverride').value);
+  if (loadedId && loadedPrevTotal && !(pfoVal > 0)) {
+    const ok = await confirmPrecioCalc(loadedPrevTotal);
+    if (!ok) return;
+  }
   const btn    = event.currentTarget;
   const saves  = getSaves();
   const savedAt = new Date().toISOString();
@@ -1891,6 +1898,13 @@ async function saveAsReserva() {
   const errs = validateReserva();
   if (errs.length) { showToast(errs); return; }
   clearAllErrors();
+
+  // Si había precio manual y se dejó vacío, confirmar que se usará el calculado
+  const pfoVal = parseFloat(document.getElementById('precioFinalOverride').value);
+  if (loadedId && loadedPrevTotal && !(pfoVal > 0)) {
+    const ok = await confirmPrecioCalc(loadedPrevTotal);
+    if (!ok) return;
+  }
 
   // Verificar conflicto de horario (doble chequeo antes de guardar)
   const startTime = document.getElementById('startTime').value;
@@ -1972,6 +1986,27 @@ function flashBtn(btn, label, color) {
   const orig = btn.innerHTML; const origBg = btn.style.background;
   btn.innerHTML = label; btn.style.background = color;
   setTimeout(() => { btn.innerHTML = orig; btn.style.background = origBg; }, 2200);
+}
+
+// Muestra un diálogo de confirmación personalizado, devuelve Promise<boolean>
+function confirmPrecioCalc(prevTotal) {
+  return new Promise(resolve => {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:10000;display:flex;align-items:center;justify-content:center';
+    overlay.innerHTML = `
+      <div style="background:white;border-radius:14px;padding:28px 26px;max-width:340px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.3);text-align:center">
+        <div style="font-size:1.4rem;margin-bottom:10px">⚠️</div>
+        <p style="margin:0 0 8px;font-weight:600;color:#1e1b4b">El precio anterior fue modificado</p>
+        <p style="margin:0 0 20px;font-size:.88rem;color:#6b7280">El precio anterior era <strong>$${Math.round(prevTotal).toLocaleString('es-UY')}</strong>.<br>Si aceptás, se guardará el precio calculado.</p>
+        <div style="display:flex;gap:10px;justify-content:center">
+          <button id="_confirmCancel" style="flex:1;padding:9px;border:1.5px solid #d1d5db;border-radius:8px;background:white;cursor:pointer;font-size:.9rem">Cancelar</button>
+          <button id="_confirmAccept" style="flex:1;padding:9px;border:none;border-radius:8px;background:#7c3aed;color:white;cursor:pointer;font-weight:600;font-size:.9rem">Aceptar</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    overlay.querySelector('#_confirmAccept').onclick = () => { document.body.removeChild(overlay); resolve(true);  };
+    overlay.querySelector('#_confirmCancel').onclick = () => { document.body.removeChild(overlay); resolve(false); };
+  });
 }
 
 let _saveToastTimer = null;
@@ -2481,13 +2516,17 @@ function loadBudget(id) {
   cancelReservaMode();
   switchTab(s.status === 'reserva' ? 'reserva' : 'presupuesto');
   setEditMode(id);  // sets loadedId + banner + button styles (after switchTab so buttons are visible)
-  // Si el total guardado difiere del calculado, fue un precio editado manualmente → restaurarlo
+  // Si el total guardado difiere del calculado, fue un precio editado manualmente
+  // → dejar vacío con placeholder indicando el precio anterior
   const pfo = document.getElementById('precioFinalOverride');
   if (pfo && s.total && Math.round(s.total) !== Math.round(lastBudget.total || 0)) {
-    pfo.value = s.total;
-    updateFinalPriceDisplay();
-  } else if (pfo) {
+    loadedPrevTotal = s.total;
     pfo.value = '';
+    pfo.placeholder = `El precio anterior era $${Math.round(s.total).toLocaleString('es-UY')}`;
+    updateFinalPriceDisplay();
+  } else {
+    loadedPrevTotal = null;
+    if (pfo) { pfo.value = ''; pfo.placeholder = 'Dejar vacío = usar calculado'; }
     const oh = document.getElementById('overrideHint');
     if (oh) oh.style.display = 'none';
   }
@@ -2544,6 +2583,9 @@ function setEditMode(id) {
 
 function clearEditMode() {
   loadedId = null;
+  loadedPrevTotal = null;
+  const pfo = document.getElementById('precioFinalOverride');
+  if (pfo) pfo.placeholder = 'Dejar vacío = usar calculado';
   const banner = document.getElementById('editModeBanner');
   if (banner) banner.classList.remove('show');
   resetSaveButtons();
