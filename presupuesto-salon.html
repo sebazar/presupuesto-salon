@@ -753,7 +753,7 @@
         <label style="font-size:.82rem;font-weight:600;color:#b45309;white-space:nowrap">✏️ Precio final manual ($)</label>
         <input type="number" id="precioFinalOverride" placeholder="Dejar vacío = usar calculado"
           style="flex:1;min-width:160px;border:1px solid #ffe082;border-radius:6px;padding:6px 10px;font-size:.88rem;background:white"
-          oninput="updateFinalPriceDisplay()">
+          oninput="_overrideFromLoad = false; updateFinalPriceDisplay()">
         <span id="overrideHint" style="font-size:.78rem;color:#92400e;display:none">⚠️ Precio editado — se guardará este valor</span>
       </div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:16px">
@@ -1130,6 +1130,8 @@ let completingName  = null;
 let currentTab      = 'presupuesto';
 let loadedId        = null;   // ID del registro cargado para edición
 let loadedPrevTotal = null;   // Precio manual previo al entrar en modo edición
+let loadedCalcTotal = null;   // Precio calculado al momento de cargar para edición
+let _overrideFromLoad = false; // true mientras el override no fue tocado manualmente por el usuario
 let animManual = false;  // override manual de numAnimadores
 let mozManual  = false;  // override manual de numMozos
 
@@ -1584,6 +1586,16 @@ function recalc() {
   const _mozVal  = parseInt(document.getElementById('numMozos').value);
   if (animManual && _animVal === actualRecs) animManual = false;
   if (mozManual  && _mozVal  === waiters)    mozManual  = false;
+
+  // Si el precio calculado cambió desde que se cargó para editar y el campo no fue tocado → vaciar
+  if (_overrideFromLoad && loadedCalcTotal !== null && Math.round(total) !== loadedCalcTotal) {
+    const _pfo = document.getElementById('precioFinalOverride');
+    if (_pfo) {
+      _pfo.value = '';
+      _pfo.placeholder = `El precio anterior era $${Math.round(loadedPrevTotal || 0).toLocaleString('es-UY')}`;
+    }
+    _overrideFromLoad = false;
+  }
 
   // Auto-poblar animadores/mozos solo si no hay override manual
   const animEl  = document.getElementById('numAnimadores');
@@ -2517,25 +2529,19 @@ function loadBudget(id) {
   switchTab(s.status === 'reserva' ? 'reserva' : 'presupuesto');
   setEditMode(id);  // sets loadedId + banner + button styles (after switchTab so buttons are visible)
   const pfo = document.getElementById('precioFinalOverride');
-  const calcTotal = Math.round(lastBudget.total || 0);
+  const calcTotal  = Math.round(lastBudget.total || 0);
   const savedTotal = s.total ? Math.round(s.total) : 0;
   const hasManualPrice = savedTotal > 0 && savedTotal !== calcTotal;
-  if (pfo && hasManualPrice) {
-    // El precio calculado cambió respecto al manual → campo vacío con placeholder
-    loadedPrevTotal = s.total;
-    pfo.value = '';
-    pfo.placeholder = `El precio anterior era $${savedTotal.toLocaleString('es-UY')}`;
-    updateFinalPriceDisplay();
-  } else {
-    // Sin cambio en precio calculado → pre-llenar con el precio manual tal como estaba
-    loadedPrevTotal = savedTotal !== calcTotal ? s.total : null;
-    if (pfo) {
-      pfo.value = (savedTotal > 0 && savedTotal !== calcTotal) ? s.total : '';
-      pfo.placeholder = 'Dejar vacío = usar calculado';
-    }
-    const oh = document.getElementById('overrideHint');
-    if (oh) oh.style.display = pfo?.value ? '' : 'none';
+  loadedCalcTotal   = calcTotal;
+  loadedPrevTotal   = hasManualPrice ? s.total : null;
+  _overrideFromLoad = hasManualPrice;
+  if (pfo) {
+    pfo.placeholder = 'Dejar vacío = usar calculado';
+    pfo.value = hasManualPrice ? s.total : '';
   }
+  const oh = document.getElementById('overrideHint');
+  if (oh) oh.style.display = hasManualPrice ? '' : 'none';
+  updateFinalPriceDisplay();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -2590,6 +2596,8 @@ function setEditMode(id) {
 function clearEditMode() {
   loadedId = null;
   loadedPrevTotal = null;
+  loadedCalcTotal = null;
+  _overrideFromLoad = false;
   const pfo = document.getElementById('precioFinalOverride');
   if (pfo) pfo.placeholder = 'Dejar vacío = usar calculado';
   const banner = document.getElementById('editModeBanner');
