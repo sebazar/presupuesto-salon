@@ -1533,7 +1533,7 @@ function recalc() {
   if (discountType === 'pct')   discAmt = Math.round(subtotal * discVal / 100);
   const total    = subtotal - discAmt;
 
-  const adultMenuNames = { none:'Traen su comida', pizza:'Pizzas con gustos', pizza_calzone:'Pizzas y calzones', pizza_calzone_chivito:'Pizzas, calzones y chivitos' };
+  const adultMenuNames = { none:'Traen su comida', pizza:'Pizzas con gustos', pizza_calzone:'Pizza/Calzones', pizza_calzone_chivito:'Pizza/Cal/Chivito' };
   const kidsMenuName   = kidsMenuSel === 'basic' ? 'Panchos y snacks' : 'Nuggets con papas fritas';
 
   let html = '';
@@ -1614,7 +1614,7 @@ function recalc() {
 function buildWASimple() {
   const b = lastBudget; if (!b.C) return '';
   const kidsMenuNames  = { basic: 'Panchos y snacks', alt: 'Nuggets con papas fritas' };
-  const adultMenuNames = { none: 'traen su comida', pizza: 'pizzas con gustos', pizza_calzone: 'pizzas y calzones', pizza_calzone_chivito: 'pizzas, calzones y chivitos' };
+  const adultMenuNames = { none: 'traen su comida', pizza: 'pizzas con gustos', pizza_calzone: 'pizza/calzones', pizza_calzone_chivito: 'pizza/cal/chivito' };
   const kidsMenuSel   = document.getElementById('kidsMenu').value;
   const adultsMenuSel = document.getElementById('adultsMenu').value;
   const numKids   = b.numKids   || 0;
@@ -2600,7 +2600,7 @@ const escHtml = s => (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(
 function buildSheetPayload(entry, { preservePago = false } = {}) {
   const f = entry.form || {};
   const b = lastBudget;
-  const adultMenuNames = { none:'Traen su comida', pizza:'Pizzas con gustos', pizza_calzone:'Pizzas y calzones', pizza_calzone_chivito:'Pizzas, calzones y chivitos' };
+  const adultMenuNames = { none:'Traen su comida', pizza:'Pizzas con gustos', pizza_calzone:'Pizza/Calzones', pizza_calzone_chivito:'Pizza/Cal/Chivito' };
   const kidsMenuNames  = { basic:'Panchos y snacks', alt:'Nuggets con papas fritas' };
 
   let fechaStr = '';
@@ -2742,8 +2742,12 @@ function rowToEntry(row) {
   const discTipo = String(row['Descuento tipo'] || '');
   const kidsMenuMap   = { 'Panchos y snacks':'basic', 'Nuggets con papas fritas':'alt',
                           'Básico':'basic', 'Alternativo':'alt' };  // retrocompat
-  const adultsMenuMap = { 'Traen su comida':'none', 'Solo pizzas':'pizza', 'Pizzas con gustos':'pizza',
-    'Pizzas y calzones':'pizza_calzone', 'Pizzas, calzones y chivitos':'pizza_calzone_chivito' };
+  const adultsMenuMap = {
+    'Traen su comida':'none',
+    'Solo pizzas':'pizza', 'Pizzas con gustos':'pizza',
+    'Pizzas y calzones':'pizza_calzone', 'Pizza/Calzones':'pizza_calzone',
+    'Pizzas, calzones y chivitos':'pizza_calzone_chivito', 'Pizza/Cal/Chivito':'pizza_calzone_chivito'
+  };
   return {
     id:      String(row['ID'] || Date.now()),
     saveName:String(row['Nombre evento'] || fechaStr || String(Date.now())),
@@ -3087,7 +3091,7 @@ function _evISO(ev) { return _sheetDateToISO(ev['Fecha']) || ''; }
 
 // Mapeos de display (acepta tanto la clave interna como el label ya guardado)
 const _KIDS_MENU_LABEL   = { basic:'Panchos y snacks', alt:'Nuggets con papas fritas' };
-const _ADULTS_MENU_LABEL = { none:'Traen su comida', pizza:'Pizzas', pizza_calzone:'Pizzas y calzones', pizza_calzone_chivito:'Pizzas, calzones y chivitos' };
+const _ADULTS_MENU_LABEL = { none:'Traen su comida', pizza:'Pizzas con gustos', pizza_calzone:'Pizza/Calzones', pizza_calzone_chivito:'Pizza/Cal/Chivito' };
 function _menuKidsFull(v)   { return _KIDS_MENU_LABEL[v]   || v || ''; }
 function _menuAdultsFull(v) { return _ADULTS_MENU_LABEL[v] || v || ''; }
 function _abrevMenu(s) {
