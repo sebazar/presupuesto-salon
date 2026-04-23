@@ -2023,6 +2023,14 @@ function clearGuardadosFilters() {
 }
 
 function syncFromSheetGuardados() {
+  if (currentUser?.role === 'admin' || currentUser?.role === 'ventas') {
+    const mes   = document.getElementById('guardadosMesFilter')?.value  || '';
+    const fecha = document.getElementById('guardadosFechaFilter')?.value || '';
+    if (!mes && !fecha) {
+      showSaveToast('✗ Seleccioná un mes o un día antes de sincronizar.', true);
+      return;
+    }
+  }
   syncFromSheet(); // lee los filtros del modal (guardadosMesFilter / guardadosFechaFilter)
 }
 
