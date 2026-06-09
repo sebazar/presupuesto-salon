@@ -2725,7 +2725,7 @@ async function postPagoToReserva(id, pagos, pagoTotal) {
       body: JSON.stringify({ action: 'updatePagos', sheetName: 'Reservas', id, pagos, pagoTotal })
     });
     const data = await res.json();
-    return data.success !== false ? { ok: true } : { ok: false, error: data.error || 'Error al actualizar pagos' };
+    return (data.ok === true) ? { ok: true } : { ok: false, error: data.error || 'Error al actualizar pagos' };
   } catch(e) {
     return { ok: false, error: e.message || 'Error de conexión' };
   }
@@ -2738,6 +2738,7 @@ async function postToWebhook(entry, { isEdit = false } = {}) {
   // Eliminar claves con valor undefined (campos que no se deben sobreescribir)
   const payload = Object.fromEntries(Object.entries(raw).filter(([, v]) => v !== undefined));
   payload.sheetName = (entry.status === 'reserva') ? 'Reservas' : 'Presupuestos';
+  payload.auditEmail = currentUser?.email || '';
   try {
     const res  = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload) });
     const data = await res.json();
@@ -2774,7 +2775,7 @@ async function postEntrada({ eventoId, importe, concepto, formaPago, comentarios
   try {
     const res  = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload) });
     const data = await res.json();
-    return data.success !== false ? { ok: true } : { ok: false, error: data.error || 'Error al registrar entrada' };
+    return (data.ok === true) ? { ok: true } : { ok: false, error: data.error || 'Error al registrar entrada' };
   } catch(e) {
     return { ok: false, error: e.message || 'Error de conexión' };
   }
