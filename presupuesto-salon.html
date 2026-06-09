@@ -2726,7 +2726,6 @@ async function postPagoToReserva(id, pagos, pagoTotal) {
       body: JSON.stringify({ action: 'updatePagos', sheetName: 'Reservas', id, pagos, pagoTotal, auditEmail: currentUser?.email || '' })
     });
     const data = await res.json();
-    if (data.auditWarn) console.warn('[Auditoría] updatePagos:', data.auditWarn);
     return (data.ok === true) ? { ok: true } : { ok: false, error: data.error || 'Error al actualizar pagos' };
   } catch(e) {
     return { ok: false, error: e.message || 'Error de conexión' };
@@ -2778,7 +2777,6 @@ async function postEntrada({ eventoId, importe, concepto, formaPago, comentarios
   try {
     const res  = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload) });
     const data = await res.json();
-    if (data.auditWarn) console.warn('[Auditoría] postEntrada:', data.auditWarn);
     return (data.ok === true) ? { ok: true } : { ok: false, error: data.error || 'Error al registrar entrada' };
   } catch(e) {
     return { ok: false, error: e.message || 'Error de conexión' };
