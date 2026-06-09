@@ -2483,7 +2483,8 @@ async function guardarGasto() {
     gastoFijo: document.getElementById('gastoFijo').checked,
     gastoExcepcional: document.getElementById('gastoExcepcional').checked,
     formaPago: document.getElementById('gastoFormaPago').value,
-    comentarios: document.getElementById('gastoComentarios').value.trim()
+    comentarios: document.getElementById('gastoComentarios').value.trim(),
+    auditEmail: currentUser?.email || ''
   };
 
   try {
@@ -2497,7 +2498,7 @@ async function guardarGasto() {
         fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'text/plain' },
-          body: JSON.stringify({ action: 'pagarServicio', concepto: _serviciosPendienteConcepto, mesAnio })
+          body: JSON.stringify({ action: 'pagarServicio', concepto: _serviciosPendienteConcepto, mesAnio, auditEmail: currentUser?.email || '' })
         }).catch(() => {});
         _serviciosPendienteConcepto = null;
         // Volver al sub-tab de servicios y refrescar
@@ -2722,9 +2723,10 @@ async function postPagoToReserva(id, pagos, pagoTotal) {
     const res  = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({ action: 'updatePagos', sheetName: 'Reservas', id, pagos, pagoTotal })
+      body: JSON.stringify({ action: 'updatePagos', sheetName: 'Reservas', id, pagos, pagoTotal, auditEmail: currentUser?.email || '' })
     });
     const data = await res.json();
+    if (data.auditWarn) console.warn('[Auditoría] updatePagos:', data.auditWarn);
     return (data.ok === true) ? { ok: true } : { ok: false, error: data.error || 'Error al actualizar pagos' };
   } catch(e) {
     return { ok: false, error: e.message || 'Error de conexión' };
@@ -2763,6 +2765,7 @@ async function postEntrada({ eventoId, importe, concepto, formaPago, comentarios
   const payload = {
     action: 'insert',
     sheetName: 'Entradas',
+    auditEmail: currentUser?.email || '',
     row: {
       'Fecha':      fechaStr,
       'Importe':    importe,
@@ -2775,6 +2778,7 @@ async function postEntrada({ eventoId, importe, concepto, formaPago, comentarios
   try {
     const res  = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload) });
     const data = await res.json();
+    if (data.auditWarn) console.warn('[Auditoría] postEntrada:', data.auditWarn);
     return (data.ok === true) ? { ok: true } : { ok: false, error: data.error || 'Error al registrar entrada' };
   } catch(e) {
     return { ok: false, error: e.message || 'Error de conexión' };
@@ -2788,7 +2792,7 @@ function deleteFromSheet(id, sheetName) {
   fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain' },
-    body: JSON.stringify({ action: 'delete', sheetName, id })
+    body: JSON.stringify({ action: 'delete', sheetName, id, auditEmail: currentUser?.email || '' })
   }).catch(() => {});
 }
 
@@ -3452,7 +3456,7 @@ async function guardarRecreadores() {
           await fetch(cfg().webhookUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'text/plain' },
-            body: JSON.stringify({ action: 'addRecreador', nombre: nuevoNombre })
+            body: JSON.stringify({ action: 'addRecreador', nombre: nuevoNombre, auditEmail: currentUser?.email || '' })
           });
           if (!_recsList.includes(nuevoNombre)) _recsList.push(nuevoNombre);
         } catch(e) { console.warn('addRecreador error', e); }
@@ -3468,7 +3472,7 @@ async function guardarRecreadores() {
     await fetch(cfg().webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({ action: 'updateRecreadores', id: _recsEventId, nombres: nombres.join(', ') })
+      body: JSON.stringify({ action: 'updateRecreadores', id: _recsEventId, nombres: nombres.join(', '), auditEmail: currentUser?.email || '' })
     });
   } catch(e) { console.warn('guardarRecreadores error', e); }
 
