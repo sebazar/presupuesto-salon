@@ -1108,13 +1108,19 @@ let _cfg = { ...DEFAULTS };
 async function initConfig() {
   let base = { ...DEFAULTS };
 
-  // 1. config.json en GitHub (tiene googleClientId, chatbotUrl, webhookUrl, etc.)
+  const fetchTimeout = (url, ms = 5000) => {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), ms);
+    return fetch(url, { signal: ctrl.signal }).finally(() => clearTimeout(t));
+  };
+
+  // 1. config.json en GitHub (tiene googleClientId, chatbotUrl, etc.)
   try {
-    const r = await fetch(CONFIG_URL + '?_=' + Date.now());
+    const r = await fetchTimeout(CONFIG_URL + '?_=' + Date.now());
     if (r.ok) {
       const remote = await r.json();
-      delete remote.webhookUrl;   // nunca pisar la URL hardcodeada
-      delete remote.chatbotUrl;   // se maneja aparte
+      delete remote.webhookUrl;
+      delete remote.chatbotUrl;
       base = { ...base, ...remote };
       console.log('Config: config.json cargado');
     }
@@ -1122,7 +1128,7 @@ async function initConfig() {
 
   // 2. Precios desde la pestaña Config del sheet (pisa solo los precios)
   try {
-    const rSheet = await fetch(WEBHOOK_URL_FB + '?action=getConfig&_=' + Date.now());
+    const rSheet = await fetchTimeout(WEBHOOK_URL_FB + '?action=getConfig&_=' + Date.now());
     if (rSheet.ok) {
       const sheetData = await rSheet.json();
       if (sheetData.ok && sheetData.hasData) {
