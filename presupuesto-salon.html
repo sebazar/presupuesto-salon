@@ -1106,30 +1106,33 @@ const DEFAULTS = {
 
 let _cfg = { ...DEFAULTS };
 async function initConfig() {
-  // 1. Intentar cargar desde la pestaña Config del sheet (fuente de verdad)
+  let base = { ...DEFAULTS };
+
+  // 1. config.json en GitHub (tiene googleClientId, chatbotUrl, webhookUrl, etc.)
+  try {
+    const r = await fetch(CONFIG_URL + '?_=' + Date.now());
+    if (r.ok) {
+      const remote = await r.json();
+      delete remote.webhookUrl;   // nunca pisar la URL hardcodeada
+      delete remote.chatbotUrl;   // se maneja aparte
+      base = { ...base, ...remote };
+      console.log('Config: config.json cargado');
+    }
+  } catch(e) { console.warn('Config: no se pudo leer config.json', e); }
+
+  // 2. Precios desde la pestaña Config del sheet (pisa solo los precios)
   try {
     const rSheet = await fetch(WEBHOOK_URL_FB + '?action=getConfig&_=' + Date.now());
     if (rSheet.ok) {
       const sheetData = await rSheet.json();
       if (sheetData.ok && sheetData.hasData) {
-        _cfg = { ...DEFAULTS, ...sheetData.config };
-        console.log('Config: cargada desde sheet Config');
-        return;
+        base = { ...base, ...sheetData.config };
+        console.log('Config: precios cargados desde sheet Config');
       }
     }
-  } catch(e) { console.warn('Config: no se pudo cargar desde sheet, intentando GitHub...', e); }
+  } catch(e) { console.warn('Config: no se pudo cargar desde sheet', e); }
 
-  // 2. Fallback: config.json en GitHub
-  try {
-    const r = await fetch(CONFIG_URL + '?_=' + Date.now());
-    if (r.ok) {
-      const remote = await r.json();
-      if (!remote.webhookUrl) delete remote.webhookUrl;
-      delete remote.chatbotUrl;
-      _cfg = { ...DEFAULTS, ...remote };
-      console.log('Config: cargada desde GitHub');
-    }
-  } catch(e) { console.warn('Config: usando defaults.', e); }
+  _cfg = base;
 }
 const cfg     = () => _cfg;
 const saveCfg = u  => { _cfg = { ..._cfg, ...u }; };
