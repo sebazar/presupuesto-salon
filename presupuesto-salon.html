@@ -1106,13 +1106,28 @@ const DEFAULTS = {
 
 let _cfg = { ...DEFAULTS };
 async function initConfig() {
+  // 1. Intentar cargar desde la pestaña Config del sheet (fuente de verdad)
+  try {
+    const rSheet = await fetch(WEBHOOK_URL_FB + '?action=getConfig&_=' + Date.now());
+    if (rSheet.ok) {
+      const sheetData = await rSheet.json();
+      if (sheetData.ok && sheetData.hasData) {
+        _cfg = { ...DEFAULTS, ...sheetData.config };
+        console.log('Config: cargada desde sheet Config');
+        return;
+      }
+    }
+  } catch(e) { console.warn('Config: no se pudo cargar desde sheet, intentando GitHub...', e); }
+
+  // 2. Fallback: config.json en GitHub
   try {
     const r = await fetch(CONFIG_URL + '?_=' + Date.now());
     if (r.ok) {
       const remote = await r.json();
       if (!remote.webhookUrl) delete remote.webhookUrl;
-      delete remote.chatbotUrl; // siempre usar el chatbot local (misma carpeta)
+      delete remote.chatbotUrl;
       _cfg = { ...DEFAULTS, ...remote };
+      console.log('Config: cargada desde GitHub');
     }
   } catch(e) { console.warn('Config: usando defaults.', e); }
 }
@@ -2743,6 +2758,7 @@ async function postToWebhook(entry, { isEdit = false } = {}) {
   try {
     const res  = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload) });
     const data = await res.json();
+    if (data.calDebug) console.log('[Calendar debug]', data.calDebug, '| calendarEventId:', data.calendarEventId);
     if (data.success !== false) {
       const saves = getSaves();
       const idx = saves.findIndex(s => s.id === entry.id);
