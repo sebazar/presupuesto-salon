@@ -4,9 +4,9 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Espacio GOES · Próximos eventos</title>
-  <script type="module" crossorigin src="../assets/prov-BYt3yKbZ.js"></script>
+  <script type="module" crossorigin src="../assets/prov-Q964_z6G.js"></script>
   <link rel="modulepreload" crossorigin href="../assets/api-client-DTEelNun.js">
-  <link rel="stylesheet" crossorigin href="../assets/prov-BvsT314F.css">
+  <link rel="stylesheet" crossorigin href="../assets/prov-CcMgH7ut.css">
 </head>
 <body>
 
@@ -52,14 +52,33 @@
 <main class="main-wrap">
   <div class="card">
     <div class="card-header">
-      <h2>Próximos 15 días</h2>
+      <h2 id="prov-card-title">Próximos 15 días</h2>
       <div class="card-header-actions">
+        <div class="view-toggle" role="tablist" aria-label="Vista">
+          <button type="button" class="view-toggle-btn is-active" id="btn-view-lista"      role="tab" aria-selected="true">Lista</button>
+          <button type="button" class="view-toggle-btn"           id="btn-view-calendario" role="tab" aria-selected="false">Calendario</button>
+        </div>
         <small id="prov-updated"></small>
         <button type="button" class="prov-refresh" id="btn-refresh" title="Recargar">↻</button>
       </div>
     </div>
     <div id="prov-rango" class="prov-rango"></div>
     <div id="prov-content" class="prov-loading">Cargando eventos...</div>
+
+    <!-- Vista calendario (Google-style) -->
+    <div id="calendar-view" class="cal-view" hidden>
+      <div class="cal-header">
+        <div class="cal-nav">
+          <button type="button" class="cal-nav-btn" id="cal-prev"  title="Semana anterior">←</button>
+          <div class="cal-title" id="cal-title">—</div>
+          <button type="button" class="cal-nav-btn" id="cal-next"  title="Semana siguiente">→</button>
+        </div>
+        <button type="button" class="cal-today" id="cal-today">Hoy</button>
+      </div>
+      <div class="cal-scroll">
+        <div class="cal-grid" id="cal-grid"></div>
+      </div>
+    </div>
   </div>
 </main>
 
