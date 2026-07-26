@@ -4,9 +4,9 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Espacio GOES · Próximos eventos</title>
-  <script type="module" crossorigin src="../assets/prov-DXqQX9e9.js"></script>
-  <link rel="modulepreload" crossorigin href="../assets/api-client-DTEelNun.js">
-  <link rel="stylesheet" crossorigin href="../assets/prov-h3ZNgsoI.css">
+  <script type="module" crossorigin src="../assets/prov-JkQvS5n1.js"></script>
+  <link rel="modulepreload" crossorigin href="../assets/api-client-1KQoDaiP.js">
+  <link rel="stylesheet" crossorigin href="../assets/prov-BeYXxQUL.css">
 </head>
 <body>
 
@@ -57,6 +57,7 @@
         <div class="view-toggle" role="tablist" aria-label="Vista">
           <button type="button" class="view-toggle-btn is-active" id="btn-view-lista"      role="tab" aria-selected="true">Lista</button>
           <button type="button" class="view-toggle-btn"           id="btn-view-calendario" role="tab" aria-selected="false">Calendario</button>
+          <button type="button" class="view-toggle-btn"           id="btn-view-reporte"    role="tab" aria-selected="false">Reporte</button>
         </div>
         <small id="prov-updated"></small>
         <button type="button" class="prov-refresh" id="btn-refresh" title="Recargar">↻</button>
@@ -64,6 +65,17 @@
     </div>
     <div id="prov-rango" class="prov-rango"></div>
     <div id="prov-content" class="prov-loading">Cargando eventos...</div>
+
+    <!-- Vista reporte de recreadores -->
+    <div id="report-view" class="report-view" hidden>
+      <div class="report-header">
+        <label>Desde <input type="date" id="rep-from" /></label>
+        <label>Hasta <input type="date" id="rep-to" /></label>
+        <button type="button" id="btn-rep-gen" class="btn btn-primary">Generar</button>
+      </div>
+      <p class="report-hint">Rango admitido: hasta 30 días en el pasado. No incluye eventos futuros.</p>
+      <div id="report-content" class="report-content"></div>
+    </div>
 
     <!-- Vista calendario (Google-style) -->
     <div id="calendar-view" class="cal-view" hidden>
