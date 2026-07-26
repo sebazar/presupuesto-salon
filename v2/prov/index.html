@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Espacio GOES · Próximos eventos</title>
+  <script type="module" crossorigin src="../assets/prov-DSfBhKtS.js"></script>
+  <link rel="modulepreload" crossorigin href="../assets/api-client-DTEelNun.js">
+  <link rel="stylesheet" crossorigin href="../assets/prov-CgnW8MO-.css">
+</head>
+<body>
+
+<!-- LOGIN GATE (bloqueante) -->
+<div id="login-overlay" class="login-overlay">
+  <div class="login-box">
+    <h1>Espacio GOES</h1>
+    <p class="login-sub">Iniciá sesión con tu cuenta autorizada para ver los próximos eventos.</p>
+    <div id="google-login-btn"></div>
+    <p id="login-error" class="login-error" style="display:none"></p>
+    <div id="access-denied-msg" class="access-denied" style="display:none">
+      Tu cuenta no tiene permiso para ver esta página.
+    </div>
+    <button type="button" id="login-signout" class="btn btn-gray login-signout" style="display:none">Cerrar sesión</button>
+  </div>
+</div>
+
+<header class="app-header">
+  <div class="app-header-inner">
+    <div class="app-brand">
+      <div class="header-title">
+        <h1>Espacio GOES</h1>
+        <p>Próximos eventos</p>
+      </div>
+    </div>
+    <div class="app-actions">
+      <div id="user-avatar" class="user-avatar" style="display:none"></div>
+    </div>
+  </div>
+  <div class="app-tricolor"></div>
+</header>
+
+<div id="user-menu" class="user-menu">
+  <div class="user-menu-name" id="um-name"></div>
+  <div class="user-menu-email" id="um-email"></div>
+  <span class="role-badge" id="um-role"></span>
+  <hr>
+  <button class="user-menu-logout" type="button" id="btn-logout">Cerrar sesión</button>
+</div>
+
+<main class="main-wrap">
+  <div class="card">
+    <div class="card-header">
+      <h2>Próximos 15 días</h2>
+      <div class="card-header-actions">
+        <small id="prov-updated"></small>
+        <button type="button" class="prov-refresh" id="btn-refresh" title="Recargar">↻</button>
+      </div>
+    </div>
+    <div id="prov-rango" class="prov-rango"></div>
+    <div id="prov-content" class="prov-loading">Cargando eventos...</div>
+  </div>
+</main>
+
+<!-- MODAL: Detalle evento -->
+<div id="prov-modal-overlay" class="modal-ov">
+  <div class="modal-box prov-modal-box">
+    <div class="prov-modal-header">
+      <div>
+        <h3 id="prov-modal-title">Evento</h3>
+        <div class="prov-modal-date" id="prov-modal-subtitle"></div>
+      </div>
+      <button type="button" class="prov-modal-close" id="btn-close-detalle">X</button>
+    </div>
+    <div class="prov-modal-body" id="prov-modal-body"></div>
+  </div>
+</div>
+
+<!-- MODAL: Recreadores -->
+<div id="recsModal" class="modal-ov">
+  <div class="modal-box recs-modal-box">
+    <div class="recs-modal-header">
+      <h3>Recreadores</h3>
+      <button type="button" class="prov-modal-close" id="btn-close-recs">X</button>
+    </div>
+    <p id="recs-modal-sub" class="recs-modal-sub"></p>
+    <div id="recs-dds-container" class="recs-dds"></div>
+    <div class="modal-foot">
+      <button type="button" id="recsGuardarBtn" class="btn btn-primary">Guardar</button>
+      <button type="button" id="recsCancelBtn"  class="btn btn-gray">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
