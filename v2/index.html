@@ -1,0 +1,403 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Espacio GOES · Cotizador V2</title>
+  <script type="module" crossorigin src="./assets/budget-4BvFbSdX.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/budget-BTiUsQdO.css">
+</head>
+<body>
+  <header class="app-header">
+    <div class="app-header-inner">
+      <div class="app-brand">
+        <img class="app-logo" src="./assets/logo-espacio-goes-B3yLfRtM.jpg" alt="Espacio Goes" />
+      </div>
+      <div class="app-actions">
+        <span id="env-badge" class="env-badge env-test" title="Entorno de escritura">TEST</span>
+        <div id="auth-panel" class="auth-panel"></div>
+      </div>
+    </div>
+    <div class="app-tricolor"></div>
+  </header>
+
+  <div class="tabs-wrap">
+    <nav class="tabs" role="tablist">
+      <button class="tab active" data-tab="budget"   role="tab">📋 Presupuesto / Reserva</button>
+      <button class="tab"        data-tab="search"   role="tab">🔍 Buscar</button>
+      <button class="tab"        data-tab="expenses" role="tab">💸 Gastos</button>
+      <button class="tab"        data-tab="services" role="tab">🧾 Servicios</button>
+    </nav>
+  </div>
+
+  <!-- ═══ Tab: Presupuesto + Reserva integrados ═══ -->
+  <section id="tab-budget" class="tab-panel active">
+    <div id="loaded-info" class="loaded-info"></div>
+
+    <form id="budget-form">
+      <!-- Card 1: obligatorio -->
+      <div class="card">
+        <div class="card-header">
+          <h2>📋 Datos del presupuesto <span class="stag stag-req">Obligatorio</span></h2>
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Fecha del evento</label>
+            <input type="date" name="date" required />
+            <small class="hint" data-hint="dateLabel"></small>
+          </div>
+          <div class="form-group">
+            <label>Cantidad de niños</label>
+            <input type="number" name="kidsCount" min="0" value="0" />
+          </div>
+          <div class="form-group">
+            <label>Menú niños</label>
+            <select name="kidsMenu" data-options="kids"></select>
+          </div>
+          <div class="form-group">
+            <label>Cantidad de adultos</label>
+            <input type="number" name="adultsCount" min="0" value="0" />
+          </div>
+          <div class="form-group">
+            <label>Menú adultos</label>
+            <select name="adultsMenu" data-options="adults"></select>
+          </div>
+          <div class="form-group">
+            <label>Horas extra</label>
+            <input type="number" name="extraHours" min="0" max="12" step="1" value="0" />
+          </div>
+          <div id="date-conflict-warn" class="conflict-warn conflict-warn-yellow form-full" style="display:none;"></div>
+        </div>
+      </div>
+
+      <!-- Card 3: descuento + manual -->
+      <div class="card card-optional">
+        <div class="card-header">
+          <h2>🏷️ Descuento y precio manual <span class="stag stag-opt">Opcional</span></h2>
+        </div>
+        <div class="form-grid form-grid-3">
+          <div class="form-group">
+            <label>Tipo de descuento</label>
+            <select name="discountType">
+              <option value="">— Sin descuento —</option>
+              <option value="fixed">Monto fijo</option>
+              <option value="percent">Porcentaje</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Valor del descuento</label>
+            <input type="number" name="discountValue" min="0" step="1" value="0" />
+          </div>
+          <div class="form-group">
+            <label>Precio manual</label>
+            <input type="number" name="manualPriceOverride" min="0" step="1" placeholder="Override del total" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 4: Datos de la reserva (toggle) -->
+      <div class="card card-reserva">
+        <div class="card-header">
+          <h2>📝 Datos de la reserva <span class="stag stag-rsv">Para reservar</span></h2>
+          <label class="toggle-switch" title="Activar sección de reserva">
+            <input type="checkbox" id="toggle-reservation" />
+            <span></span>
+          </label>
+        </div>
+        <div id="reservation-fields" class="form-grid form-grid-6" style="display:none;">
+          <div class="form-group span-3">
+            <label>Nombre del evento</label>
+            <input type="text" name="eventName" placeholder="Ej: Cumple Sofi" />
+          </div>
+          <div class="form-group span-3">
+            <label>Hora de inicio</label>
+            <select name="startTime" data-options="halfhours" data-empty-option="— Elegir —"></select>
+          </div>
+          <div class="form-group span-2">
+            <label>Seña ($)</label>
+            <input type="number" name="signAmount" min="0" value="0" />
+          </div>
+          <div class="form-group span-2">
+            <label>Forma de pago</label>
+            <select name="paymentMethod" data-options="paymentsIncome" data-empty-option="— Elegir —"></select>
+          </div>
+          <div class="form-group span-2">
+            <label>Rol de Roman</label>
+            <select name="romanRole" data-options="roman" data-empty-option="— Elegir —"></select>
+          </div>
+          <div class="form-group span-3">
+            <label>Cliente — Nombre</label>
+            <input type="text" name="clientName" />
+          </div>
+          <div class="form-group span-3">
+            <label>Cliente — Teléfono</label>
+            <input type="tel" name="clientPhone" />
+          </div>
+          <div id="time-conflict-warn" class="conflict-warn conflict-warn-red form-full" style="display:none;"></div>
+          <div class="form-group form-full">
+            <label>Notas</label>
+            <textarea name="notes" rows="3"></textarea>
+          </div>
+          <div id="payments-section" class="form-full payments-section" style="display:none;">
+            <div class="payments-header">
+              <strong>💰 Pagos registrados</strong>
+              <button type="button" id="btn-add-payment" class="btn btn-sm btn-primary">+ Agregar pago</button>
+            </div>
+            <div id="payments-list" class="payments-list"></div>
+            <div id="payments-total" class="payments-total"></div>
+          </div>
+        </div>
+      </div>
+    </form>
+
+    <!-- Card resultado -->
+    <div class="card card-result" id="price-display">
+      <div class="card-header">
+        <h2>💰 Detalle del presupuesto</h2>
+      </div>
+      <div id="line-items"></div>
+      <div id="staff-info"></div>
+      <div class="total-row">
+        <span>Total</span>
+        <strong id="total-amount">$0</strong>
+      </div>
+      <div id="warnings" class="warnings"></div>
+    </div>
+
+    <div class="actions">
+      <button type="button" id="btn-save-budget" class="btn btn-primary">💾 Guardar presupuesto</button>
+      <button type="button" id="btn-save-reservation" class="btn btn-reserva" style="display:none;">✅ Guardar reserva</button>
+      <button type="button" id="btn-convert-reservation" class="btn btn-outline">✅ Convertir a reserva</button>
+      <button type="button" id="btn-copy-wa" class="btn btn-wa">💬 WhatsApp</button>
+      <button type="button" id="btn-reset" class="btn btn-gray">🗑️ Limpiar</button>
+    </div>
+  </section>
+
+  <!-- ═══ Tab: Buscar ═══ -->
+  <section id="tab-search" class="tab-panel">
+    <div class="card">
+      <div class="card-header">
+        <h2>🔍 Buscar eventos</h2>
+      </div>
+      <div class="search-toolbar">
+        <div class="form-group">
+          <label>Tipo</label>
+          <select id="search-kind">
+            <option value="budgets" selected>Presupuestos</option>
+            <option value="reservations">Reservas</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Mes</label>
+          <input type="month" id="search-month" />
+        </div>
+        <div class="form-group">
+          <label>Día (opcional)</label>
+          <input type="date" id="search-date" />
+        </div>
+        <div class="form-group">
+          <label>&nbsp;</label>
+          <button type="button" id="btn-search" class="btn btn-primary btn-block">Buscar</button>
+        </div>
+      </div>
+    </div>
+    <div id="search-results" class="search-results">
+      <div class="hint">Seleccioná mes o día y click <strong>Buscar</strong>.</div>
+    </div>
+  </section>
+
+  <!-- ═══ Tab: Gastos ═══ -->
+  <section id="tab-expenses" class="tab-panel">
+    <form id="expense-form">
+      <div class="card">
+        <div class="card-header">
+          <h2>💸 Nuevo gasto</h2>
+        </div>
+        <div class="form-grid form-grid-3">
+          <div class="form-group">
+            <label>Fecha</label>
+            <input type="date" name="date" required />
+          </div>
+          <div class="form-group">
+            <label>Importe ($)</label>
+            <input type="number" name="amount" min="0" step="1" value="0" required />
+          </div>
+          <div class="form-group">
+            <label>Forma de pago</label>
+            <select name="paymentMethod" data-options="paymentsExpense" data-empty-option="— Elegir —"></select>
+          </div>
+          <div class="form-group span-2">
+            <label>Concepto</label>
+            <input type="text" name="concept" placeholder="Ej: Cinta LED · Detergente" required />
+          </div>
+          <div class="form-group">
+            <label>Proveedor</label>
+            <select name="provider" data-options="expenseProviders" data-empty-option="— Elegir —"></select>
+          </div>
+          <div class="form-group">
+            <label>Tipo</label>
+            <select name="expenseType">
+              <option value="">— Normal —</option>
+              <option value="fixed">Gasto fijo</option>
+              <option value="exceptional">Excepcional</option>
+            </select>
+          </div>
+          <div class="form-group span-2">
+            <label>Comentarios</label>
+            <input type="text" name="notes" />
+          </div>
+        </div>
+      </div>
+      <div class="actions">
+        <button type="button" id="btn-save-expense" class="btn btn-primary">💾 Guardar gasto</button>
+        <button type="button" id="btn-reset-expense" class="btn btn-gray">🗑️ Limpiar</button>
+      </div>
+    </form>
+
+    <div class="card">
+      <div class="card-header">
+        <h2>🔍 Buscar gastos</h2>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <label style="font-size:12px;color:var(--gray-600);">Mes:</label>
+          <input type="month" id="expenses-month" />
+          <label style="font-size:12px;color:var(--gray-600);">Día:</label>
+          <input type="date" id="expenses-day" />
+          <button type="button" id="btn-load-expenses" class="btn btn-outline btn-sm">Cargar</button>
+        </div>
+      </div>
+      <div id="expenses-list" class="expenses-list">
+        <div class="hint">Elegí mes o día y click Cargar.</div>
+      </div>
+      <div id="expenses-total" class="expenses-total" style="display:none;"></div>
+    </div>
+  </section>
+
+  <!-- ═══ Tab: Servicios/Impuestos ═══ -->
+  <section id="tab-services" class="tab-panel">
+    <form id="service-form">
+      <div class="card">
+        <div class="card-header">
+          <h2>🧾 Nuevo servicio / impuesto</h2>
+        </div>
+        <div class="form-grid form-grid-3">
+          <div class="form-group span-2">
+            <label>Concepto</label>
+            <input type="text" name="concept" placeholder="Ej: UTE · Alquiler · Internet" required />
+          </div>
+          <div class="form-group">
+            <label>Proveedor</label>
+            <select name="provider" data-options="expenseProviders" data-empty-option="— Elegir —"></select>
+          </div>
+          <div class="form-group span-2">
+            <label>Forma de pago</label>
+            <select name="paymentMethod" data-options="paymentsExpense" data-empty-option="— Elegir —"></select>
+          </div>
+          <div class="form-group check-group">
+            <label class="check-lbl"><input type="checkbox" name="isFixed" /> 📌 Gasto fijo</label>
+          </div>
+        </div>
+        <p class="hint" style="margin-top:8px">El importe se ingresa al momento de <strong>Pagar</strong> (registra un gasto).</p>
+      </div>
+      <div class="actions">
+        <button type="button" id="btn-save-service" class="btn btn-primary">💾 Guardar servicio</button>
+        <button type="button" id="btn-reset-service" class="btn btn-gray">🗑️ Limpiar</button>
+      </div>
+    </form>
+
+    <div class="card">
+      <div class="card-header">
+        <h2>🔁 Servicios e Impuestos</h2>
+        <button type="button" id="btn-load-services" class="btn btn-outline btn-sm">🔄 Actualizar</button>
+      </div>
+      <div id="services-month-label" class="hint" style="margin-bottom:8px"></div>
+      <div id="services-list" class="services-list">
+        <div class="hint">Cargando...</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ Modal: Registrar pago ═══ -->
+  <div class="modal-ov" id="payment-modal">
+    <div class="modal-box">
+      <h3>💳 Registrar pago</h3>
+      <div id="payment-info" class="payment-info"></div>
+      <div class="pay-summary-box">
+        <div class="pay-sum-row">
+          <span>Pagos acumulados</span>
+          <strong id="payment-acc">$0</strong>
+        </div>
+        <div class="pay-sum-row pay-falta" id="payment-falta-wrap" style="display:none;">
+          <span>Falta para completar</span>
+          <strong id="payment-falta">$0</strong>
+        </div>
+      </div>
+      <div class="form-grid form-grid-2" style="margin-top:14px;">
+        <div class="form-group form-full">
+          <label>Importe ($)</label>
+          <input type="number" id="payment-amount" min="0" step="1" value="0" />
+        </div>
+        <div class="form-group">
+          <label>Concepto *</label>
+          <select id="payment-concept" required>
+            <option value="">— Elegir —</option>
+            <option value="Seña">Seña</option>
+            <option value="Adelanto">Adelanto</option>
+            <option value="Pago final">Pago final</option>
+            <option value="Bebidas">Bebidas</option>
+            <option value="Otros">Otros</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Forma de pago *</label>
+          <select id="payment-method" data-options="paymentsIncome" data-empty-option="— Elegir —" required></select>
+        </div>
+        <div class="form-group form-full">
+          <label>Comentarios</label>
+          <textarea id="payment-notes" rows="2" placeholder="Opcional…"></textarea>
+        </div>
+      </div>
+      <p id="payment-auto-msg" class="payment-auto" style="display:none;">✅ Este pago completará el total del evento.</p>
+      <div class="modal-foot">
+        <button type="button" class="btn btn-primary" id="btn-confirm-payment">✓ Confirmar pago</button>
+        <div style="flex:1"></div>
+        <button type="button" class="btn btn-gray" data-close-modal="payment-modal">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ Modal: WhatsApp ═══ -->
+  <div class="modal-ov" id="wa-modal">
+    <div class="modal-box">
+      <h3>💬 Copiar para WhatsApp</h3>
+      <p class="modal-hint">Editá el texto si querés y después apretá Copiar.</p>
+      <textarea class="wa-textarea" id="wa-text" rows="14"></textarea>
+      <div class="modal-foot">
+        <button type="button" class="btn btn-wa" id="btn-wa-copy">📋 Copiar</button>
+        <button type="button" class="btn btn-outline" id="btn-wa-open">↗ Abrir WhatsApp Web</button>
+        <div style="flex:1"></div>
+        <button type="button" class="btn btn-gray" data-close-modal="wa-modal">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ Modal: Admin ═══ -->
+  <div class="modal-ov" id="admin-modal">
+    <div class="modal-box modal-lg">
+      <h3>⚙️ Panel de administración</h3>
+      <p class="modal-hint">Editá config sin tocar código. Los cambios se guardan en la Sheet <code>ConfigV2</code>.</p>
+      <div id="admin-panel"></div>
+      <div class="modal-foot">
+        <button type="button" class="btn btn-outline" id="btn-refresh-config">🔄 Refrescar desde Sheet</button>
+        <div style="flex:1"></div>
+        <button type="button" class="btn btn-gray" data-close-modal="admin-modal">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <div id="loading-overlay" class="loading-overlay">
+    <div class="spinner"></div>
+  </div>
+
+</body>
+</html>
