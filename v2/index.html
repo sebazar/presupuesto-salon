@@ -4,10 +4,22 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Espacio GOES · Cotizador V2</title>
-  <script type="module" crossorigin src="./assets/budget-4BvFbSdX.js"></script>
-  <link rel="stylesheet" crossorigin href="./assets/budget-BTiUsQdO.css">
+  <script type="module" crossorigin src="./assets/budget-CoADgNiv.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/budget-B3PwMNMp.css">
 </head>
 <body>
+  <!-- Auth gate: bloquea la app hasta login válido -->
+  <div id="auth-gate" class="auth-gate">
+    <div class="auth-gate-box">
+      <img class="auth-gate-logo" src="./assets/logo-espacio-goes-B3yLfRtM.jpg" alt="Espacio GOES" />
+      <h1 id="auth-gate-title">Espacio GOES</h1>
+      <p id="auth-gate-msg">Iniciá sesión con tu cuenta autorizada para continuar.</p>
+      <div id="auth-gate-gsi"></div>
+      <div id="auth-gate-err" class="auth-gate-err" style="display:none"></div>
+      <button type="button" id="auth-gate-signout" class="btn btn-gray auth-gate-signout" style="display:none">Cerrar sesión</button>
+    </div>
+  </div>
+
   <header class="app-header">
     <div class="app-header-inner">
       <div class="app-brand">
