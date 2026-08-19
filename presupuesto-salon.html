@@ -1447,15 +1447,15 @@ function calcEndTime() {
 // RECALC
 // ════════════════════════════════════════════
 // Escala de recreadores por cantidad de niños
-// 1–22 → 2 (incluidos) · 23–32 → 3 · 33–40 → 4 · 41+ → 1 cada 10 (↑)
+// 1–20 → 2 (incluidos) · 21–30 → 3 · 31–40 → 4 · 41+ → 1 cada 10 (↑)
 function calcRecs(n) {
   if (n <= 0)  return { recs: 0, tier: '' };
-  if (n <= 22) return { recs: 2, tier: '1–22 niños' };
-  if (n <= 32) return { recs: 3, tier: '23–32 niños' };
-  if (n <= 40) return { recs: 4, tier: '33–40 niños' };
+  if (n <= 20) return { recs: 2, tier: '1–20 niños' };
+  if (n <= 30) return { recs: 3, tier: '21–30 niños' };
+  if (n <= 40) return { recs: 4, tier: '31–40 niños' };
   return { recs: Math.ceil(n / 10), tier: `${n} niños → 1 c/10` };
 }
-const RECS_ESCALA = '1–22 → 2 · 23–32 → 3 · 33–40 → 4 · 41+ → 1 c/10';
+const RECS_ESCALA = '1–20 → 2 · 21–30 → 3 · 31–40 → 4 · 41+ → 1 c/10';
 
 function recalc() {
   const C = cfg();
