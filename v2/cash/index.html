@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Espacio GOES · Ingresos y Cajas</title>
+  <script type="module" crossorigin src="../assets/cash-sQshPQWm.js"></script>
+  <link rel="modulepreload" crossorigin href="../assets/api-client-Cjlt6wNH.js">
+  <link rel="stylesheet" crossorigin href="../assets/cash-BVpz9NX-.css">
+</head>
+<body>
+
+<!-- LOGIN GATE -->
+<div id="login-overlay" class="login-overlay">
+  <div class="login-box">
+    <img class="login-logo" src="../assets/logo-espacio-goes-B3yLfRtM.jpg" alt="Espacio GOES" />
+    <h1>Espacio GOES</h1>
+    <p class="login-sub">Iniciá sesión con tu cuenta autorizada.</p>
+    <div id="google-login-btn"></div>
+    <p id="login-error" class="login-error" style="display:none"></p>
+    <div id="access-denied-msg" class="access-denied" style="display:none">
+      Tu cuenta no tiene permiso para ver esta página.
+    </div>
+    <button type="button" id="login-signout" class="btn btn-gray login-signout" style="display:none">Cerrar sesión</button>
+  </div>
+</div>
+
+<header class="app-header">
+  <div class="app-header-inner">
+    <div class="app-brand">
+      <img class="app-logo" src="../assets/logo-espacio-goes-B3yLfRtM.jpg" alt="Espacio GOES" />
+      <div class="header-title">
+        <h1>Espacio GOES</h1>
+        <p>Ingresos y Cajas</p>
+      </div>
+    </div>
+    <div class="app-actions">
+      <div id="user-avatar" class="user-avatar" title="Menú de usuario"></div>
+    </div>
+  </div>
+  <div class="app-tricolor"></div>
+</header>
+
+<!-- USER MENU -->
+<div id="user-menu" class="user-menu" style="display:none">
+  <div class="user-menu-email" id="user-menu-email"></div>
+  <hr class="user-menu-sep" />
+  <button type="button" id="menu-signout" class="btn btn-gray" style="width:100%">Cerrar sesión</button>
+</div>
+
+<main class="main-content">
+
+  <!-- TABS -->
+  <div class="tabs-bar">
+    <button class="tab-btn active" data-tab="ingresos">Ingresos</button>
+    <button class="tab-btn" data-tab="cajas">Cajas Chica</button>
+  </div>
+
+  <!-- TAB: INGRESOS -->
+  <section id="tab-ingresos" class="tab-section">
+    <div class="filter-bar">
+      <button class="filter-btn active" data-range="day">Hoy</button>
+      <button class="filter-btn" data-range="week">Esta semana</button>
+      <button class="filter-btn" data-range="month">Este mes</button>
+    </div>
+    <div id="ingresos-summary" class="summary-bar" style="display:none">
+      <span id="summary-count"></span>
+      <span class="summary-sep">·</span>
+      <strong id="summary-total"></strong>
+    </div>
+    <div id="ingresos-loading" class="loading-msg">Cargando ingresos…</div>
+    <div id="ingresos-empty" class="empty-msg" style="display:none">No hay ingresos para el período seleccionado.</div>
+    <div id="ingresos-error" class="error-msg" style="display:none"></div>
+    <div id="ingresos-table-wrap" style="display:none">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th class="col-right">Importe</th>
+            <th>N. Evento</th>
+            <th>Concepto</th>
+            <th>Forma Pago</th>
+          </tr>
+        </thead>
+        <tbody id="ingresos-tbody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- TAB: CAJAS -->
+  <section id="tab-cajas" class="tab-section" style="display:none">
+    <div id="cajas-loading" class="loading-msg">Cargando cajas…</div>
+    <div id="cajas-error" class="error-msg" style="display:none"></div>
+    <div id="cajas-content" style="display:none">
+      <div class="cajas-grid">
+        <div class="caja-card" id="caja-vir"></div>
+        <div class="caja-card" id="caja-fede"></div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+</body>
+</html>
