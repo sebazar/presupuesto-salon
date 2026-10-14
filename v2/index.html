@@ -4,9 +4,9 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Espacio GOES · Cotizador V2</title>
-  <script type="module" crossorigin src="./assets/budget-C2yMrtD5.js"></script>
+  <script type="module" crossorigin src="./assets/budget-CW4es7H3.js"></script>
   <link rel="modulepreload" crossorigin href="./assets/api-client-Cjlt6wNH.js">
-  <link rel="stylesheet" crossorigin href="./assets/budget-CHuZnERq.css">
+  <link rel="stylesheet" crossorigin href="./assets/budget-DhMUXHwD.css">
 </head>
 <body>
   <!-- Auth gate: bloquea la app hasta login válido -->
@@ -40,7 +40,7 @@
       <button class="tab"        data-tab="search"   role="tab">🔍 Buscar</button>
       <button class="tab"        data-tab="expenses" role="tab">💸 Gastos</button>
       <button class="tab"        data-tab="services" role="tab">🧾 Servicios</button>
-      <button class="tab tab-link" id="tab-link-cash" title="Ingresos y Cajas">💰 Cajas</button>
+      <button class="tab"        data-tab="cash"     role="tab">💰 Cajas</button>
     </nav>
   </div>
 
@@ -326,6 +326,55 @@
       <div id="services-month-label" class="hint" style="margin-bottom:8px"></div>
       <div id="services-list" class="services-list">
         <div class="hint">Cargando...</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ Tab: Cajas (Ingresos + Cajas Chica) ═══ -->
+  <section id="tab-cash" class="tab-panel">
+    <div class="cash-subtabs">
+      <button type="button" class="cash-subtab active" data-cash-sub="ingresos">Ingresos</button>
+      <button type="button" class="cash-subtab"        data-cash-sub="cajas">Cajas Chica</button>
+    </div>
+
+    <div id="cash-sub-ingresos" class="cash-sub-panel active">
+      <div class="cash-filter-bar">
+        <button type="button" class="cash-filter-btn active" data-cash-range="day">Hoy</button>
+        <button type="button" class="cash-filter-btn"        data-cash-range="week">Esta semana</button>
+        <button type="button" class="cash-filter-btn"        data-cash-range="month">Este mes</button>
+      </div>
+      <div id="cash-ingresos-summary" class="cash-summary-bar" style="display:none">
+        <span id="cash-summary-count"></span>
+        <span class="cash-summary-sep">·</span>
+        <strong id="cash-summary-total"></strong>
+      </div>
+      <div id="cash-ingresos-loading" class="hint">Cargando ingresos…</div>
+      <div id="cash-ingresos-empty"   class="hint" style="display:none">No hay ingresos para el período seleccionado.</div>
+      <div id="cash-ingresos-error"   class="cash-error-msg" style="display:none"></div>
+      <div id="cash-ingresos-table-wrap" style="display:none">
+        <table class="cash-data-table">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th class="col-right">Importe</th>
+              <th>N. Evento</th>
+              <th>Concepto</th>
+              <th>Forma Pago</th>
+            </tr>
+          </thead>
+          <tbody id="cash-ingresos-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="cash-sub-cajas" class="cash-sub-panel">
+      <div id="cash-cajas-loading" class="hint">Cargando cajas…</div>
+      <div id="cash-cajas-error"   class="cash-error-msg" style="display:none"></div>
+      <div id="cash-cajas-content" style="display:none">
+        <div class="cash-cajas-grid">
+          <div class="cash-caja-card" id="cash-caja-vir"></div>
+          <div class="cash-caja-card" id="cash-caja-fede"></div>
+        </div>
       </div>
     </div>
   </section>
