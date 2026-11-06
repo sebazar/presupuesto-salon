@@ -4,9 +4,9 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Espacio GOES · Cotizador V2</title>
-  <script type="module" crossorigin src="./assets/budget-D-NpFznq.js"></script>
+  <script type="module" crossorigin src="./assets/budget-CQXo_mx7.js"></script>
   <link rel="modulepreload" crossorigin href="./assets/api-client-ZGX4_DXc.js">
-  <link rel="stylesheet" crossorigin href="./assets/budget-BW7aEpzX.css">
+  <link rel="stylesheet" crossorigin href="./assets/budget-QTJnV9b_.css">
 </head>
 <body>
   <!-- Auth gate: bloquea la app hasta login válido -->
@@ -80,6 +80,14 @@
             <label>Horas extra</label>
             <input type="number" name="extraHours" min="0" max="12" step="1" value="0" />
           </div>
+          <div class="form-group">
+            <label>Nº animadores <small class="hint-inline" id="rec-auto-note">(auto)</small></label>
+            <input type="number" name="numRecreadores" min="0" step="1" placeholder="auto" />
+          </div>
+          <div class="form-group">
+            <label>Nº mozos <small class="hint-inline" id="moz-auto-note">(auto)</small></label>
+            <input type="number" name="numMozos" min="0" step="1" placeholder="auto" />
+          </div>
           <div id="date-conflict-warn" class="conflict-warn conflict-warn-yellow form-full" style="display:none;"></div>
         </div>
       </div>
@@ -105,6 +113,14 @@
           <div class="form-group">
             <label>Precio manual</label>
             <input type="number" name="manualPriceOverride" min="0" step="1" placeholder="Override del total" />
+          </div>
+          <div class="form-group span-2">
+            <label>Otro — descripción</label>
+            <input type="text" name="otroDesc" placeholder="Ej: Torta, decoración extra, …" />
+          </div>
+          <div class="form-group">
+            <label>Otro — valor ($)</label>
+            <input type="number" name="otroValor" min="0" step="1" placeholder="0" />
           </div>
         </div>
       </div>
