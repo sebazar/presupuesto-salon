@@ -4,9 +4,9 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Espacio GOES · Cotizador V2</title>
-  <script type="module" crossorigin src="./assets/budget-46fmRh4T.js"></script>
+  <script type="module" crossorigin src="./assets/budget-CtjSGY6H.js"></script>
   <link rel="modulepreload" crossorigin href="./assets/api-client-ZGX4_DXc.js">
-  <link rel="stylesheet" crossorigin href="./assets/budget-Dgbox3w9.css">
+  <link rel="stylesheet" crossorigin href="./assets/budget-C-bagGml.css">
 </head>
 <body>
   <!-- Auth gate: bloquea la app hasta login válido -->
@@ -474,6 +474,38 @@
         <button type="button" class="btn btn-outline" id="btn-refresh-config">🔄 Refrescar desde Sheet</button>
         <div style="flex:1"></div>
         <button type="button" class="btn btn-gray" data-close-modal="admin-modal">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ Modal: Movimientos de caja ═══ -->
+  <div class="modal-ov" id="mov-modal">
+    <div class="modal-box">
+      <h3>💰 Movimientos de caja</h3>
+      <div class="mov-controls">
+        <div class="mov-seg mov-seg-wrap">
+          <button type="button" class="mov-seg-btn mov-caja-btn" data-caja="all">Todas</button>
+          <button type="button" class="mov-seg-btn mov-caja-btn" data-caja="vir">Vir</button>
+          <button type="button" class="mov-seg-btn mov-caja-btn" data-caja="fede">Fede</button>
+          <button type="button" class="mov-seg-btn mov-caja-btn" data-caja="gadicor">Gadicor</button>
+          <button type="button" class="mov-seg-btn mov-caja-btn" data-caja="seba">Seba</button>
+          <button type="button" class="mov-seg-btn mov-caja-btn" data-caja="otros">Otros</button>
+        </div>
+        <div class="mov-seg">
+          <button type="button" class="mov-seg-btn mov-range-btn" data-range="7">7 días</button>
+          <button type="button" class="mov-seg-btn mov-range-btn" data-range="15">15 días</button>
+          <button type="button" class="mov-seg-btn mov-range-btn" data-range="30">Mes</button>
+        </div>
+      </div>
+      <div class="mov-totals">
+        <div class="mov-stat"><span class="mov-stat-label">Entradas</span><span id="mov-in" class="mov-stat-value positive">—</span></div>
+        <div class="mov-stat"><span class="mov-stat-label">Salidas</span><span id="mov-out" class="mov-stat-value negative">—</span></div>
+        <div class="mov-stat"><span class="mov-stat-label">Neto</span><span id="mov-neto" class="mov-stat-value">—</span></div>
+      </div>
+      <div id="mov-list" class="mov-list"></div>
+      <div class="modal-foot">
+        <span class="modal-hint" style="flex:1; margin:0;">Neto del período — no es el saldo total de la caja.</span>
+        <button type="button" class="btn btn-gray" id="mov-close">Cerrar</button>
       </div>
     </div>
   </div>
