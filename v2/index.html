@@ -4,9 +4,9 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Espacio GOES · Cotizador V2</title>
-  <script type="module" crossorigin src="./assets/budget-CtjSGY6H.js"></script>
+  <script type="module" crossorigin src="./assets/budget-BjMs4_IC.js"></script>
   <link rel="modulepreload" crossorigin href="./assets/api-client-ZGX4_DXc.js">
-  <link rel="stylesheet" crossorigin href="./assets/budget-C-bagGml.css">
+  <link rel="stylesheet" crossorigin href="./assets/budget-CAH80fwI.css">
 </head>
 <body>
   <!-- Auth gate: bloquea la app hasta login válido -->
@@ -354,6 +354,7 @@
   <section id="tab-cash" class="tab-panel">
     <div class="cash-subtabs">
       <button type="button" class="cash-subtab active" data-cash-sub="ingresos">Ingresos</button>
+      <button type="button" class="cash-subtab"        data-cash-sub="egresos">Egresos</button>
       <button type="button" class="cash-subtab"        data-cash-sub="cajas">Cajas Chica</button>
     </div>
 
@@ -383,6 +384,36 @@
             </tr>
           </thead>
           <tbody id="cash-ingresos-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="cash-sub-egresos" class="cash-sub-panel">
+      <div class="cash-filter-bar">
+        <button type="button" class="cash-egr-filter-btn active" data-cash-range="day">Hoy</button>
+        <button type="button" class="cash-egr-filter-btn"        data-cash-range="week">Esta semana</button>
+        <button type="button" class="cash-egr-filter-btn"        data-cash-range="month">Este mes</button>
+      </div>
+      <div id="cash-egresos-summary" class="cash-summary-bar cash-summary-bar-egr" style="display:none">
+        <span id="cash-egr-summary-count"></span>
+        <span class="cash-summary-sep">·</span>
+        <strong id="cash-egr-summary-total"></strong>
+      </div>
+      <div id="cash-egresos-loading" class="hint">Cargando egresos…</div>
+      <div id="cash-egresos-empty"   class="hint" style="display:none">No hay egresos para el período seleccionado.</div>
+      <div id="cash-egresos-error"   class="cash-error-msg" style="display:none"></div>
+      <div id="cash-egresos-table-wrap" style="display:none">
+        <table class="cash-data-table">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th class="col-right">Importe</th>
+              <th>Proveedor</th>
+              <th>Concepto</th>
+              <th>Forma de pago</th>
+            </tr>
+          </thead>
+          <tbody id="cash-egresos-tbody"></tbody>
         </table>
       </div>
     </div>
