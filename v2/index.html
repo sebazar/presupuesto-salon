@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Espacio GOES · Cotizador V2</title>
-  <script type="module" crossorigin src="./assets/budget-DXEAPGOM.js"></script>
+  <script type="module" crossorigin src="./assets/budget-LVGhlqnR.js"></script>
   <link rel="modulepreload" crossorigin href="./assets/api-client-ZGX4_DXc.js">
   <link rel="stylesheet" crossorigin href="./assets/budget-C-bagGml.css">
 </head>
@@ -175,6 +175,8 @@
           <div id="payments-section" class="form-full payments-section" style="display:none;">
             <div class="payments-header">
               <strong>💰 Pagos registrados</strong>
+              <span style="flex:1"></span>
+              <button type="button" id="btn-add-tip" class="btn btn-sm btn-outline">💵 Registrar propina</button>
               <button type="button" id="btn-add-payment" class="btn btn-sm btn-primary">+ Agregar pago</button>
             </div>
             <div id="payments-list" class="payments-list"></div>
@@ -476,6 +478,35 @@
         <button type="button" class="btn btn-primary" id="btn-confirm-payment">✓ Confirmar pago</button>
         <div style="flex:1"></div>
         <button type="button" class="btn btn-gray" data-close-modal="payment-modal">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ Modal: Registrar propina ═══ -->
+  <div class="modal-ov" id="tip-modal">
+    <div class="modal-box">
+      <h3>💵 Registrar propina</h3>
+      <div id="tip-info" class="payment-info"></div>
+      <p class="modal-hint">La propina se paga a los recreadores: suma al cobro del proveedor de ese evento y entra en caja.</p>
+      <div id="tip-current" class="modal-hint" style="display:none; color: var(--amber);"></div>
+      <div class="form-grid form-grid-2" style="margin-top:14px;">
+        <div class="form-group form-full">
+          <label>Importe ($)</label>
+          <input type="number" id="tip-amount" min="0" step="1" value="0" />
+        </div>
+        <div class="form-group form-full">
+          <label>Forma de pago *</label>
+          <select id="tip-method" data-options="paymentsIncome" data-empty-option="— Elegir —" required></select>
+        </div>
+        <div class="form-group form-full">
+          <label>Comentarios</label>
+          <textarea id="tip-notes" rows="2" placeholder="Opcional…"></textarea>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn btn-primary" id="btn-confirm-tip">✓ Confirmar propina</button>
+        <div style="flex:1"></div>
+        <button type="button" class="btn btn-gray" data-close-modal="tip-modal">Cancelar</button>
       </div>
     </div>
   </div>
